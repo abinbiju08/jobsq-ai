@@ -159,7 +159,7 @@ export default function FaceLogin({ onBack }) {
 
         setProgress(100); setStatus('success'); stopCamera()
         // Redirect to home after brief success screen
-        setTimeout(() => window.location.href = '/home', 1500)
+        setTimeout(() => window.location.reload(), 1500)
 
       } else {
         setStatus('error')
