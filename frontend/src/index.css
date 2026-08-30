@@ -3,3 +3,47 @@ body { font-family: 'Inter', system-ui, sans-serif; background: #080c18; color: 
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #111520; }
 ::-webkit-scrollbar-thumb { background: #1e2540; border-radius: 3px; }
+
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width: 768px) {
+
+  /* NAVBAR */
+  .navbar { padding: 0 .75rem !important; }
+  .nav-links { gap: 2px !important; }
+  .nav-link { padding: .35rem .5rem !important; font-size: 11px !important; }
+  .nav-logo-text { font-size: 13px !important; }
+  .live-pill { display: none !important; }
+
+  /* HOME PAGE */
+  .home-content { padding: 2rem 1rem 3rem !important; }
+  .stats-row { gap: .6rem !important; flex-wrap: wrap !important; justify-content: center !important; }
+  .sc { min-width: 85px !important; padding: 1rem 1.1rem !important; }
+  .sc-num { font-size: 1.9rem !important; }
+  .sc-suffix { font-size: 1.1rem !important; }
+  .cards-grid { grid-template-columns: 1fr !important; gap: .85rem !important; }
+
+  /* LOGIN */
+  .lw { width: 94vw !important; }
+  .tabs { gap: .3rem !important; }
+  .tab-btn { font-size: 10.5px !important; padding: .45rem .3rem !important; }
+  .card { padding: 1.75rem 1.25rem 1.5rem !important; }
+  .brand-name { font-size: 15px !important; }
+
+  /* JOBS PAGE */
+  .home-page { height: auto !important; flex-direction: column !important; }
+
+  /* DASHBOARD */
+  .statsGrid { grid-template-columns: repeat(2,1fr) !important; }
+
+  /* PROFILE */
+  .prof-page { padding: 1.5rem .75rem !important; }
+  .face-status { flex-direction: column !important; align-items: flex-start !important; }
+  .prof-wrap { max-width: 100% !important; }
+}
+
+@media (max-width: 420px) {
+  .sc { min-width: 75px !important; padding: .85rem .9rem !important; }
+  .sc-num { font-size: 1.6rem !important; }
+  .tab-btn { font-size: 9.5px !important; padding: .4rem .2rem !important; }
+  .nav-link { font-size: 10px !important; padding: .3rem .4rem !important; }
+}
