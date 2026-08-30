@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+supabase
+python-dotenv
+google-generativeai
+PyPDF2
+python-docx
+httpx
+beautifulsoup4
+python-multipart
+apscheduler

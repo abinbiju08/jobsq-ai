@@ -1,0 +1,5 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', system-ui, sans-serif; background: #080c18; color: #eef0ff; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #111520; }
+::-webkit-scrollbar-thumb { background: #1e2540; border-radius: 3px; }
