@@ -159,7 +159,7 @@ export default function FaceLogin({ onBack }) {
 
         setProgress(100); setStatus('success'); stopCamera()
         // Redirect to home after brief success screen
-         setTimeout(() => window.location.replace('/home'), 1500)
+         setProgress(100); setStatus('success'); stopCamera()
       } else {
         setStatus('error')
         setErrorMsg(`Face not recognised (score: ${bestDist.toFixed(2)}). Please try again or use email login.`)
