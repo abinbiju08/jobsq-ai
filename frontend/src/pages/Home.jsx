@@ -71,7 +71,6 @@ export default function Home() {
       animId=requestAnimationFrame(draw)
     }
     draw()
-    // start counters after 1.2s automatically
     setTimeout(()=>setStatsStarted(true), 1200)
     return()=>{cancelAnimationFrame(animId);window.removeEventListener('resize',resize)}
   },[])
@@ -79,18 +78,19 @@ export default function Home() {
   useEffect(()=>{if(statsStarted) runCounters()},[statsStarted,runCounters])
 
   const cards = [
-    { icon:'🔎', title:'Find Suitable Jobs', desc:'Upload your resume and discover jobs that match your skills and experience.', tag:'AI Matched', tagColor:'#00e5a0', tagBg:'rgba(0,229,160,0.1)', border:'rgba(0,229,160,0.25)', glow:'rgba(0,229,160,0.12)', gradient:'linear-gradient(135deg,rgba(0,229,160,0.1),rgba(0,229,160,0.02))', btn:'Find Jobs →', path:'/jobs' },
-    { icon:'📄', title:'ATS Resume Checker', desc:"Check your resume's ATS compatibility and identify areas that need improvement.", tag:'ATS Score', tagColor:'#7c6ff7', tagBg:'rgba(124,111,247,0.12)', border:'rgba(124,111,247,0.25)', glow:'rgba(124,111,247,0.12)', gradient:'linear-gradient(135deg,rgba(124,111,247,0.1),rgba(124,111,247,0.02))', btn:'Check Now →', path:'/resume' },
-    { icon:'📝', title:'Resume & Cover Letter Builder', desc:'Create professional, ATS-friendly resumes and personalized cover letters with AI.', tag:'AI Builder', tagColor:'#3b82f6', tagBg:'rgba(59,130,246,0.12)', border:'rgba(59,130,246,0.25)', glow:'rgba(59,130,246,0.12)', gradient:'linear-gradient(135deg,rgba(59,130,246,0.1),rgba(59,130,246,0.02))', btn:'Build Resume →', path:'/resume' },
-    { icon:'🎤', title:'AI Interview Prep', desc:'Practice role-specific interview questions and get AI-powered feedback instantly.', tag:'Coming Soon', tagColor:'#f5a623', tagBg:'rgba(245,166,35,0.12)', border:'rgba(245,166,35,0.25)', glow:'rgba(245,166,35,0.12)', gradient:'linear-gradient(135deg,rgba(245,166,35,0.1),rgba(245,166,35,0.02))', btn:'Start Prep →', path:'/dashboard' },
-    { icon:'📬', title:'Application Assistant', desc:'Get help with job applications, application questions, and personalized responses.', tag:'AI Assist', tagColor:'#ec4899', tagBg:'rgba(236,72,153,0.12)', border:'rgba(236,72,153,0.25)', glow:'rgba(236,72,153,0.12)', gradient:'linear-gradient(135deg,rgba(236,72,153,0.1),rgba(236,72,153,0.02))', btn:'Get Help →', path:'/dashboard' },
-    { icon:'📊', title:'Application Tracker', desc:'Track your applications, interviews, follow-ups, and progress all in one place.', tag:'Tracker', tagColor:'#14b8a6', tagBg:'rgba(20,184,166,0.12)', border:'rgba(20,184,166,0.25)', glow:'rgba(20,184,166,0.12)', gradient:'linear-gradient(135deg,rgba(20,184,166,0.1),rgba(20,184,166,0.02))', btn:'Track Apps →', path:'/dashboard' },
+    { icon:'ti-search',        title:'Find suitable jobs',            desc:'Upload your resume and discover jobs that match your skills and experience.',              tag:'AI Matched',  tagColor:'#00e5a0', tagBg:'rgba(0,229,160,0.1)',   border:'rgba(0,229,160,0.25)',   glow:'rgba(0,229,160,0.12)',   gradient:'linear-gradient(135deg,rgba(0,229,160,0.1),rgba(0,229,160,0.02))',   btn:'Find jobs',     path:'/jobs' },
+    { icon:'ti-file-check',    title:'ATS resume checker',            desc:"Check your resume's ATS compatibility and identify areas that need improvement.",         tag:'ATS Score',   tagColor:'#7c6ff7', tagBg:'rgba(124,111,247,0.12)', border:'rgba(124,111,247,0.25)', glow:'rgba(124,111,247,0.12)', gradient:'linear-gradient(135deg,rgba(124,111,247,0.1),rgba(124,111,247,0.02))', btn:'Check now',     path:'/resume' },
+    { icon:'ti-pencil',        title:'Resume & cover letter builder', desc:'Create professional, ATS-friendly resumes and personalized cover letters with AI.',        tag:'AI Builder',  tagColor:'#3b82f6', tagBg:'rgba(59,130,246,0.12)',  border:'rgba(59,130,246,0.25)',  glow:'rgba(59,130,246,0.12)',  gradient:'linear-gradient(135deg,rgba(59,130,246,0.1),rgba(59,130,246,0.02))',  btn:'Build resume',  path:'/resume-builder' },
+    { icon:'ti-microphone',    title:'AI interview prep',             desc:'Practice role-specific interview questions and get AI-powered feedback instantly.',        tag:'AI Powered', tagColor:'#f5a623', tagBg:'rgba(245,166,35,0.12)', border:'rgba(245,166,35,0.25)', glow:'rgba(245,166,35,0.12)', gradient:'linear-gradient(135deg,rgba(245,166,35,0.1),rgba(245,166,35,0.02))', btn:'Start prep', path:'/interview' },
+    { icon:'ti-users',         title:"Let's connect",                 desc:'Chat with job seekers across India — ask about companies, interviews, salary, and AI doubts.', tag:'Community', tagColor:'#7c6ff7', tagBg:'rgba(124,111,247,0.12)', border:'rgba(124,111,247,0.25)', glow:'rgba(124,111,247,0.12)', gradient:'linear-gradient(135deg,rgba(124,111,247,0.1),rgba(124,111,247,0.02))', btn:'Join community', path:'/connect' },
+    { icon:'ti-layout-kanban', title:'Application tracker',           desc:'Track your applications, interviews, follow-ups, and progress all in one place.',          tag:'Tracker',     tagColor:'#14b8a6', tagBg:'rgba(20,184,166,0.12)',  border:'rgba(20,184,166,0.25)',  glow:'rgba(20,184,166,0.12)',  gradient:'linear-gradient(135deg,rgba(20,184,166,0.1),rgba(20,184,166,0.02))',  btn:'Track apps',    path:'/tracker' },
   ]
 
   const name = user?.email?.split('@')[0] || 'there'
 
   return (
     <>
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
         @keyframes shootOut{0%{transform:translate(0,0) scale(1);opacity:1;}100%{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0;}}
@@ -105,8 +105,9 @@ export default function Home() {
         .orb-tr{position:absolute;top:-150px;right:-150px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(124,111,247,0.15) 0%,transparent 70%);filter:blur(60px);pointer-events:none;animation:orbTR 20s ease-in-out infinite;}
         .orb-bc{position:absolute;bottom:-100px;left:50%;transform:translateX(-50%);width:600px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(0,229,160,0.06) 0%,transparent 70%);filter:blur(70px);pointer-events:none;}
         .home-content{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;padding:3.5rem 2rem 4rem;}
-        .hero-greeting{font-size:12px;color:#8b93b0;margin-bottom:1rem;letter-spacing:.06em;text-transform:uppercase;font-weight:500;opacity:0;transform:translateY(16px);transition:opacity .6s,transform .6s;}
+        .hero-greeting{display:flex;align-items:center;gap:.5rem;font-size:12px;color:#8b93b0;margin-bottom:1rem;letter-spacing:.06em;text-transform:uppercase;font-weight:500;opacity:0;transform:translateY(16px);transition:opacity .6s,transform .6s;}
         .hero-greeting.show{opacity:1;transform:translateY(0);}
+        .hero-greeting i{font-size:14px;color:#00e5a0;}
         .hero-heading{font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:900;text-align:center;line-height:1.15;margin-bottom:1rem;letter-spacing:-.03em;opacity:0;transform:translateY(24px);transition:opacity .7s .15s,transform .7s .15s;}
         .hero-heading.show{opacity:1;transform:translateY(0);}
         .hl{background:linear-gradient(135deg,#00e5a0,#7c6ff7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
@@ -130,12 +131,15 @@ export default function Home() {
         .feat-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--fc-color),transparent);opacity:0;transition:opacity .3s;}
         .feat-card:hover::after{opacity:1;}
         .fc-glow-orb{position:absolute;top:-30px;right:-30px;width:130px;height:130px;border-radius:50%;background:var(--fc-glow);filter:blur(35px);pointer-events:none;opacity:.6;}
-        .fc-icon{font-size:2rem;margin-bottom:1rem;}
+        .fc-icon-wrap{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;background:var(--fc-tagbg);border:1px solid var(--fc-border);}
+        .fc-icon-wrap i{font-size:20px;color:var(--fc-color);}
         .fc-tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;margin-bottom:.85rem;letter-spacing:.04em;text-transform:uppercase;background:var(--fc-tagbg);color:var(--fc-color);}
         .fc-title{font-size:1rem;font-weight:800;color:#eef0ff;margin-bottom:.6rem;line-height:1.3;}
         .fc-desc{font-size:12.5px;color:#8b93b0;line-height:1.65;margin-bottom:1.25rem;}
-        .fc-btn{display:inline-flex;align-items:center;gap:.35rem;font-size:12.5px;font-weight:700;padding:.5rem 1rem;border-radius:9px;border:none;cursor:pointer;font-family:'Inter',sans-serif;background:var(--fc-tagbg);color:var(--fc-color);transition:opacity .15s,transform .15s;}
+        .fc-btn{display:inline-flex;align-items:center;gap:.5rem;font-size:12.5px;font-weight:600;padding:.5rem 1rem;border-radius:9px;border:none;cursor:pointer;font-family:'Inter',sans-serif;background:var(--fc-tagbg);color:var(--fc-color);transition:opacity .15s,transform .15s;}
+        .fc-btn i{font-size:14px;transition:transform .2s;}
         .feat-card:hover .fc-btn{transform:translateX(3px);}
+        .feat-card:hover .fc-btn i{transform:translateX(2px);}
         .bottom-cta{margin-top:2.5rem;text-align:center;font-size:13px;color:#4a5168;opacity:0;transform:translateY(16px);transition:opacity .7s .8s,transform .7s .8s;}
         .bottom-cta.show{opacity:1;transform:translateY(0);}
         .bottom-cta span{color:#00e5a0;font-weight:600;}
@@ -147,9 +151,19 @@ export default function Home() {
         <canvas ref={canvasRef} className="home-canvas"/>
         <div className="orb-tl"/><div className="orb-tr"/><div className="orb-bc"/>
         <div className="home-content">
-          <div className={`hero-greeting ${visible?'show':''}`}>👋 Welcome back, {name}</div>
-          <h1 className={`hero-heading ${visible?'show':''}`}>Land Your Dream Job with <span className="hl">JobsQ AI</span></h1>
-          <p className={`hero-sub ${visible?'show':''}`}>Get Matched<span className="dot">·</span>Get Prepared<span className="dot">·</span>Get Hired</p>
+
+          <div className={`hero-greeting ${visible?'show':''}`}>
+            <i className="ti ti-hand-stop" aria-hidden="true"/>
+            Welcome back, {name}
+          </div>
+
+          <h1 className={`hero-heading ${visible?'show':''}`}>
+            Land your dream job with <span className="hl">JobsQ AI</span>
+          </h1>
+
+          <p className={`hero-sub ${visible?'show':''}`}>
+            Get Matched<span className="dot">·</span>Get Prepared<span className="dot">·</span>Get Hired
+          </p>
 
           <div ref={statsRef} className={`stats-row ${visible?'show':''}`}>
             <div id="s1" className="sc" style={{'--sc-clr':'#00e5a0','--sc-clr-dim':'rgba(0,229,160,0.15)'}}>
@@ -158,7 +172,7 @@ export default function Home() {
                 <span id="n1" className="sc-num">0</span>
                 <span className="sc-suffix" style={{color:'#00e5a0'}}>K+</span>
               </div>
-              <div className="sc-lbl">Active Jobs</div>
+              <div className="sc-lbl">Active jobs</div>
             </div>
             <div id="s2" className="sc" style={{'--sc-clr':'#7c6ff7','--sc-clr-dim':'rgba(124,111,247,0.15)'}}>
               <div className="sc-glow"/><div id="bar-s2" className="sc-bar"/>
@@ -166,7 +180,7 @@ export default function Home() {
                 <span id="n2" className="sc-num">0</span>
                 <span className="sc-suffix" style={{color:'#7c6ff7'}}>%</span>
               </div>
-              <div className="sc-lbl">Match Accuracy</div>
+              <div className="sc-lbl">Match accuracy</div>
             </div>
             <div id="s3" className="sc" style={{'--sc-clr':'#3b82f6','--sc-clr-dim':'rgba(59,130,246,0.15)'}}>
               <div className="sc-glow"/><div id="bar-s3" className="sc-bar"/>
@@ -174,7 +188,7 @@ export default function Home() {
                 <span id="n3" className="sc-num">0</span>
                 <span className="sc-suffix" style={{color:'#3b82f6'}}>K+</span>
               </div>
-              <div className="sc-lbl">Users Hired</div>
+              <div className="sc-lbl">Users hired</div>
             </div>
           </div>
 
@@ -184,17 +198,22 @@ export default function Home() {
                 style={{'--fc-color':card.tagColor,'--fc-border':card.border,'--fc-glow':card.glow,'--fc-tagbg':card.tagBg,'--fc-grad':card.gradient}}
                 onClick={()=>navigate(card.path)}>
                 <div className="fc-glow-orb"/>
-                <div className="fc-icon">{card.icon}</div>
+                <div className="fc-icon-wrap">
+                  <i className={`ti ${card.icon}`} aria-hidden="true"/>
+                </div>
                 <span className="fc-tag">{card.tag}</span>
                 <div className="fc-title">{card.title}</div>
                 <div className="fc-desc">{card.desc}</div>
-                <button className="fc-btn">{card.btn}</button>
+                <button className="fc-btn">
+                  {card.btn}
+                  <i className="ti ti-arrow-right" aria-hidden="true"/>
+                </button>
               </div>
             ))}
           </div>
 
           <div className={`bottom-cta ${visible?'show':''}`}>
-            <p>Powered by <span>Gemini AI</span> · Jobs updated every <span>2 hours</span></p>
+            <p>Powered by <span>Groq AI</span> · Jobs updated every <span>2 hours</span></p>
           </div>
         </div>
       </div>

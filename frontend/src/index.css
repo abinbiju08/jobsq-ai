@@ -1,49 +1,191 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+/* ── CSS VARIABLES — dark mode default ── */
+:root {
+  --bg: #080c18;
+  --bg2: #0d1120;
+  --bg3: #141828;
+  --card: rgba(6,9,20,0.85);
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #eef0ff;
+  --text2: #8b93b0;
+  --text3: #4a5168;
+  --green: #00e5a0;
+  --purple: #7c6ff7;
+  --nav-bg: rgba(6,9,20,0.95);
+  --sidebar-bg: #0d1120;
+  --job-card-bg: #141828;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Inter', system-ui, sans-serif; background: #080c18; color: #eef0ff; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  transition: background .3s, color .3s;
+}
+
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #111520; }
-::-webkit-scrollbar-thumb { background: #1e2540; border-radius: 3px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
 
-/* ── MOBILE RESPONSIVE ── */
+/* ── LIGHT MODE — only applies to inner pages ── */
+body.light {
+  --bg: #f0f4ff;
+  --bg2: #e4eaf8;
+  --bg3: #d8e0f5;
+  --card: rgba(255,255,255,0.95);
+  --border: rgba(0,0,0,0.08);
+  --border2: rgba(0,0,0,0.12);
+  --text: #0f1629;
+  --text2: #4a5580;
+  --text3: #8b93b0;
+  --green: #00a572;
+  --purple: #5a52d5;
+  --nav-bg: rgba(240,244,255,0.97);
+  --sidebar-bg: #e4eaf8;
+  --job-card-bg: #ffffff;
+  background: #f0f4ff;
+  color: #0f1629;
+}
+
+/* ── LIGHT MODE PAGE BACKGROUNDS ── */
+body.light .jobs-page,
+body.light .jobs-main,
+body.light .jobs-feed { background: #f0f4ff !important; }
+
+body.light .jobs-sidebar { background: #e4eaf8 !important; border-right-color: rgba(0,0,0,0.08) !important; }
+body.light .jobs-topbar { background: #e4eaf8 !important; border-bottom-color: rgba(0,0,0,0.08) !important; }
+
+/* Dashboard page */
+body.light [style*="minHeight:'100vh'"],
+body.light [style*="min-height: 100vh"] { background: #f0f4ff !important; }
+
+/* All dark bg inline styles */
+body.light [style*="background:#080c18"] { background: #f0f4ff !important; }
+body.light [style*="background:#0d1120"] { background: #e4eaf8 !important; }
+body.light [style*="background:#141828"] { background: #ffffff !important; }
+body.light [style*="background:rgba(6,9,20,0.85)"],
+body.light [style*="background:rgba(6,9,20,0.9)"],
+body.light [style*="background:rgba(6,9,20,0.95)"] { background: rgba(255,255,255,0.95) !important; }
+body.light [style*="background:rgba(14,18,35"] { background: #ffffff !important; }
+body.light [style*="background:rgba(255,255,255,0.03)"],
+body.light [style*="background:rgba(255,255,255,0.04)"],
+body.light [style*="background:rgba(255,255,255,0.05)"] { background: rgba(0,0,0,0.04) !important; }
+
+/* Text colors */
+body.light [style*="color:#eef0ff"] { color: #0f1629 !important; }
+body.light [style*="color:#8b93b0"] { color: #4a5580 !important; }
+body.light [style*="color:#4a5168"] { color: #8b93b0 !important; }
+
+/* Borders */
+body.light [style*="border:1px solid rgba(255,255,255,0.07)"] { border-color: rgba(0,0,0,0.08) !important; }
+body.light [style*="border:1px solid rgba(255,255,255,0.06)"] { border-color: rgba(0,0,0,0.07) !important; }
+body.light [style*="border:1px solid rgba(255,255,255,0.08)"] { border-color: rgba(0,0,0,0.09) !important; }
+body.light [style*="border:1px solid rgba(255,255,255,0.1)"] { border-color: rgba(0,0,0,0.1) !important; }
+body.light [style*="border:1px solid rgba(255,255,255,0.12)"] { border-color: rgba(0,0,0,0.12) !important; }
+
+/* Job cards */
+body.light .job-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+body.light .job-title { color: #0f1629 !important; }
+body.light .job-company { color: #4a5580 !important; }
+body.light .job-tag { background: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.08) !important; color: #4a5580 !important; }
+body.light .job-time { color: #8b93b0 !important; }
+
+/* Sidebar */
+body.light .side-item { color: #4a5580 !important; }
+body.light .side-item.active { color: #00a572 !important; background: rgba(0,165,114,0.1) !important; }
+body.light .side-label { color: #8b93b0 !important; }
+
+/* Search inputs */
+body.light .jobs-search { background: white !important; border-color: rgba(0,0,0,0.1) !important; color: #0f1629 !important; }
+body.light .jobs-count { color: #4a5580 !important; }
+
+/* View toggle */
+body.light .view-toggle { background: white !important; border-color: rgba(0,0,0,0.1) !important; }
+body.light .vbtn { color: #4a5580 !important; }
+body.light .vbtn.active { background: rgba(0,165,114,0.1) !important; color: #00a572 !important; }
+
+/* Navbar */
+.navbar { background: var(--nav-bg) !important; border-bottom-color: var(--border) !important; }
+.nav-logo-text { color: var(--text) !important; }
+.nav-link { color: var(--text2) !important; }
+.nav-link.active { color: #00e5a0 !important; }
+.nav-logout { color: var(--text2) !important; border-color: var(--border) !important; }
+
+/* Resume page */
+body.light .resume-page { background: #f0f4ff !important; }
+
+/* Dashboard */
+body.light .dash-wrap { background: #f0f4ff !important; }
+
+/* Select */
+body.light select { background: white !important; color: #0f1629 !important; }
+
+/* ── MOBILE ── */
 @media (max-width: 768px) {
-
-  /* NAVBAR */
   .navbar { padding: 0 .75rem !important; }
   .nav-links { gap: 2px !important; }
   .nav-link { padding: .35rem .5rem !important; font-size: 11px !important; }
-  .nav-logo-text { font-size: 13px !important; }
   .live-pill { display: none !important; }
-
-  /* HOME PAGE */
-  .home-content { padding: 2rem 1rem 3rem !important; }
-  .stats-row { gap: .6rem !important; flex-wrap: wrap !important; justify-content: center !important; }
-  .sc { min-width: 85px !important; padding: 1rem 1.1rem !important; }
-  .sc-num { font-size: 1.9rem !important; }
-  .sc-suffix { font-size: 1.1rem !important; }
-  .cards-grid { grid-template-columns: 1fr !important; gap: .85rem !important; }
-
-  /* LOGIN */
-  .lw { width: 94vw !important; }
-  .tabs { gap: .3rem !important; }
-  .tab-btn { font-size: 10.5px !important; padding: .45rem .3rem !important; }
-  .card { padding: 1.75rem 1.25rem 1.5rem !important; }
-  .brand-name { font-size: 15px !important; }
-
-  /* JOBS PAGE */
-  .home-page { height: auto !important; flex-direction: column !important; }
-
-  /* DASHBOARD */
-  .statsGrid { grid-template-columns: repeat(2,1fr) !important; }
-
-  /* PROFILE */
-  .prof-page { padding: 1.5rem .75rem !important; }
-  .face-status { flex-direction: column !important; align-items: flex-start !important; }
-  .prof-wrap { max-width: 100% !important; }
+  .jobs-page { flex-direction: column !important; height: auto !important; }
+  .jobs-sidebar { width: 100% !important; }
+  .cards-grid { grid-template-columns: 1fr !important; }
 }
 
-@media (max-width: 420px) {
-  .sc { min-width: 75px !important; padding: .85rem .9rem !important; }
-  .sc-num { font-size: 1.6rem !important; }
-  .tab-btn { font-size: 9.5px !important; padding: .4rem .2rem !important; }
-  .nav-link { font-size: 10px !important; padding: .3rem .4rem !important; }
+/* ── UNIVERSAL PAGE WRAPPER FIX ── */
+body.light > #root > div,
+body.light > #root > div > div {
+  background: #f0f4ff;
+  color: #0f1629;
+}
+
+/* Fix ALL divs with dark inline backgrounds in light mode */
+body.light div[style*="background:#080c18"],
+body.light div[style*="background: #080c18"] {
+  background: #f0f4ff !important;
+  color: #0f1629 !important;
+}
+body.light div[style*="background:#0d1120"],
+body.light div[style*="background: #0d1120"] {
+  background: #e4eaf8 !important;
+}
+body.light div[style*="background:#141828"],
+body.light div[style*="background: #141828"] {
+  background: #ffffff !important;
+}
+body.light div[style*="background:rgba(6,9,20"],
+body.light div[style*="background: rgba(6,9,20"] {
+  background: rgba(255,255,255,0.95) !important;
+}
+body.light div[style*="background:rgba(8,12,24"],
+body.light div[style*="background: rgba(8,12,24"] {
+  background: #e4eaf8 !important;
+}
+body.light div[style*="background:rgba(13,17,32"],
+body.light div[style*="background: rgba(13,17,32"] {
+  background: #e4eaf8 !important;
+}
+body.light div[style*="color:#eef0ff"],
+body.light p[style*="color:#eef0ff"],
+body.light span[style*="color:#eef0ff"],
+body.light h1[style*="color:#eef0ff"],
+body.light h2[style*="color:#eef0ff"],
+body.light h3[style*="color:#eef0ff"] {
+  color: #0f1629 !important;
+}
+body.light div[style*="color:#8b93b0"],
+body.light p[style*="color:#8b93b0"],
+body.light span[style*="color:#8b93b0"] {
+  color: #4a5580 !important;
+}
+body.light div[style*="color:#4a5168"],
+body.light span[style*="color:#4a5168"] {
+  color: #6b7280 !important;
+}
+body.light div[style*="border-color:rgba(255,255,255"],
+body.light div[style*="border: 1px solid rgba(255,255,255"] {
+  border-color: rgba(0,0,0,0.1) !important;
 }
