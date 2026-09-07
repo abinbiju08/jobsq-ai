@@ -56,6 +56,7 @@ function ChatRoom({ room, user, onBack }) {
   const [messages, setMessages] = useState([])
   const [editingId, setEditingId] = useState(null)
   const [editText, setEditText] = useState('')
+  const [replyTo, setReplyTo] = useState(null)
   const [input, setInput]       = useState('')
   const [tag, setTag]           = useState('')
   const [sending, setSending]   = useState(false)
@@ -116,6 +117,7 @@ function ChatRoom({ room, user, onBack }) {
     if (!text || sending || !user) return
     setSending(true)
     setInput('')
+    setReplyTo(null)
     const full = tag ? `[${tag}] ${text}` : text
     await supabase.from('community_messages').insert({
       room: room.id,
@@ -256,11 +258,22 @@ function ChatRoom({ room, user, onBack }) {
                     </div>
                   ) : (
                     <div style={{display:'flex',alignItems:'center',gap:'.35rem',flexDirection:isMine?'row-reverse':'row'}}>
-                      <div style={{padding:'.55rem .85rem',borderRadius:isMine?'14px 14px 3px 14px':'14px 14px 14px 3px',background:isMine?`${room.color}18`:'rgba(255,255,255,0.05)',border:`0.5px solid ${isMine?room.color+'30':'var(--border)'}`,fontSize:'13px',color:'var(--text)',lineHeight:1.55,wordBreak:'break-word'}}>
+                      <div style={{padding:'.55rem .85rem',borderRadius:isMine?'14px 14px 3px 14px':'14px 14px 14px 3px',background:isMine?`${room.color}18`:'rgba(255,255,255,0.05)',border:`0.5px solid ${isMine?room.color+'30':'var(--border)'}`,fontSize:'13px',color:'var(--text)',lineHeight:1.55,wordBreak:'break-word',maxWidth:'260px'}}>
+                        {msg.reply_to_text && (
+                          <div style={{background:'rgba(255,255,255,0.06)',borderLeft:`3px solid ${room.color}`,borderRadius:'4px',padding:'.3rem .5rem',marginBottom:'.4rem',fontSize:'11px',color:'var(--text2)'}}>
+                            <div style={{fontWeight:700,color:room.color,marginBottom:'1px',fontSize:'10px'}}>{msg.reply_to_name}</div>
+                            <div style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{msg.reply_to_text}{msg.reply_to_text && msg.reply_to_text.length >= 60 ? '...' : ''}</div>
+                          </div>
+                        )}
                         {msgText}
                       </div>
-                      {isMine && (
-                        <div className="msg-actions" style={{display:'flex',gap:'2px',opacity:0,transition:'opacity .15s',flexShrink:0}}>
+                      <div className="msg-actions" style={{display:'flex',gap:'2px',opacity:0,transition:'opacity .15s',flexShrink:0,flexDirection:isMine?'row-reverse':'row'}}>
+                        <button onClick={()=>setReplyTo(msg)} title="Reply"
+                          style={{background:'none',border:'none',cursor:'pointer',padding:'.25rem',color:'var(--text3)',display:'flex',alignItems:'center'}}
+                          aria-label="Reply to message">
+                          <i className="ti ti-arrow-back-up" style={{fontSize:'13px'}} aria-hidden="true"/>
+                        </button>
+                        {isMine && <>
                           <button onClick={()=>startEdit(msg)} title="Edit"
                             style={{background:'none',border:'none',cursor:'pointer',padding:'.25rem',color:'var(--text3)',display:'flex',alignItems:'center'}}
                             aria-label="Edit message">
@@ -271,8 +284,8 @@ function ChatRoom({ room, user, onBack }) {
                             aria-label="Delete message">
                             <i className="ti ti-trash" style={{fontSize:'13px'}} aria-hidden="true"/>
                           </button>
-                        </div>
-                      )}
+                        </>}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -296,6 +309,25 @@ function ChatRoom({ room, user, onBack }) {
           })}
           {tag && <button onClick={()=>setTag('')} style={{fontSize:'10px',padding:'2px 6px',borderRadius:'20px',border:'none',background:'none',color:'var(--text3)',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>✕ clear</button>}
         </div>
+
+        {/* Reply preview bar */}
+        {replyTo && (
+          <div style={{padding:'.5rem .85rem',background:'var(--bg3)',borderTop:'0.5px solid var(--border)',display:'flex',alignItems:'center',gap:'.5rem',flexShrink:0}}>
+            <div style={{flex:1,borderLeft:`3px solid ${room.color}`,paddingLeft:'.5rem'}}>
+              <div style={{fontSize:'10px',fontWeight:700,color:room.color,marginBottom:'1px'}}>
+                Replying to {replyTo.user_id === user?.id ? 'yourself' : replyTo.user_name}
+              </div>
+              <div style={{fontSize:'11px',color:'var(--text2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                {parseMsg(replyTo.message).text.slice(0,60)}
+              </div>
+            </div>
+            <button onClick={()=>setReplyTo(null)}
+              style={{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',padding:'.2rem',display:'flex',alignItems:'center'}}
+              aria-label="Cancel reply">
+              <i className="ti ti-x" style={{fontSize:'14px'}} aria-hidden="true"/>
+            </button>
+          </div>
+        )}
 
         {/* Input */}
         <div style={{padding:'.75rem 1.25rem',borderTop:'1px solid var(--border)',display:'flex',gap:'.5rem',alignItems:'flex-end',flexShrink:0}}>
