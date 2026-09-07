@@ -130,6 +130,18 @@ function ChatRoom({ room, user, onBack }) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
   }
 
+  // Unsend message — only deletes if it belongs to current user
+  const unsendMessage = async (msgId) => {
+    if (!msgId) return
+    await supabase
+      .from('community_messages')
+      .delete()
+      .eq('id', msgId)
+      .eq('user_id', user.id)
+    // Remove from local state immediately
+    setMessages(prev => prev.filter(m => m.id !== msgId))
+  }
+
   // Parse tag from message
   const parseMsg = (msg) => {
     const match = msg.match(/^\[(.+?)\]\s*(.*)/)
@@ -143,6 +155,8 @@ function ChatRoom({ room, user, onBack }) {
       <style>{`
         @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
         .cr-msg{animation:fadeUp .18s ease;}
+        .cr-msg:hover .unsend-btn{opacity:1!important;}
+        .unsend-btn:hover{color:var(--text2)!important;}
         .cr-input:focus{border-color:${room.color}55!important;}
         .cr-tag-btn:hover{border-color:${room.color}66!important;color:${room.color}!important;}
         .send-btn:hover{opacity:.85!important;}
@@ -154,8 +168,8 @@ function ChatRoom({ room, user, onBack }) {
         {/* Header */}
         <div style={{display:'flex',alignItems:'center',gap:'.75rem',padding:'.85rem 1.25rem',borderBottom:'1px solid var(--border)',background:'var(--bg2)',flexShrink:0}}>
           <button onClick={onBack} style={{background:'none',border:'none',color:'var(--text2)',cursor:'pointer',display:'flex',alignItems:'center',padding:'.2rem .4rem',borderRadius:'6px',transition:'color .15s'}}
-            onMouseEnter={e=>e.currentTarget.style.color='#eef0ff'}
-            onMouseLeave={e=>e.currentTarget.style.color='#8b93b0'}>
+            onMouseEnter={e=>e.currentTarget.style.color='var(--text)'}
+            onMouseLeave={e=>e.currentTarget.style.color='var(--text2)'}>
             <i className="ti ti-arrow-left" style={{fontSize:'18px'}} aria-hidden="true"/>
           </button>
           <div style={{width:'36px',height:'36px',borderRadius:'10px',background:`${room.color}18`,border:`1px solid ${room.color}30`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
@@ -197,8 +211,17 @@ function ChatRoom({ room, user, onBack }) {
                     <span style={{fontSize:'10px',color:'var(--text3)'}}>{timeAgo(msg.created_at)}</span>
                     {msgTag && tc && <span style={{fontSize:'9px',padding:'1px 7px',borderRadius:'10px',background:tc.bg,color:tc.color,border:`0.5px solid ${tc.border}`,fontWeight:700}}>{msgTag}</span>}
                   </div>
-                  <div style={{padding:'.55rem .85rem',borderRadius:isMine?'14px 14px 3px 14px':'14px 14px 14px 3px',background:isMine?`${room.color}18`:'rgba(255,255,255,0.05)',border:`0.5px solid ${isMine?room.color+'30':'rgba(255,255,255,0.07)'}`,fontSize:'13px',color:'var(--text)',lineHeight:1.55,wordBreak:'break-word'}}>
-                    {msgText}
+                  <div style={{display:'flex',alignItems:'center',gap:'.35rem',flexDirection:isMine?'row-reverse':'row'}}>
+                    <div style={{padding:'.55rem .85rem',borderRadius:isMine?'14px 14px 3px 14px':'14px 14px 14px 3px',background:isMine?`${room.color}18`:'rgba(255,255,255,0.05)',border:`0.5px solid ${isMine?room.color+'30':'var(--border)'}`,fontSize:'13px',color:'var(--text)',lineHeight:1.55,wordBreak:'break-word'}}>
+                      {msgText}
+                    </div>
+                    {isMine && (
+                      <button className="unsend-btn" onClick={()=>unsendMessage(msg.id)} title="Unsend"
+                        style={{background:'none',border:'none',cursor:'pointer',padding:'.25rem',color:'var(--text3)',opacity:0,transition:'opacity .15s',display:'flex',alignItems:'center',flexShrink:0}}
+                        aria-label="Unsend message">
+                        <i className="ti ti-trash" style={{fontSize:'13px'}} aria-hidden="true"/>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -214,7 +237,7 @@ function ChatRoom({ room, user, onBack }) {
             const active = tag === t
             return (
               <button key={t} className="cr-tag-btn" onClick={()=>setTag(active?'':t)}
-                style={{fontSize:'10px',padding:'2px 9px',borderRadius:'20px',border:`0.5px solid ${active?tc.border:'rgba(255,255,255,0.08)'}`,background:active?tc.bg:'transparent',color:active?tc.color:'var(--text3)',cursor:'pointer',fontFamily:'Inter,sans-serif',fontWeight:active?700:400,transition:'all .15s'}}>
+                style={{fontSize:'10px',padding:'2px 9px',borderRadius:'20px',border:`0.5px solid ${active?tc.border:'var(--border)'}`,background:active?tc.bg:'transparent',color:active?tc.color:'var(--text3)',cursor:'pointer',fontFamily:'Inter,sans-serif',fontWeight:active?700:400,transition:'all .15s'}}>
                 {t}
               </button>
             )
@@ -236,8 +259,8 @@ function ChatRoom({ room, user, onBack }) {
             style={{flex:1,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'10px',padding:'.6rem .85rem',color:'var(--text)',fontSize:'13px',fontFamily:'Inter,sans-serif',outline:'none',resize:'none',maxHeight:'100px',lineHeight:1.5,transition:'border-color .2s'}}
           />
           <button className="send-btn" onClick={send} disabled={!input.trim()||sending}
-            style={{width:'36px',height:'36px',borderRadius:'9px',background:input.trim()?`linear-gradient(135deg,${room.color},${room.color}cc)`:'rgba(255,255,255,0.06)',border:'none',cursor:input.trim()?'pointer':'default',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all .15s',opacity:sending?.6:1}}>
-            <i className="ti ti-send" style={{fontSize:'16px',color:input.trim()?'#060d0a':'#4a5168'}} aria-hidden="true"/>
+            style={{width:'36px',height:'36px',borderRadius:'9px',background:input.trim()?`linear-gradient(135deg,${room.color},${room.color}cc)`:'var(--border)',border:'none',cursor:input.trim()?'pointer':'default',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all .15s',opacity:sending?.6:1}}>
+            <i className="ti ti-send" style={{fontSize:'16px',color:input.trim()?'#060d0a':'var(--text3)'}} aria-hidden="true"/>
           </button>
         </div>
       </div>
@@ -355,10 +378,10 @@ export default function LetsConnect() {
               const isActive = count > 0
               return (
                 <div key={room.id} className="room-card"
-                  style={{borderColor:isActive?`${room.color}25`:'rgba(255,255,255,0.07)'}}
+                  style={{borderColor:isActive?`${room.color}25`:'var(--border)'}}
                   onClick={()=>setActiveRoom(room)}
                   onMouseEnter={e=>{e.currentTarget.style.borderColor=room.color+'55';e.currentTarget.style.boxShadow=`0 8px 24px ${room.color}18`}}
-                  onMouseLeave={e=>{e.currentTarget.style.borderColor=isActive?`${room.color}25`:'rgba(255,255,255,0.07)';e.currentTarget.style.boxShadow='none'}}>
+                  onMouseLeave={e=>{e.currentTarget.style.borderColor=isActive?`${room.color}25`:'var(--border)';e.currentTarget.style.boxShadow='none'}}>
 
                   {/* Glow orb */}
                   <div style={{position:'absolute',top:'-20px',right:'-20px',width:'80px',height:'80px',borderRadius:'50%',background:`${room.color}0e`,filter:'blur(20px)',pointerEvents:'none'}}/>
