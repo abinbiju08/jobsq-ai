@@ -77,7 +77,7 @@ function JobMap({ search }) {
     const light = document.body.classList.contains('light')
     const initTile = light
       ? L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap', maxZoom:18 })
-      : L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap contributors', maxZoom:19 })
+      : L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap', maxZoom:18, className:'dark-tiles' })
     initTile.addTo(map); tileLayerRef.current = initTile
     L.control.zoom({ position:'bottomright' }).addTo(map)
     mapInstanceRef.current = map; runSearch(true)
@@ -89,7 +89,7 @@ function JobMap({ search }) {
     if (tileLayerRef.current) map.removeLayer(tileLayerRef.current)
     const newTile = isLight
       ? L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap', maxZoom:18 })
-      : L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap contributors', maxZoom:19 })
+      : L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap', maxZoom:18, className:'dark-tiles' })
     newTile.addTo(map); tileLayerRef.current = newTile
   }, [isLight])
 
@@ -310,6 +310,7 @@ export default function Jobs() {
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
+  .dark-tiles{filter:invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.7);}
         .jobs-page{display:flex;height:calc(100vh - 52px);background:var(--bg,#080c18);}
         .jobs-sidebar{width:200px;background:var(--bg2,#0d1120);border-right:1px solid var(--border,rgba(255,255,255,0.07));padding:1rem .85rem;overflow-y:auto;flex-shrink:0;}
         .side-label{font-size:10px;font-weight:600;color:var(--text3,#4a5168);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;padding:.25rem .4rem;}
