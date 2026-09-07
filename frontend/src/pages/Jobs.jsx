@@ -77,7 +77,7 @@ function JobMap({ search }) {
     const light = document.body.classList.contains('light')
     const initTile = light
       ? L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap', maxZoom:18 })
-      : L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', { attribution:'© Stadia Maps', maxZoom:18 })
+      : L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution:'© OpenStreetMap © CARTO', maxZoom:19, subdomains:'abcd' })
     initTile.addTo(map); tileLayerRef.current = initTile
     L.control.zoom({ position:'bottomright' }).addTo(map)
     mapInstanceRef.current = map; runSearch(true)
@@ -89,7 +89,7 @@ function JobMap({ search }) {
     if (tileLayerRef.current) map.removeLayer(tileLayerRef.current)
     const newTile = isLight
       ? L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap', maxZoom:18 })
-      : L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', { attribution:'© Stadia Maps', maxZoom:18 })
+      : L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution:'© OpenStreetMap © CARTO', maxZoom:19, subdomains:'abcd' })
     newTile.addTo(map); tileLayerRef.current = newTile
   }, [isLight])
 
