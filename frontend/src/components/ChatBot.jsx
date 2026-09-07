@@ -213,10 +213,10 @@ function BotBubble({ msg, onFormSubmit }) {
     )
   }
   const rendered = renderMarkdown(msg.text)
-  const isStructured = msg.text.includes('\n') || /^\d+\.\s/.test(msg.text)
+  const hasCards = msg.text && /^\d+\./m.test(msg.text)
   return (
-    <div style={{background:'rgba(255,255,255,0.05)',border:'0.5px solid var(--border)',borderRadius:'14px 14px 14px 3px',padding:isStructured?'.75rem .85rem':'.6rem .85rem',maxWidth:'88%',alignSelf:'flex-start',animation:'fadeIn .2s ease'}}>
-      {isStructured ? rendered : <span style={{fontSize:'12.5px',color:'var(--text)',lineHeight:1.6}}>{parseBold(msg.text)}</span>}
+    <div style={{background:'rgba(255,255,255,0.05)',border:'0.5px solid var(--border)',borderRadius:'14px 14px 14px 3px',padding:hasCards?'.75rem .85rem':'.6rem .85rem',maxWidth:'88%',alignSelf:'flex-start',animation:'fadeIn .2s ease'}}>
+      {rendered.length > 0 ? rendered : <span style={{fontSize:'12.5px',color:'var(--text)',lineHeight:1.6}}>{msg.text}</span>}
     </div>
   )
 }
@@ -327,22 +327,21 @@ export default function ChatBot() {
 
       const SYSTEM = `You are JobsQ AI — a career assistant for job seekers in India.
 
-RESPONSE FORMAT (strictly follow):
-- Always use numbered list: 1. Title: explanation on same line.
-- Each point on its own line. Max 5 points. No **, no ##, no ---, no tables.
-- Each point max 2 sentences. Total under 200 words.
+STRICT FORMAT RULES:
+- Start your response DIRECTLY with "1." — NO title, NO heading, NO intro sentence before the list.
+- Use numbered list ONLY: 1. Title: explanation.
+- Each point on its own line. Max 5 points. Max 2 sentences each.
+- NO **, NO ##, NO ---, NO tables, NO intro text before the list.
+- Wrong: "Here are tips: 1. ..."  Right: "1. ..."
+- Wrong: "Top Tips\n1. ..."  Right: "1. ..."
 
-HANDLE THESE TOPICS:
-
-Resume tips → Give 5 specific ATS resume tips. Cover: keywords, layout, skills section, achievements with numbers, file format.
-
-Interview tips → Give 5 practical interview techniques. Cover: STAR method, research company, body language, common questions, follow-up.
-
-Salary negotiation → Give 5 India-specific salary tactics. Cover: market research, timing, counter-offer, benefits, walking away.
-
-Job search → Use the Find me jobs flow. Ask for location and role.
-
-For anything unrelated to careers, politely decline.`
+TOPICS:
+Resume tips: 5 ATS tips — keywords, layout, skills, numbers, file format.
+Interview tips: 5 techniques — STAR, research, body language, questions, follow-up.
+Salary negotiation: 5 India tactics — research, timing, counter-offer, benefits, confidence.
+Job search: Ask for location and role to search database.
+Other career topics: Answer helpfully in numbered format.
+Unrelated topics: Politely decline.`
 
       const res  = await fetch(`${API}/ai/chat`, {
         method:'POST', headers:{'Content-Type':'application/json'},
