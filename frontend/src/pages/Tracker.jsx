@@ -18,13 +18,13 @@ const STATUS_ICONS = {
 }
 
 const S = {
-  page:  { background:'var(--bg,#080c18)', minHeight:'calc(100vh - 52px)', fontFamily:'Inter,sans-serif', padding:'1.5rem 1rem' },
+  page:  { background:'var(--bg)', minHeight:'calc(100vh - 52px)', fontFamily:'Inter,sans-serif', padding:'1.5rem 1rem' },
   wrap:  { maxWidth:'1100px', margin:'0 auto' },
-  card:  { background:'var(--bg3,#141828)', border:'1px solid var(--border,rgba(255,255,255,0.07))', borderRadius:'14px', padding:'1.25rem' },
+  card:  { background:'var(--bg3)', border:'1px solid var(--border,rgba(255,255,255,0.07))', borderRadius:'14px', padding:'1.25rem' },
   btn:   { display:'flex', alignItems:'center', gap:'.4rem', padding:'.6rem 1.1rem', background:'linear-gradient(135deg,#00e5a0,#00c484)', border:'none', borderRadius:'9px', color:'#060d0a', fontSize:'13px', fontWeight:700, cursor:'pointer', fontFamily:'Inter,sans-serif' },
-  btnG:  { display:'flex', alignItems:'center', gap:'.4rem', padding:'.6rem 1.1rem', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'9px', color:'#8b93b0', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'Inter,sans-serif' },
-  input: { width:'100%', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'9px', padding:'.55rem .85rem', color:'#eef0ff', fontSize:'13px', fontFamily:'Inter,sans-serif', outline:'none', boxSizing:'border-box' },
-  label: { fontSize:'11px', fontWeight:700, color:'#4a5168', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:'.3rem', display:'block' },
+  btnG:  { display:'flex', alignItems:'center', gap:'.4rem', padding:'.6rem 1.1rem', background:'rgba(var(--input-bg,255,255,255),0.04)', border:'1px solid var(--border2)', borderRadius:'9px', color:'var(--text2)', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'Inter,sans-serif' },
+  input: { width:'100%', background:'rgba(var(--input-bg,255,255,255),0.04)', border:'1px solid var(--border)', borderRadius:'9px', padding:'.55rem .85rem', color:'var(--text)', fontSize:'13px', fontFamily:'Inter,sans-serif', outline:'none', boxSizing:'border-box' },
+  label: { fontSize:'11px', fontWeight:700, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:'.3rem', display:'block' },
 }
 
 function AddApplicationModal({ onClose, onAdd }) {
@@ -42,15 +42,15 @@ function AddApplicationModal({ onClose, onAdd }) {
 
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(6,9,20,0.88)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(8px)',padding:'1rem'}}>
-      <div style={{background:'#0d1120',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'20px',padding:'1.75rem',width:'100%',maxWidth:'480px',maxHeight:'90vh',overflowY:'auto'}}>
+      <div style={{background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:'20px',padding:'1.75rem',width:'100%',maxWidth:'480px',maxHeight:'90vh',overflowY:'auto'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.25rem'}}>
           <div style={{display:'flex',alignItems:'center',gap:'.6rem'}}>
             <div style={{width:'32px',height:'32px',borderRadius:'8px',background:'rgba(0,229,160,0.1)',border:'1px solid rgba(0,229,160,0.2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
               <i className="ti ti-layout-kanban" style={{fontSize:'16px',color:'#00e5a0'}} aria-hidden="true"/>
             </div>
-            <span style={{fontSize:'15px',fontWeight:700,color:'#eef0ff'}}>Track application</span>
+            <span style={{fontSize:'15px',fontWeight:700,color:'var(--text)'}}>Track application</span>
           </div>
-          <button onClick={onClose} style={{background:'none',border:'none',color:'#8b93b0',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <button onClick={onClose} style={{background:'none',border:'none',color:'var(--text2)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
             <i className="ti ti-x" style={{fontSize:'18px'}} aria-hidden="true"/>
           </button>
         </div>
@@ -137,7 +137,7 @@ export default function Tracker() {
   })
 
   const statCards = [
-    { label:'Total',     value:stats.total||0,     color:'#eef0ff', icon:'ti-chart-bar' },
+    { label:'Total',     value:stats.total||0,     color:'var(--text)', icon:'ti-chart-bar' },
     { label:'Applied',   value:stats.Applied||0,   color:'#3b82f6', icon:'ti-send' },
     { label:'Interview', value:stats.Interview||0, color:'#f5a623', icon:'ti-users' },
     { label:'Offer',     value:stats.Offer||0,     color:'#00e5a0', icon:'ti-check' },
@@ -157,9 +157,9 @@ export default function Tracker() {
                 <div style={{width:'36px',height:'36px',borderRadius:'10px',background:'rgba(0,229,160,0.1)',border:'1px solid rgba(0,229,160,0.2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
                   <i className="ti ti-layout-kanban" style={{fontSize:'18px',color:'#00e5a0'}} aria-hidden="true"/>
                 </div>
-                <h1 style={{fontSize:'22px',fontWeight:800,color:'#eef0ff',margin:0}}>Application tracker</h1>
+                <h1 style={{fontSize:'22px',fontWeight:800,color:'var(--text)',margin:0}}>Application tracker</h1>
               </div>
-              <p style={{fontSize:'13px',color:'#8b93b0',marginLeft:'52px'}}>Track your job applications, interviews, and offers all in one place</p>
+              <p style={{fontSize:'13px',color:'var(--text2)',marginLeft:'52px'}}>Track your job applications, interviews, and offers all in one place</p>
             </div>
             <button style={S.btn} onClick={()=>setShowAdd(true)}>
               <i className="ti ti-plus" aria-hidden="true"/>
@@ -173,7 +173,7 @@ export default function Tracker() {
               <div key={label}
                 style={{...S.card,textAlign:'center',cursor:'pointer',border:`1px solid ${filterStatus===label||filterStatus==='All'&&label==='Total'?'rgba(0,229,160,0.25)':'rgba(255,255,255,0.07)'}`,transition:'border-color .15s'}}
                 onClick={()=>setFilter(label==='Total'?'All':label)}>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'.35rem',fontSize:'11px',color:'#4a5168',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.4rem'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'.35rem',fontSize:'11px',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.4rem'}}>
                   <i className={`ti ${icon}`} style={{fontSize:'13px',color}} aria-hidden="true"/>
                   {label}
                 </div>
@@ -185,7 +185,7 @@ export default function Tracker() {
           {/* Search + Filter */}
           <div style={{display:'flex',gap:'.75rem',marginBottom:'1.25rem',flexWrap:'wrap'}}>
             <div style={{flex:1,minWidth:'200px',position:'relative'}}>
-              <i className="ti ti-search" style={{position:'absolute',left:'.75rem',top:'50%',transform:'translateY(-50%)',fontSize:'14px',color:'#4a5168'}} aria-hidden="true"/>
+              <i className="ti ti-search" style={{position:'absolute',left:'.75rem',top:'50%',transform:'translateY(-50%)',fontSize:'14px',color:'var(--text3)'}} aria-hidden="true"/>
               <input style={{...S.input,paddingLeft:'2.25rem'}} value={search} onChange={e=>setSearch(e.target.value)} placeholder='Search by job title or company...'/>
             </div>
             <div style={{display:'flex',gap:'.35rem',flexWrap:'wrap'}}>
@@ -205,20 +205,20 @@ export default function Tracker() {
 
           {/* Applications List */}
           {loading ? (
-            <div style={{textAlign:'center',padding:'3rem',color:'#8b93b0',fontSize:'13px'}}>
+            <div style={{textAlign:'center',padding:'3rem',color:'var(--text2)',fontSize:'13px'}}>
               <i className="ti ti-loader" style={{fontSize:'24px',display:'block',marginBottom:'.75rem',animation:'spin 1s linear infinite'}} aria-hidden="true"/>
               Loading applications...
               <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
             </div>
           ) : filtered.length === 0 ? (
             <div style={{...S.card,textAlign:'center',padding:'3rem'}}>
-              <div style={{width:'56px',height:'56px',borderRadius:'16px',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.07)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1rem'}}>
-                <i className="ti ti-inbox" style={{fontSize:'26px',color:'#4a5168'}} aria-hidden="true"/>
+              <div style={{width:'56px',height:'56px',borderRadius:'16px',background:'rgba(var(--input-bg,255,255,255),0.04)',border:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1rem'}}>
+                <i className="ti ti-inbox" style={{fontSize:'26px',color:'var(--text3)'}} aria-hidden="true"/>
               </div>
-              <div style={{fontSize:'15px',fontWeight:700,color:'#eef0ff',marginBottom:'.35rem'}}>
+              <div style={{fontSize:'15px',fontWeight:700,color:'var(--text)',marginBottom:'.35rem'}}>
                 {apps.length===0 ? 'No applications yet' : 'No results found'}
               </div>
-              <div style={{fontSize:'13px',color:'#8b93b0',marginBottom:'1.25rem'}}>
+              <div style={{fontSize:'13px',color:'var(--text2)',marginBottom:'1.25rem'}}>
                 {apps.length===0 ? 'Start tracking your job applications — applied, interviews, offers and more!' : 'Try a different search or filter'}
               </div>
               {apps.length===0 && (
@@ -238,8 +238,8 @@ export default function Tracker() {
                     <div style={{flex:1,minWidth:'200px'}}>
                       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'.5rem',flexWrap:'wrap'}}>
                         <div>
-                          <div style={{fontSize:'14px',fontWeight:700,color:'#eef0ff',marginBottom:'2px'}}>{app.job_title}</div>
-                          <div style={{fontSize:'12px',color:'#8b93b0'}}>{app.company}{app.location?` · ${app.location}`:''}</div>
+                          <div style={{fontSize:'14px',fontWeight:700,color:'var(--text)',marginBottom:'2px'}}>{app.job_title}</div>
+                          <div style={{fontSize:'12px',color:'var(--text2)'}}>{app.company}{app.location?` · ${app.location}`:''}</div>
                         </div>
                         <div style={{display:'flex',gap:'.35rem',alignItems:'center',flexShrink:0}}>
                           <select
@@ -249,7 +249,7 @@ export default function Tracker() {
                             {STATUSES.map(s=><option key={s} value={s}>{s}</option>)}
                           </select>
                           <button onClick={()=>deleteApp(app.id)}
-                            style={{background:'none',border:'none',color:'#4a5168',cursor:'pointer',padding:'.2rem .4rem',display:'flex',alignItems:'center',transition:'color .15s'}}
+                            style={{background:'none',border:'none',color:'var(--text3)',cursor:'pointer',padding:'.2rem .4rem',display:'flex',alignItems:'center',transition:'color .15s'}}
                             onMouseEnter={e=>e.currentTarget.style.color='#ff4d6d'}
                             onMouseLeave={e=>e.currentTarget.style.color='#4a5168'}>
                             <i className="ti ti-trash" style={{fontSize:'15px'}} aria-hidden="true"/>
@@ -260,19 +260,19 @@ export default function Tracker() {
                       {/* Tags */}
                       <div style={{display:'flex',gap:'.4rem',flexWrap:'wrap',marginTop:'.5rem',alignItems:'center'}}>
                         {app.applied_date && (
-                          <span style={{display:'flex',alignItems:'center',gap:'.25rem',fontSize:'11px',color:'#4a5168'}}>
+                          <span style={{display:'flex',alignItems:'center',gap:'.25rem',fontSize:'11px',color:'var(--text3)'}}>
                             <i className="ti ti-calendar" style={{fontSize:'12px'}} aria-hidden="true"/>
                             {app.applied_date}
                           </span>
                         )}
                         {app.salary && (
-                          <span style={{display:'flex',alignItems:'center',gap:'.25rem',fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.07)',color:'#8b93b0'}}>
+                          <span style={{display:'flex',alignItems:'center',gap:'.25rem',fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:'rgba(var(--input-bg,255,255,255),0.04)',border:'1px solid var(--border)',color:'var(--text2)'}}>
                             <i className="ti ti-currency-rupee" style={{fontSize:'11px'}} aria-hidden="true"/>
                             {app.salary}
                           </span>
                         )}
                         {app.job_type && (
-                          <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.07)',color:'#8b93b0'}}>
+                          <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:'rgba(var(--input-bg,255,255,255),0.04)',border:'1px solid var(--border)',color:'var(--text2)'}}>
                             {app.job_type}
                           </span>
                         )}
@@ -302,12 +302,12 @@ export default function Tracker() {
                       ) : (
                         <div style={{marginTop:'.5rem',display:'flex',alignItems:'flex-start',gap:'.5rem'}}>
                           {app.notes ? (
-                            <div style={{fontSize:'12px',color:'#8b93b0',flex:1,lineHeight:1.5,padding:'.5rem .75rem',background:'rgba(255,255,255,0.02)',borderRadius:'7px',border:'1px solid rgba(255,255,255,0.05)'}}>{app.notes}</div>
+                            <div style={{fontSize:'12px',color:'var(--text2)',flex:1,lineHeight:1.5,padding:'.5rem .75rem',background:'rgba(255,255,255,0.02)',borderRadius:'7px',border:'1px solid rgba(255,255,255,0.05)'}}>{app.notes}</div>
                           ) : (
-                            <div style={{fontSize:'11px',color:'#4a5168',flex:1}}>No notes</div>
+                            <div style={{fontSize:'11px',color:'var(--text3)',flex:1}}>No notes</div>
                           )}
                           <button onClick={()=>setEditNotes(app.id)}
-                            style={{background:'none',border:'none',color:'#4a5168',cursor:'pointer',padding:'.2rem .4rem',display:'flex',alignItems:'center',transition:'color .15s',flexShrink:0}}
+                            style={{background:'none',border:'none',color:'var(--text3)',cursor:'pointer',padding:'.2rem .4rem',display:'flex',alignItems:'center',transition:'color .15s',flexShrink:0}}
                             onMouseEnter={e=>e.currentTarget.style.color='#8b93b0'}
                             onMouseLeave={e=>e.currentTarget.style.color='#4a5168'}>
                             <i className="ti ti-pencil" style={{fontSize:'14px'}} aria-hidden="true"/>
