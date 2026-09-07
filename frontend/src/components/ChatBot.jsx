@@ -440,16 +440,14 @@ Unrelated topics: Politely decline.`
             {loading && <div className="cb-typing"><span/><span/><span/></div>}
             <div ref={bottomRef}/>
           </div>
-          {messages.length <= 1 && (
-            <div className="cb-qr">
-              {quickReplies.map((q,i) => (
-                <button key={i} className="cb-qr-btn" onClick={()=>sendMessage(q.text)}>
-                  <i className={`ti ${q.icon}`} style={{fontSize:'12px'}} aria-hidden="true"/>
-                  {q.label}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="cb-qr">
+            {quickReplies.map((q,i) => (
+              <button key={i} className="cb-qr-btn" onClick={()=>sendMessage(q.text)}>
+                <i className={`ti ${q.icon}`} style={{fontSize:'12px'}} aria-hidden="true"/>
+                {q.label}
+              </button>
+            ))}
+          </div>
           <div className="cb-footer">
             <textarea ref={inputRef} className="cb-input"
               placeholder="Ask anything about your career..."
