@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-// ── HELPERS ───────────────────────────────────────────────────────
 function stripHtml(html) {
   return (html || '').replace(/<[^>]+>/g, ' ').replace(/[ \t]+/g, ' ').trim()
 }
@@ -24,13 +23,12 @@ function renderMarkdown(text) {
   const els = []
   const tipCards = []
   let i = 0
-  let hasIntro = false
 
   while (i < lines.length) {
     const line = lines[i].trim()
     if (!line) { i++; continue }
 
-    // Numbered tip: "1. Title: description" or "1. Title - description"
+    // Numbered tip card
     const numMatch = line.match(/^(\d+)\.\s+(.+)/)
     if (numMatch) {
       const num = numMatch[1]
@@ -42,21 +40,19 @@ function renderMarkdown(text) {
       i++; continue
     }
 
-    // If we have collected tips, flush them as 2-col grid first
+    // Flush collected tip cards as single column
     if (tipCards.length > 0) {
-      els.push(
-        <div key={'tips-'+i} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.4rem',marginBottom:'.35rem'}}>
-          {tipCards.map((tip, ti) => (
-            <div key={ti} style={{padding:'.55rem .65rem',background:'rgba(0,229,160,0.05)',border:'0.5px solid rgba(0,229,160,0.15)',borderRadius:'9px'}}>
-              <div style={{display:'flex',alignItems:'center',gap:'.35rem',marginBottom:'3px'}}>
-                <div style={{width:'16px',height:'16px',borderRadius:'4px',background:'rgba(0,229,160,0.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',fontWeight:700,color:'#00e5a0',flexShrink:0}}>{tip.num}</div>
-                <div style={{fontSize:'11.5px',fontWeight:700,color:'var(--text,#eef0ff)',lineHeight:1.3}}>{tip.title}</div>
-              </div>
-              {tip.body && <div style={{fontSize:'10.5px',color:'var(--text2,#8b93b0)',lineHeight:1.45,paddingLeft:'20px'}}>{tip.body}</div>}
+      tipCards.forEach((tip, ti) => {
+        els.push(
+          <div key={'tip-'+ti} style={{display:'flex',gap:'.6rem',marginBottom:'.5rem',alignItems:'flex-start',padding:'.6rem .75rem',background:'rgba(0,229,160,0.05)',border:'0.5px solid rgba(0,229,160,0.15)',borderRadius:'10px'}}>
+            <div style={{width:'22px',height:'22px',borderRadius:'6px',background:'rgba(0,229,160,0.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:800,color:'#00e5a0',flexShrink:0,marginTop:'1px'}}>{tip.num}</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:'12.5px',fontWeight:700,color:'var(--text,#eef0ff)',marginBottom:tip.body?'3px':0}}>{tip.title}</div>
+              {tip.body && <div style={{fontSize:'12px',color:'var(--text2,#8b93b0)',lineHeight:1.5}}>{tip.body}</div>}
             </div>
-          ))}
-        </div>
-      )
+          </div>
+        )
+      })
       tipCards.length = 0
     }
 
@@ -64,108 +60,39 @@ function renderMarkdown(text) {
     const bulletMatch = line.match(/^[-•*]\s+(.+)/)
     if (bulletMatch) {
       els.push(
-        <div key={i} style={{display:'flex',gap:'.4rem',marginBottom:'.25rem',alignItems:'flex-start'}}>
-          <div style={{width:'4px',height:'4px',borderRadius:'50%',background:'#00e5a0',flexShrink:0,marginTop:'7px'}}/>
-          <div style={{fontSize:'12px',color:'var(--text2,#8b93b0)',lineHeight:1.5,flex:1}}>{bulletMatch[1]}</div>
+        <div key={i} style={{display:'flex',gap:'.4rem',marginBottom:'.3rem',alignItems:'flex-start'}}>
+          <div style={{width:'5px',height:'5px',borderRadius:'50%',background:'#00e5a0',flexShrink:0,marginTop:'7px'}}/>
+          <div style={{fontSize:'12.5px',color:'var(--text2,#8b93b0)',lineHeight:1.5,flex:1}}>{parseBold(bulletMatch[1])}</div>
         </div>
       )
       i++; continue
     }
 
-    // Regular paragraph
+    // Regular line
     els.push(
-      <div key={i} style={{fontSize:'12px',color:'var(--text,#eef0ff)',lineHeight:1.6,marginBottom:'.2rem'}}>{line}</div>
+      <div key={i} style={{fontSize:'12.5px',color:'var(--text,#eef0ff)',lineHeight:1.65,marginBottom:'.2rem'}}>{parseBold(line)}</div>
     )
     i++
   }
 
   // Flush any remaining tips
   if (tipCards.length > 0) {
-    els.push(
-      <div key="tips-end" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.4rem'}}>
-        {tipCards.map((tip, ti) => (
-          <div key={ti} style={{padding:'.55rem .65rem',background:'rgba(0,229,160,0.05)',border:'0.5px solid rgba(0,229,160,0.15)',borderRadius:'9px'}}>
-            <div style={{display:'flex',alignItems:'center',gap:'.35rem',marginBottom:'3px'}}>
-              <div style={{width:'16px',height:'16px',borderRadius:'4px',background:'rgba(0,229,160,0.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',fontWeight:700,color:'#00e5a0',flexShrink:0}}>{tip.num}</div>
-              <div style={{fontSize:'11.5px',fontWeight:700,color:'var(--text,#eef0ff)',lineHeight:1.3}}>{tip.title}</div>
-            </div>
-            {tip.body && <div style={{fontSize:'10.5px',color:'var(--text2,#8b93b0)',lineHeight:1.45,paddingLeft:'20px'}}>{tip.body}</div>}
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  return els
-}
-
-
-    // Bullet point
-    const bulletMatch = line.match(/^[-•*]\s+(.+)/)
-    if (bulletMatch) {
+    tipCards.forEach((tip, ti) => {
       els.push(
-        <div key={i} style={{display:'flex',gap:'.4rem',marginBottom:'.3rem',alignItems:'flex-start'}}>
-          <div style={{width:'5px',height:'5px',borderRadius:'50%',background:'#00e5a0',flexShrink:0,marginTop:'7px'}}/>
-          <div style={{fontSize:'12.5px',color:'var(--text2)',lineHeight:1.5,flex:1}}>{bulletMatch[1]}</div>
-        </div>
-      )
-      i++; continue
-    }
-
-    // Regular paragraph
-    els.push(
-      <div key={i} style={{fontSize:'12.5px',color:'var(--text)',lineHeight:1.65,marginBottom:'.3rem'}}>{line}</div>
-    )
-    i++
-  }
-  return els
-}
-
-
-    // Numbered list
-    const numMatch = line.match(/^(\d+)\.\s+(.+)/)
-    if (numMatch) {
-      const boldMatch = numMatch[2].match(/^\*\*(.+?)\*\*(.*)/)
-      els.push(
-        <div key={i} style={{display:'flex',gap:'.5rem',marginBottom:'.35rem',alignItems:'flex-start'}}>
-          <div style={{width:'18px',height:'18px',borderRadius:'5px',background:'rgba(0,229,160,0.12)',border:'0.5px solid rgba(0,229,160,0.25)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',fontWeight:800,color:'#00e5a0',flexShrink:0,marginTop:'2px'}}>{numMatch[1]}</div>
-          <div style={{fontSize:'12.5px',color:'rgba(255,255,255,0.85)',lineHeight:1.5,flex:1}}>
-            {boldMatch
-              ? <><span style={{fontWeight:700,color:'var(--text)'}}>{boldMatch[1]}</span><span style={{color:'rgba(255,255,255,0.65)'}}>{boldMatch[2]}</span></>
-              : parseBold(numMatch[2])}
+        <div key={'tip-end-'+ti} style={{display:'flex',gap:'.6rem',marginBottom:'.5rem',alignItems:'flex-start',padding:'.6rem .75rem',background:'rgba(0,229,160,0.05)',border:'0.5px solid rgba(0,229,160,0.15)',borderRadius:'10px'}}>
+          <div style={{width:'22px',height:'22px',borderRadius:'6px',background:'rgba(0,229,160,0.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:800,color:'#00e5a0',flexShrink:0,marginTop:'1px'}}>{tip.num}</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:'12.5px',fontWeight:700,color:'var(--text,#eef0ff)',marginBottom:tip.body?'3px':0}}>{tip.title}</div>
+            {tip.body && <div style={{fontSize:'12px',color:'var(--text2,#8b93b0)',lineHeight:1.5}}>{tip.body}</div>}
           </div>
         </div>
       )
-      i++; continue
-    }
-
-    // Bullet
-    const bulletMatch = line.match(/^[-•*]\s+(.+)/)
-    if (bulletMatch) {
-      els.push(
-        <div key={i} style={{display:'flex',gap:'.4rem',marginBottom:'.3rem',alignItems:'flex-start'}}>
-          <div style={{width:'5px',height:'5px',borderRadius:'50%',background:'#00e5a0',flexShrink:0,marginTop:'7px'}}/>
-          <div style={{fontSize:'12.5px',color:'rgba(255,255,255,0.8)',lineHeight:1.5,flex:1}}>{parseBold(bulletMatch[1])}</div>
-        </div>
-      )
-      i++; continue
-    }
-
-    // **Heading** alone
-    const headMatch = line.match(/^\*\*(.+)\*\*$/)
-    if (headMatch) {
-      els.push(<div key={i} style={{fontSize:'13px',fontWeight:700,color:'var(--text)',marginBottom:'.3rem',marginTop:els.length>0?'.4rem':0}}>{headMatch[1]}</div>)
-      i++; continue
-    }
-
-    // Regular line
-    els.push(<div key={i} style={{fontSize:'12.5px',color:'rgba(255,255,255,0.8)',lineHeight:1.65,marginBottom:'.2rem'}}>{parseBold(line)}</div>)
-    i++
+    })
   }
+
   return els
 }
 
-// ── JOB SEARCH FORM ───────────────────────────────────────────────
 function JobSearchForm({ onSubmit }) {
   const [vals, setVals] = useState({ location:'', role:'', level:'', type:'', skills:'' })
   const [active, setActive] = useState(null)
@@ -235,7 +162,6 @@ function JobSearchForm({ onSubmit }) {
   )
 }
 
-// ── JOB CARDS ─────────────────────────────────────────────────────
 function JobCards({ jobs, total }) {
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'.5rem',width:'100%'}}>
@@ -244,7 +170,7 @@ function JobCards({ jobs, total }) {
         {total} real jobs found — showing {jobs.length}
       </div>
       {jobs.map((job, i) => (
-        <div key={i} style={{background:'rgba(255,255,255,0.04)',border:'0.5px solid rgba(255,255,255,0.08)',borderRadius:'12px',padding:'.75rem'}}>
+        <div key={i} style={{background:'rgba(255,255,255,0.04)',border:'0.5px solid var(--border)',borderRadius:'12px',padding:'.75rem'}}>
           <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'.5rem',marginBottom:'.35rem'}}>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:'13px',fontWeight:700,color:'var(--text)',marginBottom:'2px',lineHeight:1.3}}>{job.title}</div>
@@ -269,45 +195,40 @@ function JobCards({ jobs, total }) {
   )
 }
 
-// ── BOT BUBBLE ────────────────────────────────────────────────────
 function BotBubble({ msg, onFormSubmit }) {
   if (msg.jobs && msg.jobs.length > 0) {
     return (
       <div style={{display:'flex',flexDirection:'column',gap:'.5rem',alignSelf:'flex-start',maxWidth:'95%',animation:'fadeIn .2s ease'}}>
-        {msg.text && <div style={{fontSize:'12.5px',color:'rgba(255,255,255,0.8)',marginBottom:'.25rem'}}>{msg.text}</div>}
+        {msg.text && <div style={{fontSize:'12.5px',color:'var(--text2)',marginBottom:'.25rem'}}>{msg.text}</div>}
         <JobCards jobs={msg.jobs} total={msg.total||msg.jobs.length}/>
       </div>
     )
   }
-
   if (msg.showForm) {
     return (
       <div style={{display:'flex',flexDirection:'column',gap:'.5rem',alignSelf:'flex-start',maxWidth:'95%',animation:'fadeIn .2s ease'}}>
-        {msg.text && <div style={{background:'rgba(255,255,255,0.05)',border:'0.5px solid rgba(255,255,255,0.07)',borderRadius:'14px 14px 14px 3px',padding:'.6rem .85rem',fontSize:'12.5px',color:'rgba(255,255,255,0.85)',lineHeight:1.6}}>{msg.text}</div>}
+        {msg.text && <div style={{background:'rgba(255,255,255,0.05)',border:'0.5px solid var(--border)',borderRadius:'14px 14px 14px 3px',padding:'.6rem .85rem',fontSize:'12.5px',color:'var(--text)',lineHeight:1.6}}>{msg.text}</div>}
         <JobSearchForm onSubmit={onFormSubmit}/>
       </div>
     )
   }
-
   const rendered = renderMarkdown(msg.text)
   const isStructured = msg.text.includes('\n') || msg.text.includes('**') || /^\d+\./.test(msg.text)
-
   return (
-    <div style={{background:'rgba(255,255,255,0.05)',border:'0.5px solid rgba(255,255,255,0.07)',borderRadius:'14px 14px 14px 3px',padding:isStructured?'.75rem .85rem':'.6rem .85rem',maxWidth:'88%',alignSelf:'flex-start',animation:'fadeIn .2s ease'}}>
-      {isStructured ? rendered : <span style={{fontSize:'12.5px',color:'rgba(255,255,255,0.85)',lineHeight:1.6}}>{parseBold(msg.text)}</span>}
+    <div style={{background:'rgba(255,255,255,0.05)',border:'0.5px solid var(--border)',borderRadius:'14px 14px 14px 3px',padding:isStructured?'.75rem .85rem':'.6rem .85rem',maxWidth:'88%',alignSelf:'flex-start',animation:'fadeIn .2s ease'}}>
+      {isStructured ? rendered : <span style={{fontSize:'12.5px',color:'var(--text)',lineHeight:1.6}}>{parseBold(msg.text)}</span>}
     </div>
   )
 }
 
-// ── MAIN CHATBOT ──────────────────────────────────────────────────
 export default function ChatBot() {
-  const [open, setOpen]     = useState(false)
+  const [open, setOpen]         = useState(false)
   const [messages, setMessages] = useState([
     { role:'bot', text:"Hi — I'm your JobsQ career assistant. I can help find real jobs from our database, resume tips, interview prep, and salary advice. What would you like help with?" }
   ])
-  const [input, setInput]   = useState('')
-  const [loading, setLoading] = useState(false)
-  const [pulse, setPulse]   = useState(true)
+  const [input, setInput]       = useState('')
+  const [loading, setLoading]   = useState(false)
+  const [pulse, setPulse]       = useState(true)
   const bottomRef = useRef(null)
   const inputRef  = useRef(null)
 
@@ -323,7 +244,6 @@ export default function ChatBot() {
     setMessages(prev => [...prev, { role:'user', text:userMsg }])
     setLoading(true)
 
-    // ── JOB SEARCH ─────────────────────────────────────────────
     const isJobSearch = /find me jobs|location:|role:|job type:/i.test(userMsg)
     const hasDetails  = /location:|role:|experience:|skills:/i.test(userMsg)
 
@@ -334,97 +254,71 @@ export default function ChatBot() {
     }
 
     if (isJobSearch && hasDetails) {
-      // Parse filters from message
       const get = (key) => { const m = userMsg.match(new RegExp(`${key}:\\s*([^,]+)`, 'i')); return m ? m[1].trim() : '' }
       const role     = get('Role') || get('role')
       const location = get('Location') || get('location')
       const jobType  = get('Job type') || get('job type')
       const skills   = get('Skills') || get('skills')
-
       try {
         const params = new URLSearchParams()
         if (role)     params.set('search', role)
         if (location && !['india','all','anywhere'].includes(location.toLowerCase())) params.set('location', location)
         if (jobType && !['all','any'].includes(jobType.toLowerCase())) params.set('job_type', jobType)
-
-        const res  = await fetch(`${API}/jobs/?${params.toString()}`)
+        const res = await fetch(`${API}/jobs/?${params.toString()}`)
         if (!res.ok) throw new Error(`Server error ${res.status}`)
-        const raw  = await res.json()
-        const all  = Array.isArray(raw) ? raw : []
-
+        const raw = await res.json()
+        const all = Array.isArray(raw) ? raw : []
         if (all.length === 0) {
-          // Try without location for broader results
           const res2 = await fetch(`${API}/jobs/?search=${encodeURIComponent(role)}`)
           const raw2 = await res2.json()
           const all2 = Array.isArray(raw2) ? raw2 : []
-
           if (all2.length === 0) {
             addBot({ text: `No "${role}" jobs in our database right now. Our scrapers run every 2 hours — try again soon, or search directly on the Jobs page.` })
-            setLoading(false)
-            return
+            setLoading(false); return
           }
-          // Show broader results with note
           const jobs = all2.slice(0,5).map(j => ({
-            title:       j.title || 'Job Opening',
-            company:     j.company || 'Company',
-            location:    j.city || j.location || 'India',
-            salary:      j.salary || 'Not disclosed',
-            type:        j.job_type || 'Full-time',
-            source:      j.source || '',
-            description: stripHtml(j.description || '').slice(0,100) + '...',
-            apply_url:   j.url || j.apply_url || `${window.location.origin}/jobs`,
+            title: j.title||'Job Opening', company: j.company||'Company',
+            location: j.city||j.location||'India', salary: j.salary||'Not disclosed',
+            type: j.job_type||'Full-time', source: j.source||'',
+            description: stripHtml(j.description||'').slice(0,100)+'...',
+            apply_url: j.url||j.apply_url||`${window.location.origin}/jobs`,
           }))
-          addBot({ text:`No exact match for "${location}" — showing ${role} jobs from our database:`, jobs, total: all2.length })
-          setLoading(false)
-          return
+          addBot({ text:`No exact match for "${location}" — showing ${role} jobs:`, jobs, total: all2.length })
+          setLoading(false); return
         }
-
-        // Filter by skills client-side
         const skillList = skills ? skills.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean) : []
         let filtered = all
         if (skillList.length > 0) {
-          const skillFiltered = all.filter(j => {
+          const sf = all.filter(j => {
             const txt = `${j.title||''} ${j.description||''} ${j.category||''}`.toLowerCase()
             return skillList.some(s => txt.includes(s))
           })
-          if (skillFiltered.length > 0) filtered = skillFiltered
+          if (sf.length > 0) filtered = sf
         }
-
         const jobs = filtered.slice(0,5).map(j => ({
-          title:       j.title || 'Job Opening',
-          company:     j.company || 'Company',
-          location:    j.city || j.location || location || 'India',
-          salary:      j.salary || 'Not disclosed',
-          type:        j.job_type || jobType || 'Full-time',
-          source:      j.source || '',
-          description: stripHtml(j.description || '').slice(0,100) + '...',
-          apply_url:   j.url || j.apply_url || `${window.location.origin}/jobs`,
+          title: j.title||'Job Opening', company: j.company||'Company',
+          location: j.city||j.location||location||'India', salary: j.salary||'Not disclosed',
+          type: j.job_type||jobType||'Full-time', source: j.source||'',
+          description: stripHtml(j.description||'').slice(0,100)+'...',
+          apply_url: j.url||j.apply_url||`${window.location.origin}/jobs`,
         }))
-
         addBot({ text:`Found ${all.length} real jobs — showing top ${jobs.length}:`, jobs, total: all.length })
-
       } catch(err) {
         addBot({ text:`Database error: ${err.message}. Please check the backend is running.` })
       }
-      setLoading(false)
-      return
+      setLoading(false); return
     }
 
-    // ── SHORT ACKNOWLEDGEMENT — don't send to AI ──────────────
     const isAck = /^(ok|okay|thanks|thank you|got it|great|nice|cool|good|sure|alright|noted|perfect|awesome|👍|🙏)[\s!.]*$/i.test(userMsg)
     if (isAck) {
       const lastBotMsg = [...messages].reverse().find(m => m.role === 'bot')
       const hadJobs = lastBotMsg && lastBotMsg.jobs && lastBotMsg.jobs.length > 0
-      if (hadJobs) {
-        addBot({ text: "Glad I could help! Want me to search for more jobs, or can I help with anything else — resume tips, interview prep, salary advice?" })
-      } else {
-        addBot({ text: "Sure! Let me know if you need anything else — job search, resume tips, interview prep, or salary advice." })
-      }
-      setLoading(false)
-      return
+      addBot({ text: hadJobs
+        ? "Glad I could help! Want me to search for more jobs, or can I help with anything else — resume tips, interview prep, salary advice?"
+        : "Sure! Let me know if you need anything else — job search, resume tips, interview prep, or salary advice." })
+      setLoading(false); return
     }
 
-    // ── GENERAL AI CHAT ────────────────────────────────────────
     try {
       const history = messages.slice(-10).map(m => ({
         role: m.role==='bot' ? 'assistant' : 'user',
@@ -455,10 +349,16 @@ For unrelated topics politely decline. Always give complete, useful answers.`
       })
       const data = await res.json()
       const reply = data.reply || "Sorry, couldn't process that. Please try again."
-
-      // Clean response — strip markdown
-      const cleaned = reply.replace(/#{1,3} /g, '').replace(/^> /gm, '').replace(/`{3}[\s\S]*?`{3}/g, '').split('\n').filter(l => !l.trim().startsWith('|') && l.trim() !== '---').join(' ').replace(/[ \t]+/g, ' ').trim().slice(0, 1500)
-
+      const cleaned = reply
+        .replace(/#{1,3} /g, '')
+        .replace(/^> /gm, '')
+        .replace(/`{3}[\s\S]*?`{3}/g, '')
+        .split('\n')
+        .filter(l => !l.trim().startsWith('|') && l.trim() !== '---')
+        .join('\n')
+        .replace(/[ \t]+/g, ' ')
+        .trim()
+        .slice(0, 1500)
       const showForm = /what.*location|which.*city|what.*role|tell me.*detail|let me know.*prefer/i.test(cleaned)
       addBot({ text: cleaned, showForm })
     } catch(err) {
@@ -509,7 +409,6 @@ For unrelated topics politely decline. Always give complete, useful answers.`
 
       {open && (
         <div className="cb-win">
-          {/* Header */}
           <div style={{padding:'.75rem 1rem',background:'rgba(255,255,255,0.03)',borderBottom:'1px solid rgba(255,255,255,0.07)',display:'flex',alignItems:'center',gap:'.7rem',flexShrink:0}}>
             <div style={{width:'32px',height:'32px',borderRadius:'9px',background:'rgba(0,229,160,0.1)',border:'0.5px solid rgba(0,229,160,0.25)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
               <i className="ti ti-robot" style={{fontSize:'17px',color:'#00e5a0'}} aria-hidden="true"/>
@@ -527,8 +426,6 @@ For unrelated topics politely decline. Always give complete, useful answers.`
               <i className="ti ti-x" style={{fontSize:'17px'}} aria-hidden="true"/>
             </button>
           </div>
-
-          {/* Messages */}
           <div className="cb-msgs">
             {messages.map((m, i) => (
               <div key={i} style={{display:'flex',flexDirection:'column'}}>
@@ -541,8 +438,6 @@ For unrelated topics politely decline. Always give complete, useful answers.`
             {loading && <div className="cb-typing"><span/><span/><span/></div>}
             <div ref={bottomRef}/>
           </div>
-
-          {/* Quick replies */}
           {messages.length <= 1 && (
             <div className="cb-qr">
               {quickReplies.map((q,i) => (
@@ -553,8 +448,6 @@ For unrelated topics politely decline. Always give complete, useful answers.`
               ))}
             </div>
           )}
-
-          {/* Input */}
           <div className="cb-footer">
             <textarea ref={inputRef} className="cb-input"
               placeholder="Ask anything about your career..."
@@ -567,8 +460,6 @@ For unrelated topics politely decline. Always give complete, useful answers.`
           </div>
         </div>
       )}
-
-      {/* FAB */}
       <button className={`cb-fab ${open?'open':''}`} onClick={()=>setOpen(!open)} aria-label={open?'Close chat':'Open chat'}>
         {pulse && !open && <div className="cb-pulse"/>}
         {!open && messages.length>1 && <div className="cb-notif"/>}
