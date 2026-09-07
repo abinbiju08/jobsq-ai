@@ -29,7 +29,7 @@ export default function Profile() {
   }
 
   if (loading) return (
-    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'calc(100vh - 52px)',background:'#080c18',color:'#00e5a0',fontFamily:'Inter,sans-serif',gap:'.75rem'}}>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'calc(100vh - 52px)',background:'var(--bg)',color:'#00e5a0',fontFamily:'Inter,sans-serif',gap:'.75rem'}}>
       <i className="ti ti-loader" style={{fontSize:'20px',animation:'spin .8s linear infinite'}} aria-hidden="true"/>
       Loading...
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
@@ -91,9 +91,9 @@ export default function Profile() {
               <div style={{width:'36px',height:'36px',borderRadius:'10px',background:'rgba(0,229,160,0.1)',border:'1px solid rgba(0,229,160,0.2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
                 <i className="ti ti-user-circle" style={{fontSize:'19px',color:'#00e5a0'}} aria-hidden="true"/>
               </div>
-              <h1 style={{fontSize:'20px',fontWeight:800,color:'#eef0ff',margin:0}}>My profile</h1>
+              <h1 style={{fontSize:'20px',fontWeight:800,color:'var(--text)',margin:0}}>My profile</h1>
             </div>
-            <p style={{fontSize:'13px',color:'#8b93b0',marginLeft:'52px'}}>Manage your account and security settings</p>
+            <p style={{fontSize:'13px',color:'var(--text2)',marginLeft:'52px'}}>Manage your account and security settings</p>
           </div>
 
           {/* Success message */}
@@ -148,12 +148,12 @@ export default function Profile() {
 
             {!showRegister ? (
               <>
-                <p style={{fontSize:'13px',color:'#8b93b0',lineHeight:1.6,marginBottom:'1rem'}}>
+                <p style={{fontSize:'13px',color:'var(--text2)',lineHeight:1.6,marginBottom:'1rem'}}>
                   Register your face to enable quick and secure Face ID login. Your face data is encrypted and stored only in your account.
                 </p>
                 <div className="face-status" style={{marginBottom:'1rem'}}>
                   <div>
-                    <div style={{fontSize:'12px',color:'#4a5168',marginBottom:'.35rem'}}>Status</div>
+                    <div style={{fontSize:'12px',color:'var(--text3)',marginBottom:'.35rem'}}>Status</div>
                     {hasFace ? (
                       <span className="face-badge on">
                         <i className="ti ti-circle-check" aria-hidden="true"/>
@@ -222,8 +222,8 @@ export default function Profile() {
                     <i className={`ti ${s.icon}`} style={{fontSize:'16px',color:'#7c6ff7'}} aria-hidden="true"/>
                   </div>
                   <div>
-                    <div style={{fontSize:'13px',fontWeight:600,color:'#eef0ff',marginBottom:'2px'}}>{s.title}</div>
-                    <div style={{fontSize:'12px',color:'#8b93b0',lineHeight:1.5}}>{s.desc}</div>
+                    <div style={{fontSize:'13px',fontWeight:600,color:'var(--text)',marginBottom:'2px'}}>{s.title}</div>
+                    <div style={{fontSize:'12px',color:'var(--text2)',lineHeight:1.5}}>{s.desc}</div>
                   </div>
                 </div>
               ))}

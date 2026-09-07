@@ -233,3 +233,48 @@ body.light ::-webkit-scrollbar-thumb { background: #c4cde0; }
 /* ── UNIVERSAL ROOT FIX ── */
 body.light > #root > div,
 body.light > #root > div > div { background: #f0f4ff; color: #0f1629; }
+
+/* ── PROFILE PAGE LIGHT MODE ── */
+body.light div[style*="background:rgba(20,24,40"],
+body.light div[style*="background:rgba(13,17,32"],
+body.light div[style*="background:#141828"],
+body.light div[style*="background:#0d1120"],
+body.light div[style*="background:#080c18"] {
+  background: #ffffff !important;
+  border-color: rgba(0,0,0,0.08) !important;
+}
+
+body.light div[style*="background:rgba(255,255,255,0.05)"],
+body.light div[style*="background:rgba(255,255,255,0.04)"],
+body.light div[style*="background:rgba(255,255,255,0.03)"],
+body.light div[style*="background:rgba(255,255,255,0.02)"] {
+  background: #f8f9ff !important;
+}
+
+/* Fix rgba white borders in light */
+body.light div[style*="border:0.5px solid rgba(255,255,255,0.07)"],
+body.light div[style*="border:1px solid rgba(255,255,255,0.07)"],
+body.light div[style*="borderBottom:0.5px solid rgba(255,255,255,0.07)"],
+body.light div[style*="borderBottom:1px solid rgba(255,255,255,0.07)"] {
+  border-color: rgba(0,0,0,0.08) !important;
+}
+
+/* Fix rgba white text in light */
+body.light span[style*="color:rgba(255,255,255,0.35)"],
+body.light div[style*="color:rgba(255,255,255,0.35)"],
+body.light p[style*="color:rgba(255,255,255,0.35)"] { color: #6b7280 !important; }
+
+body.light span[style*="color:rgba(255,255,255,0.5)"],
+body.light div[style*="color:rgba(255,255,255,0.5)"],
+body.light p[style*="color:rgba(255,255,255,0.5)"] { color: #4a5580 !important; }
+
+body.light span[style*="color:rgba(255,255,255,0.7)"],
+body.light div[style*="color:rgba(255,255,255,0.7)"],
+body.light p[style*="color:rgba(255,255,255,0.7)"] { color: #374151 !important; }
+
+body.light span[style*="color:rgba(255,255,255,0.85)"],
+body.light div[style*="color:rgba(255,255,255,0.85)"],
+body.light p[style*="color:rgba(255,255,255,0.85)"] { color: #1f2937 !important; }
+
+body.light span[style*="color:rgba(255,255,255,0.8)"],
+body.light div[style*="color:rgba(255,255,255,0.8)"] { color: #1f2937 !important; }
