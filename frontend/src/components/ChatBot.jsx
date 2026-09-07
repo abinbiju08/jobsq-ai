@@ -373,8 +373,8 @@ STRICT RULES:
       const data = await res.json()
       const reply = data.reply || "Sorry, couldn't process that. Please try again."
 
-      // Clean response — strip tables, trim
-        const cleaned = reply.replace(/[|][^\n]*/g, '').replace(/```[\s\S]*?```/g, '').replace(/^---$/gm, '').replace(/\s+/g, ' ').trim().slice(0, 600)
+      // Clean response — strip markdown
+      const cleaned = reply.replace(/#{1,3} /g, '').replace(/^> /gm, '').replace(/`{3}[\s\S]*?`{3}/g, '').split('\n').filter(l => !l.trim().startsWith('|') && l.trim() !== '---').join(' ').replace(/\s+/g, ' ').trim().slice(0, 600)
 
       const showForm = /what.*location|which.*city|what.*role|tell me.*detail|let me know.*prefer/i.test(cleaned)
       addBot({ text: cleaned, showForm })
