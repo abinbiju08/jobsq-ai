@@ -36,7 +36,7 @@ function AppContent({ session }) {
         <Route path="/connect" element={session ? <LetsConnect /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to={session ? "/home" : "/"} replace />} />
       </Routes>
-      {session && !isResetPage && (
+      {session && !isResetPage && location.pathname !== '/connect' && (
         <div style={{position:'fixed',bottom:'24px',right:'24px',zIndex:1000,display:'flex',flexDirection:'column',alignItems:'center',gap:'10px'}}>
           <ChatBot />
           <VoiceAssistant />
@@ -61,7 +61,7 @@ function App() {
   }, [])
 
   if (loading) return (
-    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',background:'#080c18',color:'#00e5a0',fontSize:'16px',fontFamily:'Inter,sans-serif',gap:'.75rem'}}>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',background:'var(--bg)',color:'#00e5a0',fontSize:'16px',fontFamily:'Inter,sans-serif',gap:'.75rem'}}>
       <div style={{width:'28px',height:'28px',border:'2.5px solid rgba(0,229,160,0.2)',borderTopColor:'#00e5a0',borderRadius:'50%',animation:'spin .8s linear infinite'}}/>
       Loading JobsQ AI...
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
