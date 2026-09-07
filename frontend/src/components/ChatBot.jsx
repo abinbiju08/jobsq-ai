@@ -4,7 +4,7 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 // ── HELPERS ───────────────────────────────────────────────────────
 function stripHtml(html) {
-  return (html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  return (html || '').replace(/<[^>]+>/g, ' ').replace(/[ \t]+/g, ' ').trim()
 }
 
 function parseBold(text) {
@@ -13,29 +13,114 @@ function parseBold(text) {
   const parts = text.split(/\*\*/)
   return parts.map((p, i) =>
     i % 2 === 1
-      ? <strong key={i} style={{color:'#eef0ff',fontWeight:700}}>{p}</strong>
+      ? <strong key={i} style={{color:'var(--text)',fontWeight:700}}>{p}</strong>
       : <span key={i}>{p}</span>
   )
 }
 
 function renderMarkdown(text) {
   if (!text) return []
-  const lines = text.split(/\r?\n/)
+  const lines = text.split(/\r?\n/).filter(l => l.trim())
   const els = []
+  const tipCards = []
   let i = 0
+  let hasIntro = false
+
   while (i < lines.length) {
     const line = lines[i].trim()
     if (!line) { i++; continue }
 
-    // Skip table lines
-    if (line.startsWith('|') || line.startsWith('---') || line.match(/^-+\|-+/)) { i++; continue }
-
-    // ### heading
-    if (line.startsWith('###') || line.startsWith('##')) {
-      const txt = line.replace(/^#+\s*/, '')
-      els.push(<div key={i} style={{fontSize:'13px',fontWeight:700,color:'#00e5a0',marginBottom:'.3rem',marginTop:els.length>0?'.5rem':0}}>{txt}</div>)
+    // Numbered tip: "1. Title: description" or "1. Title - description"
+    const numMatch = line.match(/^(\d+)\.\s+(.+)/)
+    if (numMatch) {
+      const num = numMatch[1]
+      const content = numMatch[2]
+      const splitMatch = content.match(/^(.+?)[:–\-]\s*(.+)/)
+      const title = splitMatch ? splitMatch[1].trim() : content
+      const body  = splitMatch ? splitMatch[2].trim() : ''
+      tipCards.push({ num, title, body })
       i++; continue
     }
+
+    // If we have collected tips, flush them as 2-col grid first
+    if (tipCards.length > 0) {
+      els.push(
+        <div key={'tips-'+i} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.4rem',marginBottom:'.35rem'}}>
+          {tipCards.map((tip, ti) => (
+            <div key={ti} style={{padding:'.55rem .65rem',background:'rgba(0,229,160,0.05)',border:'0.5px solid rgba(0,229,160,0.15)',borderRadius:'9px'}}>
+              <div style={{display:'flex',alignItems:'center',gap:'.35rem',marginBottom:'3px'}}>
+                <div style={{width:'16px',height:'16px',borderRadius:'4px',background:'rgba(0,229,160,0.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',fontWeight:700,color:'#00e5a0',flexShrink:0}}>{tip.num}</div>
+                <div style={{fontSize:'11.5px',fontWeight:700,color:'var(--text,#eef0ff)',lineHeight:1.3}}>{tip.title}</div>
+              </div>
+              {tip.body && <div style={{fontSize:'10.5px',color:'var(--text2,#8b93b0)',lineHeight:1.45,paddingLeft:'20px'}}>{tip.body}</div>}
+            </div>
+          ))}
+        </div>
+      )
+      tipCards.length = 0
+    }
+
+    // Bullet
+    const bulletMatch = line.match(/^[-•*]\s+(.+)/)
+    if (bulletMatch) {
+      els.push(
+        <div key={i} style={{display:'flex',gap:'.4rem',marginBottom:'.25rem',alignItems:'flex-start'}}>
+          <div style={{width:'4px',height:'4px',borderRadius:'50%',background:'#00e5a0',flexShrink:0,marginTop:'7px'}}/>
+          <div style={{fontSize:'12px',color:'var(--text2,#8b93b0)',lineHeight:1.5,flex:1}}>{bulletMatch[1]}</div>
+        </div>
+      )
+      i++; continue
+    }
+
+    // Regular paragraph
+    els.push(
+      <div key={i} style={{fontSize:'12px',color:'var(--text,#eef0ff)',lineHeight:1.6,marginBottom:'.2rem'}}>{line}</div>
+    )
+    i++
+  }
+
+  // Flush any remaining tips
+  if (tipCards.length > 0) {
+    els.push(
+      <div key="tips-end" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.4rem'}}>
+        {tipCards.map((tip, ti) => (
+          <div key={ti} style={{padding:'.55rem .65rem',background:'rgba(0,229,160,0.05)',border:'0.5px solid rgba(0,229,160,0.15)',borderRadius:'9px'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'.35rem',marginBottom:'3px'}}>
+              <div style={{width:'16px',height:'16px',borderRadius:'4px',background:'rgba(0,229,160,0.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',fontWeight:700,color:'#00e5a0',flexShrink:0}}>{tip.num}</div>
+              <div style={{fontSize:'11.5px',fontWeight:700,color:'var(--text,#eef0ff)',lineHeight:1.3}}>{tip.title}</div>
+            </div>
+            {tip.body && <div style={{fontSize:'10.5px',color:'var(--text2,#8b93b0)',lineHeight:1.45,paddingLeft:'20px'}}>{tip.body}</div>}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return els
+}
+
+
+    // Bullet point
+    const bulletMatch = line.match(/^[-•*]\s+(.+)/)
+    if (bulletMatch) {
+      els.push(
+        <div key={i} style={{display:'flex',gap:'.4rem',marginBottom:'.3rem',alignItems:'flex-start'}}>
+          <div style={{width:'5px',height:'5px',borderRadius:'50%',background:'#00e5a0',flexShrink:0,marginTop:'7px'}}/>
+          <div style={{fontSize:'12.5px',color:'var(--text2)',lineHeight:1.5,flex:1}}>{bulletMatch[1]}</div>
+        </div>
+      )
+      i++; continue
+    }
+
+    // Regular paragraph
+    els.push(
+      <div key={i} style={{fontSize:'12.5px',color:'var(--text)',lineHeight:1.65,marginBottom:'.3rem'}}>{line}</div>
+    )
+    i++
+  }
+  return els
+}
+
 
     // Numbered list
     const numMatch = line.match(/^(\d+)\.\s+(.+)/)
@@ -46,7 +131,7 @@ function renderMarkdown(text) {
           <div style={{width:'18px',height:'18px',borderRadius:'5px',background:'rgba(0,229,160,0.12)',border:'0.5px solid rgba(0,229,160,0.25)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',fontWeight:800,color:'#00e5a0',flexShrink:0,marginTop:'2px'}}>{numMatch[1]}</div>
           <div style={{fontSize:'12.5px',color:'rgba(255,255,255,0.85)',lineHeight:1.5,flex:1}}>
             {boldMatch
-              ? <><span style={{fontWeight:700,color:'#eef0ff'}}>{boldMatch[1]}</span><span style={{color:'rgba(255,255,255,0.65)'}}>{boldMatch[2]}</span></>
+              ? <><span style={{fontWeight:700,color:'var(--text)'}}>{boldMatch[1]}</span><span style={{color:'rgba(255,255,255,0.65)'}}>{boldMatch[2]}</span></>
               : parseBold(numMatch[2])}
           </div>
         </div>
@@ -69,7 +154,7 @@ function renderMarkdown(text) {
     // **Heading** alone
     const headMatch = line.match(/^\*\*(.+)\*\*$/)
     if (headMatch) {
-      els.push(<div key={i} style={{fontSize:'13px',fontWeight:700,color:'#eef0ff',marginBottom:'.3rem',marginTop:els.length>0?'.4rem':0}}>{headMatch[1]}</div>)
+      els.push(<div key={i} style={{fontSize:'13px',fontWeight:700,color:'var(--text)',marginBottom:'.3rem',marginTop:els.length>0?'.4rem':0}}>{headMatch[1]}</div>)
       i++; continue
     }
 
@@ -115,10 +200,10 @@ function JobSearchForm({ onSubmit }) {
         <div key={f.id} style={{marginBottom:'.4rem'}}>
           {active !== f.id ? (
             <div onClick={()=>setActive(f.id)}
-              style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.45rem .65rem',borderRadius:'8px',border:`0.5px solid ${vals[f.id]?f.color+'40':'rgba(255,255,255,0.07)'}`,background:vals[f.id]?f.color+'0c':'rgba(255,255,255,0.02)',cursor:'pointer'}}>
-              <i className={`ti ${f.icon}`} style={{fontSize:'13px',color:vals[f.id]?f.color:'#4a5168',flexShrink:0}} aria-hidden="true"/>
-              <span style={{fontSize:'12px',color:vals[f.id]?f.color:'#4a5168',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{vals[f.id]||f.label}</span>
-              <i className={`ti ${vals[f.id]?'ti-circle-check':'ti-chevron-down'}`} style={{fontSize:'12px',color:vals[f.id]?f.color:'#4a5168',flexShrink:0}} aria-hidden="true"/>
+              style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.45rem .65rem',borderRadius:'8px',border:`0.5px solid ${vals[f.id]?f.color+'40':'var(--border)'}`,background:vals[f.id]?f.color+'0c':'rgba(255,255,255,0.02)',cursor:'pointer'}}>
+              <i className={`ti ${f.icon}`} style={{fontSize:'13px',color:vals[f.id]?f.color:'var(--text3)',flexShrink:0}} aria-hidden="true"/>
+              <span style={{fontSize:'12px',color:vals[f.id]?f.color:'var(--text3)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{vals[f.id]||f.label}</span>
+              <i className={`ti ${vals[f.id]?'ti-circle-check':'ti-chevron-down'}`} style={{fontSize:'12px',color:vals[f.id]?f.color:'var(--text3)',flexShrink:0}} aria-hidden="true"/>
             </div>
           ) : (
             <div style={{border:`1px solid ${f.color}50`,borderRadius:'8px',background:`${f.color}08`,overflow:'hidden'}}>
@@ -131,7 +216,7 @@ function JobSearchForm({ onSubmit }) {
                   onChange={e=>setVals(v=>({...v,[f.id]:e.target.value}))}
                   onKeyDown={e=>{if(e.key==='Enter'||e.key==='Escape')setActive(null)}}
                   placeholder={f.placeholder}
-                  style={{flex:1,background:'none',border:'none',color:'#eef0ff',fontSize:'12px',fontFamily:'Inter,sans-serif',outline:'none'}}/>
+                  style={{flex:1,background:'none',border:'none',color:'var(--text)',fontSize:'12px',fontFamily:'Inter,sans-serif',outline:'none'}}/>
                 <button onClick={()=>setActive(null)}
                   style={{background:'#00c484',border:'none',borderRadius:'6px',padding:'.22rem .5rem',cursor:'pointer',fontSize:'11px',fontWeight:700,color:'#060d0a',fontFamily:'Inter,sans-serif'}}>
                   Save
@@ -142,7 +227,7 @@ function JobSearchForm({ onSubmit }) {
         </div>
       ))}
       <button onClick={send} disabled={filled===0}
-        style={{width:'100%',marginTop:'.55rem',display:'flex',alignItems:'center',justifyContent:'center',gap:'.4rem',padding:'.5rem',background:filled>0?'linear-gradient(135deg,#00e5a0,#00c484)':'rgba(255,255,255,0.06)',border:'none',borderRadius:'9px',color:filled>0?'#060d0a':'#4a5168',fontSize:'12px',fontWeight:700,cursor:filled>0?'pointer':'not-allowed',fontFamily:'Inter,sans-serif'}}>
+        style={{width:'100%',marginTop:'.55rem',display:'flex',alignItems:'center',justifyContent:'center',gap:'.4rem',padding:'.5rem',background:filled>0?'linear-gradient(135deg,#00e5a0,#00c484)':'var(--border)',border:'none',borderRadius:'9px',color:filled>0?'#060d0a':'var(--text3)',fontSize:'12px',fontWeight:700,cursor:filled>0?'pointer':'not-allowed',fontFamily:'Inter,sans-serif'}}>
         <i className="ti ti-search" style={{fontSize:'13px'}} aria-hidden="true"/>
         {filled>0?`Find jobs (${filled} filters set)`:'Fill at least one field'}
       </button>
@@ -154,7 +239,7 @@ function JobSearchForm({ onSubmit }) {
 function JobCards({ jobs, total }) {
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'.5rem',width:'100%'}}>
-      <div style={{fontSize:'11px',color:'#4a5168',display:'flex',alignItems:'center',gap:'.3rem',marginBottom:'.1rem'}}>
+      <div style={{fontSize:'11px',color:'var(--text3)',display:'flex',alignItems:'center',gap:'.3rem',marginBottom:'.1rem'}}>
         <i className="ti ti-database" style={{fontSize:'12px',color:'#00e5a0'}} aria-hidden="true"/>
         {total} real jobs found — showing {jobs.length}
       </div>
@@ -162,17 +247,17 @@ function JobCards({ jobs, total }) {
         <div key={i} style={{background:'rgba(255,255,255,0.04)',border:'0.5px solid rgba(255,255,255,0.08)',borderRadius:'12px',padding:'.75rem'}}>
           <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'.5rem',marginBottom:'.35rem'}}>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:'13px',fontWeight:700,color:'#eef0ff',marginBottom:'2px',lineHeight:1.3}}>{job.title}</div>
+              <div style={{fontSize:'13px',fontWeight:700,color:'var(--text)',marginBottom:'2px',lineHeight:1.3}}>{job.title}</div>
               <div style={{fontSize:'11px',color:'#00e5a0',fontWeight:600}}>{job.company}</div>
             </div>
             <span style={{fontSize:'10px',padding:'2px 7px',borderRadius:'20px',background:'rgba(59,130,246,0.1)',border:'0.5px solid rgba(59,130,246,0.2)',color:'#3b82f6',flexShrink:0,fontWeight:600,whiteSpace:'nowrap'}}>{job.type||'Full-time'}</span>
           </div>
           <div style={{display:'flex',gap:'.5rem',flexWrap:'wrap',marginBottom:'.4rem'}}>
-            {job.location&&<span style={{display:'flex',alignItems:'center',gap:'.2rem',fontSize:'10px',color:'#8b93b0'}}><i className="ti ti-map-pin" style={{fontSize:'11px'}} aria-hidden="true"/>{job.location}</span>}
+            {job.location&&<span style={{display:'flex',alignItems:'center',gap:'.2rem',fontSize:'10px',color:'var(--text2)'}}><i className="ti ti-map-pin" style={{fontSize:'11px'}} aria-hidden="true"/>{job.location}</span>}
             {job.salary&&job.salary!=='Not disclosed'&&<span style={{display:'flex',alignItems:'center',gap:'.2rem',fontSize:'10px',color:'#00e5a0',fontWeight:600}}><i className="ti ti-currency-rupee" style={{fontSize:'11px'}} aria-hidden="true"/>{job.salary}</span>}
-            {job.source&&<span style={{fontSize:'10px',color:'#4a5168'}}>via {job.source}</span>}
+            {job.source&&<span style={{fontSize:'10px',color:'var(--text3)'}}>via {job.source}</span>}
           </div>
-          {job.description&&<div style={{fontSize:'11px',color:'#8b93b0',lineHeight:1.5,marginBottom:'.5rem'}}>{job.description}</div>}
+          {job.description&&<div style={{fontSize:'11px',color:'var(--text2)',lineHeight:1.5,marginBottom:'.5rem'}}>{job.description}</div>}
           <a href={job.apply_url} target="_blank" rel="noopener noreferrer"
             style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'.35rem',padding:'.4rem .75rem',background:'linear-gradient(135deg,#00e5a0,#00c484)',borderRadius:'8px',color:'#060d0a',fontSize:'12px',fontWeight:700,textDecoration:'none'}}>
             <i className="ti ti-external-link" style={{fontSize:'13px'}} aria-hidden="true"/>
@@ -348,22 +433,21 @@ export default function ChatBot() {
 
       const SYSTEM = `You are JobsQ AI — a smart career assistant for job seekers in India.
 
-Help users with these topics ONLY:
-- Resume writing, ATS optimization, formatting tips
-- Interview preparation, questions, techniques, STAR method
-- Salary negotiation strategies and India market rates
-- Career guidance, skill development, job search strategies
-- Company research and job market insights
+RESPONSE FORMAT (always follow this):
+- For tips/advice: use numbered list like: 1. Title: explanation. 2. Title: explanation.
+- Each tip on its own line starting with number and dot.
+- No markdown symbols like **, *, ##, or ---
+- No tables. No headers. Plain numbered list only.
+- Max 5 points. Each point max 2 sentences. Total under 250 words.
 
-RULES:
-1. Give direct, specific, actionable answers always.
-2. Use 3-5 short bullet points. Never use tables or ## headings.
-3. Keep responses under 200 words. Be concise.
-4. Resume tips: give specific ATS and formatting advice.
-5. Interview tips: give concrete techniques with examples.
-6. Salary advice: give specific India market negotiation tactics.
-7. Unrelated topics: politely decline and redirect to career topics.
-8. Never refuse career-related questions. Always give useful advice.`
+TOPICS YOU HELP WITH:
+- Resume writing and ATS optimization
+- Interview preparation and techniques
+- Salary negotiation in India
+- Career guidance and job search
+- Company research
+
+For unrelated topics politely decline. Always give complete, useful answers.`
 
       const res  = await fetch(`${API}/ai/chat`, {
         method:'POST', headers:{'Content-Type':'application/json'},
@@ -373,7 +457,7 @@ RULES:
       const reply = data.reply || "Sorry, couldn't process that. Please try again."
 
       // Clean response — strip markdown
-      const cleaned = reply.replace(/#{1,3} /g, '').replace(/^> /gm, '').replace(/`{3}[\s\S]*?`{3}/g, '').split('\n').filter(l => !l.trim().startsWith('|') && l.trim() !== '---').join(' ').replace(/\s+/g, ' ').trim().slice(0, 600)
+      const cleaned = reply.replace(/#{1,3} /g, '').replace(/^> /gm, '').replace(/`{3}[\s\S]*?`{3}/g, '').split('\n').filter(l => !l.trim().startsWith('|') && l.trim() !== '---').join(' ').replace(/[ \t]+/g, ' ').trim().slice(0, 1500)
 
       const showForm = /what.*location|which.*city|what.*role|tell me.*detail|let me know.*prefer/i.test(cleaned)
       addBot({ text: cleaned, showForm })
@@ -431,15 +515,15 @@ RULES:
               <i className="ti ti-robot" style={{fontSize:'17px',color:'#00e5a0'}} aria-hidden="true"/>
             </div>
             <div style={{flex:1}}>
-              <div style={{fontSize:'13px',fontWeight:700,color:'#eef0ff'}}>JobsQ AI</div>
-              <div style={{fontSize:'10px',color:'#8b93b0',display:'flex',alignItems:'center',gap:'4px',marginTop:'1px'}}>
+              <div style={{fontSize:'13px',fontWeight:700,color:'var(--text)'}}>JobsQ AI</div>
+              <div style={{fontSize:'10px',color:'var(--text2)',display:'flex',alignItems:'center',gap:'4px',marginTop:'1px'}}>
                 <div style={{width:'5px',height:'5px',borderRadius:'50%',background:'#00e5a0',animation:'blink 1.5s infinite'}}/>
                 Online · Real job data
               </div>
             </div>
-            <button onClick={()=>setOpen(false)} style={{background:'none',border:'none',color:'#4a5168',cursor:'pointer',display:'flex',padding:'.15rem',transition:'color .15s'}}
-              onMouseEnter={e=>e.currentTarget.style.color='#eef0ff'}
-              onMouseLeave={e=>e.currentTarget.style.color='#4a5168'}>
+            <button onClick={()=>setOpen(false)} style={{background:'none',border:'none',color:'var(--text3)',cursor:'pointer',display:'flex',padding:'.15rem',transition:'color .15s'}}
+              onMouseEnter={e=>e.currentTarget.style.color='var(--text)'}
+              onMouseLeave={e=>e.currentTarget.style.color='var(--text3)'}>
               <i className="ti ti-x" style={{fontSize:'17px'}} aria-hidden="true"/>
             </button>
           </div>
@@ -488,7 +572,7 @@ RULES:
       <button className={`cb-fab ${open?'open':''}`} onClick={()=>setOpen(!open)} aria-label={open?'Close chat':'Open chat'}>
         {pulse && !open && <div className="cb-pulse"/>}
         {!open && messages.length>1 && <div className="cb-notif"/>}
-        <i className={`ti ${open?'ti-x':'ti-message-circle'}`} style={{fontSize:'22px',color:open?'#8b93b0':'#060d0a'}} aria-hidden="true"/>
+        <i className={`ti ${open?'ti-x':'ti-message-circle'}`} style={{fontSize:'22px',color:open?'var(--text2)':'#060d0a'}} aria-hidden="true"/>
       </button>
     </>
   )
