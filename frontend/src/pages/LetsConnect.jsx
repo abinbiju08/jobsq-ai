@@ -117,19 +117,20 @@ function ChatRoom({ room, user, onBack }) {
     if (!text || sending || !user) return
     setSending(true)
     setInput('')
-    setReplyTo(null)
     const full = tag ? `[${tag}] ${text}` : text
+    // Capture replyTo BEFORE clearing state
+    const currentReply = replyTo
+    setReplyTo(null)
     await supabase.from('community_messages').insert({
       room: room.id,
       user_id: user.id,
       user_name: userName,
       user_initials: userInitials,
       message: full,
-      reply_to_id:   replyTo ? replyTo.id : null,
-      reply_to_name: replyTo ? (replyTo.user_id === user.id ? 'You' : replyTo.user_name) : null,
-      reply_to_text: replyTo ? parseMsg(replyTo.message).text.slice(0, 80) : null,
+      reply_to_id:   currentReply ? currentReply.id : null,
+      reply_to_name: currentReply ? (currentReply.user_id === user.id ? 'You' : currentReply.user_name) : null,
+      reply_to_text: currentReply ? parseMsg(currentReply.message).text.slice(0, 80) : null,
     })
-    setReplyTo(null)
     setSending(false)
     inputRef.current?.focus()
   }
