@@ -125,7 +125,11 @@ function ChatRoom({ room, user, onBack }) {
       user_name: userName,
       user_initials: userInitials,
       message: full,
+      reply_to_id:   replyTo ? replyTo.id : null,
+      reply_to_name: replyTo ? (replyTo.user_id === user.id ? 'You' : replyTo.user_name) : null,
+      reply_to_text: replyTo ? parseMsg(replyTo.message).text.slice(0, 80) : null,
     })
+    setReplyTo(null)
     setSending(false)
     inputRef.current?.focus()
   }
