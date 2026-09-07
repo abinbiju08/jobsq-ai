@@ -149,11 +149,11 @@ function ChatRoom({ room, user, onBack }) {
         .cr-scroll::-webkit-scrollbar{width:3px;}
         .cr-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:2px;}
       `}</style>
-      <div style={{display:'flex',flexDirection:'column',height:'100%',background:'var(--bg,#080c18)'}}>
+      <div style={{display:'flex',flexDirection:'column',height:'100%',background:'var(--bg)'}}>
 
         {/* Header */}
-        <div style={{display:'flex',alignItems:'center',gap:'.75rem',padding:'.85rem 1.25rem',borderBottom:'1px solid rgba(255,255,255,0.07)',background:'var(--bg2,#0d1120)',flexShrink:0}}>
-          <button onClick={onBack} style={{background:'none',border:'none',color:'#8b93b0',cursor:'pointer',display:'flex',alignItems:'center',padding:'.2rem .4rem',borderRadius:'6px',transition:'color .15s'}}
+        <div style={{display:'flex',alignItems:'center',gap:'.75rem',padding:'.85rem 1.25rem',borderBottom:'1px solid var(--border)',background:'var(--bg2)',flexShrink:0}}>
+          <button onClick={onBack} style={{background:'none',border:'none',color:'var(--text2)',cursor:'pointer',display:'flex',alignItems:'center',padding:'.2rem .4rem',borderRadius:'6px',transition:'color .15s'}}
             onMouseEnter={e=>e.currentTarget.style.color='#eef0ff'}
             onMouseLeave={e=>e.currentTarget.style.color='#8b93b0'}>
             <i className="ti ti-arrow-left" style={{fontSize:'18px'}} aria-hidden="true"/>
@@ -162,8 +162,8 @@ function ChatRoom({ room, user, onBack }) {
             <i className={`ti ${room.icon}`} style={{fontSize:'18px',color:room.color}} aria-hidden="true"/>
           </div>
           <div style={{flex:1}}>
-            <div style={{fontSize:'14px',fontWeight:700,color:'#eef0ff'}}>{room.id}</div>
-            <div style={{fontSize:'11px',color:'#8b93b0',marginTop:'1px'}}>{room.desc}</div>
+            <div style={{fontSize:'14px',fontWeight:700,color:'var(--text)'}}>{room.id}</div>
+            <div style={{fontSize:'11px',color:'var(--text2)',marginTop:'1px'}}>{room.desc}</div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:'.4rem',padding:'.3rem .75rem',borderRadius:'20px',background:'rgba(0,229,160,0.08)',border:'0.5px solid rgba(0,229,160,0.2)'}}>
             <div style={{width:'6px',height:'6px',borderRadius:'50%',background:'#00e5a0',animation:'blink 1.5s infinite'}}/>
@@ -175,11 +175,11 @@ function ChatRoom({ room, user, onBack }) {
         {/* Messages */}
         <div className="cr-scroll" style={{flex:1,overflowY:'auto',padding:'1rem 1.25rem',display:'flex',flexDirection:'column',gap:'.85rem'}}>
           {messages.length === 0 && (
-            <div style={{textAlign:'center',padding:'3rem 1rem',color:'#4a5168'}}>
+            <div style={{textAlign:'center',padding:'3rem 1rem',color:'var(--text3)'}}>
               <div style={{width:'52px',height:'52px',borderRadius:'14px',background:`${room.color}12`,border:`1px solid ${room.color}22`,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto .75rem'}}>
                 <i className={`ti ${room.icon}`} style={{fontSize:'24px',color:room.color}} aria-hidden="true"/>
               </div>
-              <div style={{fontSize:'14px',fontWeight:600,color:'#eef0ff',marginBottom:'.35rem'}}>Start the conversation!</div>
+              <div style={{fontSize:'14px',fontWeight:600,color:'var(--text)',marginBottom:'.35rem'}}>Start the conversation!</div>
               <div style={{fontSize:'12px',lineHeight:1.6}}>Be the first to post in <strong style={{color:room.color}}>{room.id}</strong>. Ask a question, share an experience, or help someone out.</div>
             </div>
           )}
@@ -194,10 +194,10 @@ function ChatRoom({ room, user, onBack }) {
                 <div style={{maxWidth:'72%',display:'flex',flexDirection:'column',alignItems:isMine?'flex-end':'flex-start'}}>
                   <div style={{display:'flex',alignItems:'center',gap:'.4rem',marginBottom:'3px',flexDirection:isMine?'row-reverse':'row'}}>
                     <span style={{fontSize:'11px',fontWeight:700,color:isMine?room.color:uColor}}>{isMine?'You':msg.user_name}</span>
-                    <span style={{fontSize:'10px',color:'#4a5168'}}>{timeAgo(msg.created_at)}</span>
+                    <span style={{fontSize:'10px',color:'var(--text3)'}}>{timeAgo(msg.created_at)}</span>
                     {msgTag && tc && <span style={{fontSize:'9px',padding:'1px 7px',borderRadius:'10px',background:tc.bg,color:tc.color,border:`0.5px solid ${tc.border}`,fontWeight:700}}>{msgTag}</span>}
                   </div>
-                  <div style={{padding:'.55rem .85rem',borderRadius:isMine?'14px 14px 3px 14px':'14px 14px 14px 3px',background:isMine?`${room.color}18`:'rgba(255,255,255,0.05)',border:`0.5px solid ${isMine?room.color+'30':'rgba(255,255,255,0.07)'}`,fontSize:'13px',color:'#eef0ff',lineHeight:1.55,wordBreak:'break-word'}}>
+                  <div style={{padding:'.55rem .85rem',borderRadius:isMine?'14px 14px 3px 14px':'14px 14px 14px 3px',background:isMine?`${room.color}18`:'rgba(255,255,255,0.05)',border:`0.5px solid ${isMine?room.color+'30':'rgba(255,255,255,0.07)'}`,fontSize:'13px',color:'var(--text)',lineHeight:1.55,wordBreak:'break-word'}}>
                     {msgText}
                   </div>
                 </div>
@@ -214,16 +214,16 @@ function ChatRoom({ room, user, onBack }) {
             const active = tag === t
             return (
               <button key={t} className="cr-tag-btn" onClick={()=>setTag(active?'':t)}
-                style={{fontSize:'10px',padding:'2px 9px',borderRadius:'20px',border:`0.5px solid ${active?tc.border:'rgba(255,255,255,0.08)'}`,background:active?tc.bg:'transparent',color:active?tc.color:'#4a5168',cursor:'pointer',fontFamily:'Inter,sans-serif',fontWeight:active?700:400,transition:'all .15s'}}>
+                style={{fontSize:'10px',padding:'2px 9px',borderRadius:'20px',border:`0.5px solid ${active?tc.border:'rgba(255,255,255,0.08)'}`,background:active?tc.bg:'transparent',color:active?tc.color:'var(--text3)',cursor:'pointer',fontFamily:'Inter,sans-serif',fontWeight:active?700:400,transition:'all .15s'}}>
                 {t}
               </button>
             )
           })}
-          {tag && <button onClick={()=>setTag('')} style={{fontSize:'10px',padding:'2px 6px',borderRadius:'20px',border:'none',background:'none',color:'#4a5168',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>✕ clear</button>}
+          {tag && <button onClick={()=>setTag('')} style={{fontSize:'10px',padding:'2px 6px',borderRadius:'20px',border:'none',background:'none',color:'var(--text3)',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>✕ clear</button>}
         </div>
 
         {/* Input */}
-        <div style={{padding:'.75rem 1.25rem',borderTop:'1px solid rgba(255,255,255,0.07)',display:'flex',gap:'.5rem',alignItems:'flex-end',flexShrink:0}}>
+        <div style={{padding:'.75rem 1.25rem',borderTop:'1px solid var(--border)',display:'flex',gap:'.5rem',alignItems:'flex-end',flexShrink:0}}>
           <Avatar initials={userInitials} color={userColor} size={30}/>
           <textarea
             ref={inputRef}
@@ -233,7 +233,7 @@ function ChatRoom({ room, user, onBack }) {
             onKeyDown={handleKey}
             placeholder={`Message ${room.id}${tag?' · '+tag:''}...`}
             rows={1}
-            style={{flex:1,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:'10px',padding:'.6rem .85rem',color:'#eef0ff',fontSize:'13px',fontFamily:'Inter,sans-serif',outline:'none',resize:'none',maxHeight:'100px',lineHeight:1.5,transition:'border-color .2s'}}
+            style={{flex:1,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'10px',padding:'.6rem .85rem',color:'var(--text)',fontSize:'13px',fontFamily:'Inter,sans-serif',outline:'none',resize:'none',maxHeight:'100px',lineHeight:1.5,transition:'border-color .2s'}}
           />
           <button className="send-btn" onClick={send} disabled={!input.trim()||sending}
             style={{width:'36px',height:'36px',borderRadius:'9px',background:input.trim()?`linear-gradient(135deg,${room.color},${room.color}cc)`:'rgba(255,255,255,0.06)',border:'none',cursor:input.trim()?'pointer':'default',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all .15s',opacity:sending?.6:1}}>
@@ -287,23 +287,23 @@ export default function LetsConnect() {
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
-        .room-card{background:var(--bg3,#141828);border:1px solid var(--border,rgba(255,255,255,0.07));border-radius:16px;padding:1.25rem;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+        .room-card{background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:1.25rem;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
         .room-card:hover{transform:translateY(-3px);}
         .room-card::after{content:'';position:absolute;inset:0;border-radius:16px;opacity:0;transition:opacity .2s;pointer-events:none;}
         .room-card:hover::after{opacity:1;}
       `}</style>
-      <div style={{background:'var(--bg,#080c18)',minHeight:'calc(100vh - 52px)',fontFamily:'Inter,sans-serif'}}>
+      <div style={{background:'var(--bg)',minHeight:'calc(100vh - 52px)',background:'var(--bg)',fontFamily:'Inter,sans-serif'}}>
 
         {/* Hero */}
-        <div style={{background:'linear-gradient(135deg,rgba(124,111,247,0.08),rgba(0,229,160,0.04))',borderBottom:'1px solid rgba(255,255,255,0.07)',padding:'2rem 1.5rem 1.5rem'}}>
+        <div style={{background:'linear-gradient(135deg,rgba(124,111,247,0.08),rgba(0,229,160,0.04))',borderBottom:'1px solid var(--border)',padding:'2rem 1.5rem 1.5rem'}}>
           <div style={{maxWidth:'900px',margin:'0 auto'}}>
             <div style={{display:'flex',alignItems:'center',gap:'.75rem',marginBottom:'.5rem'}}>
               <div style={{width:'40px',height:'40px',borderRadius:'12px',background:'rgba(124,111,247,0.12)',border:'1px solid rgba(124,111,247,0.25)',display:'flex',alignItems:'center',justifyContent:'center'}}>
                 <i className="ti ti-users" style={{fontSize:'20px',color:'#7c6ff7'}} aria-hidden="true"/>
               </div>
               <div>
-                <h1 style={{fontSize:'22px',fontWeight:800,color:'#eef0ff',margin:0}}>Let's Connect</h1>
-                <div style={{fontSize:'12px',color:'#8b93b0',marginTop:'2px'}}>India's job seeker community — ask, share, and grow together</div>
+                <h1 style={{fontSize:'22px',fontWeight:800,color:'var(--text)',margin:0}}>Let's Connect</h1>
+                <div style={{fontSize:'12px',color:'var(--text2)',marginTop:'2px'}}>India's job seeker community — ask, share, and grow together</div>
               </div>
             </div>
 
@@ -317,16 +317,16 @@ export default function LetsConnect() {
               ].map(s=>(
                 <div key={s.label} style={{display:'flex',alignItems:'center',gap:'.5rem'}}>
                   <i className={`ti ${s.icon}`} style={{fontSize:'15px',color:'#7c6ff7'}} aria-hidden="true"/>
-                  <span style={{fontSize:'12px',color:'#8b93b0'}}>{s.label}: <strong style={{color:'#eef0ff'}}>{s.val}</strong></span>
+                  <span style={{fontSize:'12px',color:'var(--text2)'}}>{s.label}: <strong style={{color:'var(--text)'}}>{s.val}</strong></span>
                 </div>
               ))}
             </div>
 
             {/* Search */}
             <div style={{position:'relative',maxWidth:'420px'}}>
-              <i className="ti ti-search" style={{position:'absolute',left:'.85rem',top:'50%',transform:'translateY(-50%)',fontSize:'14px',color:'#4a5168'}} aria-hidden="true"/>
+              <i className="ti ti-search" style={{position:'absolute',left:'.85rem',top:'50%',transform:'translateY(-50%)',fontSize:'14px',color:'var(--text3)'}} aria-hidden="true"/>
               <input value={search} onChange={e=>setSearch(e.target.value)}
-                style={{width:'100%',background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'10px',padding:'.6rem .85rem .6rem 2.5rem',color:'#eef0ff',fontSize:'13px',fontFamily:'Inter,sans-serif',outline:'none',boxSizing:'border-box'}}
+                style={{width:'100%',background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:'10px',padding:'.6rem .85rem .6rem 2.5rem',color:'var(--text)',fontSize:'13px',fontFamily:'Inter,sans-serif',outline:'none',boxSizing:'border-box'}}
                 placeholder='Search field or topic...'/>
             </div>
           </div>
@@ -342,7 +342,7 @@ export default function LetsConnect() {
               {icon:'ti-robot',        text:'Get AI help or discuss AI tools for your career'},
               {icon:'ti-star',         text:'Share your experience to help others'},
             ].map((t,i)=>(
-              <div key={i} style={{display:'flex',alignItems:'center',gap:'.4rem',fontSize:'12px',color:'#8b93b0'}}>
+              <div key={i} style={{display:'flex',alignItems:'center',gap:'.4rem',fontSize:'12px',color:'var(--text2)'}}>
                 <i className={`ti ${t.icon}`} style={{fontSize:'14px',color:'#00e5a0',flexShrink:0}} aria-hidden="true"/>
                 {t.text}
               </div>
@@ -368,8 +368,8 @@ export default function LetsConnect() {
                       <i className={`ti ${room.icon}`} style={{fontSize:'20px',color:room.color}} aria-hidden="true"/>
                     </div>
                     <div style={{flex:1}}>
-                      <div style={{fontSize:'14px',fontWeight:700,color:'#eef0ff',marginBottom:'2px'}}>{room.id}</div>
-                      <div style={{fontSize:'11px',color:'#8b93b0',lineHeight:1.4}}>{room.desc}</div>
+                      <div style={{fontSize:'14px',fontWeight:700,color:'var(--text)',marginBottom:'2px'}}>{room.id}</div>
+                      <div style={{fontSize:'11px',color:'var(--text2)',lineHeight:1.4}}>{room.desc}</div>
                     </div>
                   </div>
 
@@ -383,7 +383,7 @@ export default function LetsConnect() {
                       ) : (
                         <>
                           <div style={{width:'6px',height:'6px',borderRadius:'50%',background:'rgba(255,255,255,0.15)'}}/>
-                          <span style={{fontSize:'11px',color:'#4a5168'}}>Be the first to post</span>
+                          <span style={{fontSize:'11px',color:'var(--text3)'}}>Be the first to post</span>
                         </>
                       )}
                     </div>
@@ -398,7 +398,7 @@ export default function LetsConnect() {
           </div>
 
           {filteredRooms.length === 0 && (
-            <div style={{textAlign:'center',padding:'3rem',color:'#4a5168'}}>
+            <div style={{textAlign:'center',padding:'3rem',color:'var(--text3)'}}>
               <i className="ti ti-search-off" style={{fontSize:'32px',display:'block',marginBottom:'.75rem'}} aria-hidden="true"/>
               No rooms match your search
             </div>
