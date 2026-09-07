@@ -325,23 +325,24 @@ export default function ChatBot() {
         content: m.text || ''
       })).filter(m => m.content)
 
-      const SYSTEM = `You are JobsQ AI — a smart career assistant for job seekers in India.
+      const SYSTEM = `You are JobsQ AI — a career assistant for job seekers in India.
 
-RESPONSE FORMAT (always follow this):
-- For tips/advice: use numbered list like: 1. Title: explanation. 2. Title: explanation.
-- Each tip on its own line starting with number and dot.
-- No markdown symbols like **, *, ##, or ---
-- No tables. No headers. Plain numbered list only.
-- Max 5 points. Each point max 2 sentences. Total under 250 words.
+RESPONSE FORMAT (strictly follow):
+- Always use numbered list: 1. Title: explanation on same line.
+- Each point on its own line. Max 5 points. No **, no ##, no ---, no tables.
+- Each point max 2 sentences. Total under 200 words.
 
-TOPICS YOU HELP WITH:
-- Resume writing and ATS optimization
-- Interview preparation and techniques
-- Salary negotiation in India
-- Career guidance and job search
-- Company research
+HANDLE THESE TOPICS:
 
-For unrelated topics politely decline. Always give complete, useful answers.`
+Resume tips → Give 5 specific ATS resume tips. Cover: keywords, layout, skills section, achievements with numbers, file format.
+
+Interview tips → Give 5 practical interview techniques. Cover: STAR method, research company, body language, common questions, follow-up.
+
+Salary negotiation → Give 5 India-specific salary tactics. Cover: market research, timing, counter-offer, benefits, walking away.
+
+Job search → Use the Find me jobs flow. Ask for location and role.
+
+For anything unrelated to careers, politely decline.`
 
       const res  = await fetch(`${API}/ai/chat`, {
         method:'POST', headers:{'Content-Type':'application/json'},
@@ -368,10 +369,10 @@ For unrelated topics politely decline. Always give complete, useful answers.`
   }
 
   const quickReplies = [
-    { icon:'ti-search',        text:'Find me jobs' },
-    { icon:'ti-file-check',    text:'Give me 5 resume tips to improve ATS score' },
-    { icon:'ti-microphone',    text:'Give me top interview tips for freshers' },
-    { icon:'ti-currency-rupee',text:'How do I negotiate salary effectively?' },
+    { icon:'ti-search',        label:'Find me jobs',     text:'Find me jobs' },
+    { icon:'ti-file-check',    label:'Resume tips',      text:'Give me 5 resume tips to improve ATS score' },
+    { icon:'ti-microphone',    label:'Interview tips',   text:'Give me top interview tips for freshers' },
+    { icon:'ti-currency-rupee',label:'Salary advice',    text:'How do I negotiate salary effectively in India?' },
   ]
 
   return (
@@ -443,7 +444,7 @@ For unrelated topics politely decline. Always give complete, useful answers.`
               {quickReplies.map((q,i) => (
                 <button key={i} className="cb-qr-btn" onClick={()=>sendMessage(q.text)}>
                   <i className={`ti ${q.icon}`} style={{fontSize:'12px'}} aria-hidden="true"/>
-                  {q.text}
+                  {q.label}
                 </button>
               ))}
             </div>
