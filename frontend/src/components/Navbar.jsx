@@ -7,7 +7,7 @@ export default function Navbar({ session }) {
   const location = useLocation()
   const [dark, setDark] = useState(true)
 
-  const showToggle = ['/jobs', '/resume', '/dashboard', '/profile', '/tracker', '/resume-builder'].includes(location.pathname)
+  const showToggle = ['/jobs', '/resume', '/dashboard', '/profile', '/tracker', '/resume-builder', '/interview', '/connect'].includes(location.pathname)
 
   useEffect(() => {
     const saved = localStorage.getItem('jobsq-theme')
@@ -55,7 +55,6 @@ export default function Navbar({ session }) {
     { path: '/resume-builder', label: 'Builder',       icon: 'ti-pencil' },
     { path: '/tracker',        label: 'Tracker',       icon: 'ti-layout-kanban' },
     { path: '/dashboard',      label: 'Dashboard',     icon: 'ti-chart-bar' },
-    { path: '/interview', label: 'Interview', icon: 'ti-microphone' },
   ]
 
   const initials = session?.user?.email?.[0]?.toUpperCase() || 'U'
