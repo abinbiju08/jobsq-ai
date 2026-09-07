@@ -213,7 +213,7 @@ function BotBubble({ msg, onFormSubmit }) {
     )
   }
   const rendered = renderMarkdown(msg.text)
-  const isStructured = msg.text.includes('\n') || msg.text.includes('**') || /^\d+\./.test(msg.text)
+  const isStructured = msg.text.includes('\n') || /^\d+\.\s/.test(msg.text)
   return (
     <div style={{background:'rgba(255,255,255,0.05)',border:'0.5px solid var(--border)',borderRadius:'14px 14px 14px 3px',padding:isStructured?'.75rem .85rem':'.6rem .85rem',maxWidth:'88%',alignSelf:'flex-start',animation:'fadeIn .2s ease'}}>
       {isStructured ? rendered : <span style={{fontSize:'12.5px',color:'var(--text)',lineHeight:1.6}}>{parseBold(msg.text)}</span>}
@@ -351,15 +351,17 @@ For anything unrelated to careers, politely decline.`
       const data = await res.json()
       const reply = data.reply || "Sorry, couldn't process that. Please try again."
       const cleaned = reply
-        .replace(/#{1,3} /g, '')
-        .replace(/^> /gm, '')
-        .replace(/`{3}[\s\S]*?`{3}/g, '')
+        .replace(/#{1,6}\s*/g, '')
+        .replace(/^>\s*/gm, '')
+        .replace(/\*{1,3}(.+?)\*{1,3}/g, '$1')
         .split('\n')
-        .filter(l => !l.trim().startsWith('|') && l.trim() !== '---')
+        .filter(l => {
+          const t = l.trim()
+          return t && !t.startsWith('|') && !t.match(/^-+\|/) && t !== '---'
+        })
         .join('\n')
-        .replace(/[ \t]+/g, ' ')
         .trim()
-        .slice(0, 1500)
+        .slice(0, 2000)
       const showForm = /what.*location|which.*city|what.*role|tell me.*detail|let me know.*prefer/i.test(cleaned)
       addBot({ text: cleaned, showForm })
     } catch(err) {
