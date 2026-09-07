@@ -54,6 +54,8 @@ function colorForUser(name) {
 // ── CHAT ROOM ─────────────────────────────────────────────────────
 function ChatRoom({ room, user, onBack }) {
   const [messages, setMessages] = useState([])
+  const [editingId, setEditingId] = useState(null)
+  const [editText, setEditText] = useState('')
   const [input, setInput]       = useState('')
   const [tag, setTag]           = useState('')
   const [sending, setSending]   = useState(false)
@@ -142,6 +144,27 @@ function ChatRoom({ room, user, onBack }) {
     setMessages(prev => prev.filter(m => m.id !== msgId))
   }
 
+  // Edit message
+  const startEdit = (msg) => {
+    setEditingId(msg.id)
+    const { text } = parseMsg(msg.message)
+    setEditText(text)
+  }
+
+  const saveEdit = async (msg) => {
+    if (!editText.trim()) return
+    const tag = parseMsg(msg.message).tag
+    const newMsg = tag ? `[${tag}] ${editText.trim()}` : editText.trim()
+    await supabase
+      .from('community_messages')
+      .update({ message: newMsg })
+      .eq('id', msg.id)
+      .eq('user_id', user.id)
+    setMessages(prev => prev.map(m => m.id === msg.id ? {...m, message: newMsg} : m))
+    setEditingId(null)
+    setEditText('')
+  }
+
   // Parse tag from message
   const parseMsg = (msg) => {
     const match = msg.match(/^\[(.+?)\]\s*(.*)/)
@@ -155,8 +178,8 @@ function ChatRoom({ room, user, onBack }) {
       <style>{`
         @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
         .cr-msg{animation:fadeUp .18s ease;}
-        .cr-msg:hover .unsend-btn{opacity:1!important;}
-        .unsend-btn:hover{color:var(--text2)!important;}
+        .cr-msg:hover .msg-actions{opacity:1!important;}
+        .msg-actions button:hover i{color:var(--text)!important;}
         .cr-input:focus{border-color:${room.color}55!important;}
         .cr-tag-btn:hover{border-color:${room.color}66!important;color:${room.color}!important;}
         .send-btn:hover{opacity:.85!important;}
@@ -211,18 +234,47 @@ function ChatRoom({ room, user, onBack }) {
                     <span style={{fontSize:'10px',color:'var(--text3)'}}>{timeAgo(msg.created_at)}</span>
                     {msgTag && tc && <span style={{fontSize:'9px',padding:'1px 7px',borderRadius:'10px',background:tc.bg,color:tc.color,border:`0.5px solid ${tc.border}`,fontWeight:700}}>{msgTag}</span>}
                   </div>
-                  <div style={{display:'flex',alignItems:'center',gap:'.35rem',flexDirection:isMine?'row-reverse':'row'}}>
-                    <div style={{padding:'.55rem .85rem',borderRadius:isMine?'14px 14px 3px 14px':'14px 14px 14px 3px',background:isMine?`${room.color}18`:'rgba(255,255,255,0.05)',border:`0.5px solid ${isMine?room.color+'30':'var(--border)'}`,fontSize:'13px',color:'var(--text)',lineHeight:1.55,wordBreak:'break-word'}}>
-                      {msgText}
-                    </div>
-                    {isMine && (
-                      <button className="unsend-btn" onClick={()=>unsendMessage(msg.id)} title="Unsend"
-                        style={{background:'none',border:'none',cursor:'pointer',padding:'.25rem',color:'var(--text3)',opacity:0,transition:'opacity .15s',display:'flex',alignItems:'center',flexShrink:0}}
-                        aria-label="Unsend message">
-                        <i className="ti ti-trash" style={{fontSize:'13px'}} aria-hidden="true"/>
+                  {editingId === msg.id ? (
+                    <div style={{display:'flex',gap:'.35rem',alignItems:'center',maxWidth:'260px'}}>
+                      <input
+                        value={editText}
+                        onChange={e=>setEditText(e.target.value)}
+                        onKeyDown={e=>{ if(e.key==='Enter') saveEdit(msg); if(e.key==='Escape'){setEditingId(null);setEditText('')} }}
+                        autoFocus
+                        style={{flex:1,background:'var(--bg3)',border:`1px solid ${room.color}`,borderRadius:'10px',padding:'.45rem .75rem',fontSize:'13px',color:'var(--text)',fontFamily:'Inter,sans-serif',outline:'none'}}
+                      />
+                      <button onClick={()=>saveEdit(msg)}
+                        style={{background:room.color,border:'none',borderRadius:'8px',padding:'.35rem .6rem',cursor:'pointer',display:'flex',alignItems:'center',flexShrink:0}}
+                        aria-label="Save edit">
+                        <i className="ti ti-send" style={{fontSize:'13px',color:'#060d0a'}} aria-hidden="true"/>
                       </button>
-                    )}
-                  </div>
+                      <button onClick={()=>{setEditingId(null);setEditText('')}}
+                        style={{background:'var(--bg3)',border:'0.5px solid var(--border)',borderRadius:'8px',padding:'.35rem .6rem',cursor:'pointer',display:'flex',alignItems:'center',flexShrink:0}}
+                        aria-label="Cancel edit">
+                        <i className="ti ti-x" style={{fontSize:'13px',color:'var(--text2)'}} aria-hidden="true"/>
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{display:'flex',alignItems:'center',gap:'.35rem',flexDirection:isMine?'row-reverse':'row'}}>
+                      <div style={{padding:'.55rem .85rem',borderRadius:isMine?'14px 14px 3px 14px':'14px 14px 14px 3px',background:isMine?`${room.color}18`:'rgba(255,255,255,0.05)',border:`0.5px solid ${isMine?room.color+'30':'var(--border)'}`,fontSize:'13px',color:'var(--text)',lineHeight:1.55,wordBreak:'break-word'}}>
+                        {msgText}
+                      </div>
+                      {isMine && (
+                        <div className="msg-actions" style={{display:'flex',gap:'2px',opacity:0,transition:'opacity .15s',flexShrink:0}}>
+                          <button onClick={()=>startEdit(msg)} title="Edit"
+                            style={{background:'none',border:'none',cursor:'pointer',padding:'.25rem',color:'var(--text3)',display:'flex',alignItems:'center'}}
+                            aria-label="Edit message">
+                            <i className="ti ti-edit" style={{fontSize:'13px'}} aria-hidden="true"/>
+                          </button>
+                          <button onClick={()=>unsendMessage(msg.id)} title="Delete"
+                            style={{background:'none',border:'none',cursor:'pointer',padding:'.25rem',color:'var(--text3)',display:'flex',alignItems:'center'}}
+                            aria-label="Delete message">
+                            <i className="ti ti-trash" style={{fontSize:'13px'}} aria-hidden="true"/>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )
