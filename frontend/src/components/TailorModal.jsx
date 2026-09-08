@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -11,14 +11,16 @@ export default function TailorModal({ job, user, onClose }) {
   const [uploadFile, setUploadFile] = useState(null)
 
   // Check if user has saved resume on mount
-  useState(() => {
+  useEffect(() => {
     const check = async () => {
-      const res = await fetch(`${API}/builder/resume-info/${user.id}`)
-      const data = await res.json()
-      setResumeInfo(data)
+      try {
+        const res = await fetch(`${API}/builder/resume-info/${user.id}`)
+        const data = await res.json()
+        setResumeInfo(data)
+      } catch {}
     }
     check()
-  }, [])
+  }, [user.id])
 
   const tailorResume = async () => {
     setStep('loading')

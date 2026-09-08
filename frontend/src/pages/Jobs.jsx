@@ -501,9 +501,14 @@ export default function Jobs() {
                 </div>
               ) : (
                 filtered.map((job,i)=>(
-                  <div key={job.id||i} className="job-card-wrap" onClick={()=>handleJobClick(job)}>
-                    <JobCard job={job}/>
-                  </div>
+                   <div key={job.id||i} className="job-card-wrap" onClick={()=>handleJobClick(job)} style={{position:"relative"}}>
+                     <JobCard job={job}/>
+                     <button onClick={e=>{e.stopPropagation();setTailorJob(job)}}
+                       style={{position:"absolute",bottom:".65rem",right:".65rem",display:"inline-flex",alignItems:"center",gap:".25rem",padding:".25rem .6rem",background:"rgba(124,111,247,0.12)",border:"0.5px solid rgba(124,111,247,0.3)",borderRadius:"6px",color:"#7c6ff7",fontSize:"11px",fontWeight:600,cursor:"pointer",fontFamily:"Inter,sans-serif",zIndex:2}}
+                       aria-label="Tailor resume for this job">
+                       <i className="ti ti-file-text" style={{fontSize:"12px"}} aria-hidden="true"/> Tailor
+                     </button>
+                   </div>
                 ))
               )}
             </div>
