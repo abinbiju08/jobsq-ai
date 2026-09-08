@@ -1,3 +1,5 @@
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
@@ -57,6 +59,7 @@ function ChatRoom({ room, user, onBack }) {
   const [editingId, setEditingId] = useState(null)
   const [editText, setEditText] = useState('')
   const [replyTo, setReplyTo] = useState(null)
+  const [blockedMsg, setBlockedMsg] = useState('')
   const [input, setInput]       = useState('')
   const [tag, setTag]           = useState('')
   const [sending, setSending]   = useState(false)
@@ -116,6 +119,23 @@ function ChatRoom({ room, user, onBack }) {
     const text = input.trim()
     if (!text || sending || !user) return
     setSending(true)
+
+    // ── AI Moderation check ──────────────────────────
+    try {
+      const modRes = await fetch(`${API}/moderation/check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, user_id: user.id, room: room.id })
+      })
+      const modData = await modRes.json()
+      if (!modData.allowed) {
+        setBlockedMsg(modData.reason || 'Message not allowed.')
+        setSending(false)
+        setTimeout(() => setBlockedMsg(''), 4000)
+        return
+      }
+    } catch { /* allow if moderation fails */ }
+
     setInput('')
     const full = tag ? `[${tag}] ${text}` : text
     // Capture replyTo BEFORE clearing state
@@ -314,6 +334,14 @@ function ChatRoom({ room, user, onBack }) {
           })}
           {tag && <button onClick={()=>setTag('')} style={{fontSize:'10px',padding:'2px 6px',borderRadius:'20px',border:'none',background:'none',color:'var(--text3)',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>✕ clear</button>}
         </div>
+
+        {/* Blocked message warning */}
+        {blockedMsg && (
+          <div style={{padding:'.5rem .85rem',background:'rgba(226,75,74,0.1)',borderTop:'0.5px solid rgba(226,75,74,0.3)',display:'flex',alignItems:'center',gap:'.5rem',flexShrink:0}}>
+            <i className="ti ti-shield-x" style={{fontSize:'14px',color:'#E24B4A',flexShrink:0}} aria-hidden="true"/>
+            <span style={{fontSize:'12px',color:'#E24B4A',flex:1}}>{blockedMsg}</span>
+          </div>
+        )}
 
         {/* Reply preview bar */}
         {replyTo && (
