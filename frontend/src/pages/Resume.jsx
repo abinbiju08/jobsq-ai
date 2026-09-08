@@ -174,15 +174,21 @@ export default function Resume() {
                   Top matching jobs — real data
                 </h4>
                 {result.top_matches?.map((j,i)=>(
-                    <div key={i} className="resume-match-row">
+                    <div key={i} className="resume-match-row" style={{cursor:"default"}}>
                       <div style={{flex:1,minWidth:0}}>
                         <div className="resume-job-title">{j.title} — {j.company}</div>
                         <div className="resume-job-sub">{j.location} · {j.salary}</div>
                       </div>
-                      <div style={{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0,gap:"2px"}}>
+                      <div style={{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0,gap:"4px"}}>
                         <span style={{fontSize:"13px",fontWeight:800,color:"#7c6ff7"}}>{j.match}%</span>
-                        <span style={{fontSize:"10px",color:"var(--text3)",whiteSpace:"nowrap"}}>View details</span>
+                        <span style={{fontSize:"10px",color:"var(--text3)",whiteSpace:"nowrap"}}>match</span>
                       </div>
+                      {j.url && (
+                        <a href={j.url} target="_blank" rel="noopener noreferrer"
+                          style={{display:"inline-flex",alignItems:"center",gap:"4px",marginLeft:".5rem",padding:".3rem .75rem",background:"linear-gradient(135deg,#00e5a0,#00c484)",borderRadius:"7px",color:"#060d0a",fontSize:"11px",fontWeight:700,textDecoration:"none",whiteSpace:"nowrap",flexShrink:0}}>
+                          <i className="ti ti-external-link" style={{fontSize:"12px"}} aria-hidden="true"/> Apply
+                        </a>
+                      )}
                     </div>
                 ))}
               </div>
