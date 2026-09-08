@@ -1,9 +1,14 @@
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import FaceRegister from '../components/FaceRegister'
 
 export default function Profile() {
   const [user, setUser] = useState(null)
+  const [resumeInfo, setResumeInfo] = useState(null)
+  const [resumeUploading, setResumeUploading] = useState(false)
+  const [resumeMsg, setResumeMsg] = useState('')
   const [hasFace, setHasFace] = useState(false)
   const [showRegister, setShowRegister] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -48,6 +53,35 @@ export default function Profile() {
     { icon:'ti-user-check',  title:'Login instantly',   desc:"On the login page click Face Login — look at camera and you're in" },
     { icon:'ti-shield-check',title:'Spoof protected',   desc:'Liveness detection blocks photos and videos from bypassing security' },
   ]
+
+  const uploadResume = async (file) => {
+    if (!file || !user) return
+    setResumeUploading(true)
+    setResumeMsg('')
+    try {
+      const form = new FormData()
+      form.append('resume_file', file)
+      form.append('user_id', user.id)
+      const res = await fetch(`${API}/builder/save-resume`, { method:'POST', body:form })
+      const data = await res.json()
+      if (data.success) {
+        setResumeInfo({ file_name: data.file_name, file_size: data.file_size })
+        setResumeMsg('Resume uploaded successfully!')
+      } else {
+        setResumeMsg('Upload failed — ' + (data.error || 'try again'))
+      }
+    } catch(e) {
+      setResumeMsg('Upload failed — check your connection')
+    }
+    setResumeUploading(false)
+    setTimeout(() => setResumeMsg(''), 4000)
+  }
+
+  const removeResume = async () => {
+    setResumeInfo(null)
+    setResumeMsg('Resume removed')
+    setTimeout(() => setResumeMsg(''), 3000)
+  }
 
   return (
     <>

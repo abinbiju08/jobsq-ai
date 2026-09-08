@@ -4,6 +4,7 @@ import JobCard from '../components/JobCard'
 import SmartJobMatch from '../components/SmartJobMatch'
 import JobAlertModal from '../components/JobAlertModal'
 import SkillGapModal from '../components/SkillGapModal'
+import TailorModal from '../components/TailorModal'
 import { supabase } from '../lib/supabase'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -154,19 +155,19 @@ function JobMap({ search }) {
         .leaflet-control-zoom a:hover{background:rgba(0,229,160,0.1)!important;}
         .leaflet-control-attribution{display:none!important;}
       `}</style>
-      <div style={{display:'flex',height:'100%',background:'var(--bg,#080c18)'}}>
+      <div style={{display:'flex',height:'100%',background:'var(--bg)'}}>
         <div style={{flex:1,position:'relative',overflow:'hidden'}}>
           {/* Map search bar */}
           <div style={{position:'absolute',top:'1rem',left:'50%',transform:'translateX(-50%)',zIndex:1000,display:'flex',gap:'.5rem',alignItems:'center',background:'var(--card,rgba(6,9,20,0.94))',border:'1px solid var(--border2,rgba(255,255,255,0.12))',borderRadius:'14px',padding:'.55rem .8rem',backdropFilter:'blur(20px)',boxShadow:'0 8px 32px rgba(0,0,0,0.4)',minWidth:'460px'}}>
-            <i className="ti ti-search" style={{fontSize:'14px',color:'var(--text3,#4a5168)'}} aria-hidden="true"/>
-            <input value={role} onChange={e=>setRole(e.target.value)} onKeyDown={e=>e.key==='Enter'&&runSearch()} style={{background:'none',border:'none',color:'var(--text,#eef0ff)',fontSize:'13px',fontFamily:'Inter,sans-serif',outline:'none',width:'150px'}} placeholder="Job role or skill..."/>
+            <i className="ti ti-search" style={{fontSize:'14px',color:'var(--text3)'}} aria-hidden="true"/>
+            <input value={role} onChange={e=>setRole(e.target.value)} onKeyDown={e=>e.key==='Enter'&&runSearch()} style={{background:'none',border:'none',color:'var(--text)',fontSize:'13px',fontFamily:'Inter,sans-serif',outline:'none',width:'150px'}} placeholder="Job role or skill..."/>
             <div style={{width:'1px',height:'18px',background:'var(--border,rgba(255,255,255,0.1))'}}/>
-            <i className="ti ti-map-pin" style={{fontSize:'14px',color:'var(--text3,#4a5168)'}} aria-hidden="true"/>
-            <select value={selectedState} onChange={e=>setSelectedState(e.target.value)} style={{background:'var(--bg,#080c18)',border:'none',color:selectedState?'var(--text,#eef0ff)':'var(--text3,#4a5168)',fontSize:'13px',fontFamily:'Inter,sans-serif',outline:'none',width:'130px',cursor:'pointer'}}>
+            <i className="ti ti-map-pin" style={{fontSize:'14px',color:'var(--text3)'}} aria-hidden="true"/>
+            <select value={selectedState} onChange={e=>setSelectedState(e.target.value)} style={{background:'var(--bg)',border:'none',color:selectedState?'var(--text)':'var(--text3)',fontSize:'13px',fontFamily:'Inter,sans-serif',outline:'none',width:'130px',cursor:'pointer'}}>
               <option value=''>All India</option>
               {['Karnataka','Telangana','Maharashtra','Tamil Nadu','Delhi','West Bengal','Gujarat','Kerala','Rajasthan','Uttar Pradesh','Punjab','Madhya Pradesh','Odisha','Bihar','Jharkhand','Assam','Uttarakhand'].map(s=><option key={s} value={s}>{s}</option>)}
             </select>
-            <button onClick={()=>runSearch()} disabled={searching} style={{display:'flex',alignItems:'center',gap:'.35rem',padding:'.38rem .9rem',background:searching?'#4a5168':'linear-gradient(135deg,#00e5a0,#00c484)',border:'none',borderRadius:'8px',color:'#060d0a',fontSize:'12px',fontWeight:700,cursor:searching?'not-allowed':'pointer',fontFamily:'Inter,sans-serif'}}>
+            <button onClick={()=>runSearch()} disabled={searching} style={{display:'flex',alignItems:'center',gap:'.35rem',padding:'.38rem .9rem',background:searching?'var(--text3)':'linear-gradient(135deg,#00e5a0,#00c484)',border:'none',borderRadius:'8px',color:'#060d0a',fontSize:'12px',fontWeight:700,cursor:searching?'not-allowed':'pointer',fontFamily:'Inter,sans-serif'}}>
               {searching ? <><i className="ti ti-loader" style={{fontSize:'13px',animation:'spin .8s linear infinite'}} aria-hidden="true"/> Searching</> : 'Search'}
             </button>
             {selectedState && <button onClick={()=>{setSelectedState('');setTimeout(()=>runSearch(true),50)}} style={{display:'flex',alignItems:'center',gap:'.3rem',padding:'.38rem .6rem',background:'rgba(255,77,109,0.1)',border:'1px solid rgba(255,77,109,0.2)',borderRadius:'8px',color:'#ff4d6d',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif'}}><i className="ti ti-x" style={{fontSize:'12px'}} aria-hidden="true"/> All India</button>}
@@ -187,22 +188,22 @@ function JobMap({ search }) {
           </div>
 
           {/* Legend */}
-          <div style={{position:'absolute',bottom:'1.5rem',left:'1rem',background:'var(--card,rgba(6,9,20,0.9))',border:'1px solid var(--border,rgba(255,255,255,0.07))',borderRadius:'10px',padding:'.55rem .8rem',zIndex:1000}}>
-            <div style={{fontSize:'9px',color:'var(--text3,#4a5168)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.3rem',fontWeight:600}}>Job density</div>
+          <div style={{position:'absolute',bottom:'1.5rem',left:'1rem',background:'var(--card,rgba(6,9,20,0.9))',border:'1px solid var(--border)',borderRadius:'10px',padding:'.55rem .8rem',zIndex:1000}}>
+            <div style={{fontSize:'9px',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.3rem',fontWeight:600}}>Job density</div>
             {[['#00e5a0','100+ Live'],['#7c6ff7','40-100 Live'],['#3b82f6','15-40 Live'],['#f5a623','Estimated']].map(([c,l])=>(
-              <div key={l} style={{display:'flex',alignItems:'center',gap:'.35rem',fontSize:'9px',color:'var(--text2,#8b93b0)',marginBottom:'.18rem'}}>
+              <div key={l} style={{display:'flex',alignItems:'center',gap:'.35rem',fontSize:'9px',color:'var(--text2)',marginBottom:'.18rem'}}>
                 <div style={{width:'7px',height:'7px',borderRadius:'50%',background:c,flexShrink:0}}/>{l}
               </div>
             ))}
           </div>
 
           <div ref={mapRef} style={{width:'100%',height:'100%'}}/>
-          {!leafletLoaded && <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg,#080c18)',color:'var(--text2,#8b93b0)',fontSize:'14px'}}>Loading map...</div>}
+          {!leafletLoaded && <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)',color:'var(--text2)',fontSize:'14px'}}>Loading map...</div>}
         </div>
 
         {/* Map sidebar */}
-        <div style={{width:'210px',background:'var(--bg2,rgba(8,12,24,0.95))',borderLeft:'1px solid var(--border,rgba(255,255,255,0.07))',display:'flex',flexDirection:'column',overflow:'hidden',flexShrink:0}}>
-          <div style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.7rem 1rem',fontSize:'11px',fontWeight:700,color:'var(--text3,#4a5168)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border,rgba(255,255,255,0.05))'}}>
+        <div style={{width:'210px',background:'var(--bg2,rgba(8,12,24,0.95))',borderLeft:'1px solid var(--border)',display:'flex',flexDirection:'column',overflow:'hidden',flexShrink:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.7rem 1rem',fontSize:'11px',fontWeight:700,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border,rgba(255,255,255,0.05))'}}>
             <i className="ti ti-trophy" style={{fontSize:'13px',color:'#f5a623'}} aria-hidden="true"/>
             Top Hotspots
           </div>
@@ -210,7 +211,7 @@ function JobMap({ search }) {
             {sortedDots.map((c,i)=>(
               <div key={i} onClick={()=>{setSelectedState(c.state);setTimeout(()=>runSearch(),50)}} style={{padding:'.6rem .7rem',borderRadius:'10px',border:`1px solid ${i===0?'rgba(0,229,160,0.3)':'var(--border,rgba(255,255,255,0.06))'}`,background:i===0?'rgba(0,229,160,0.05)':'var(--bg3,rgba(14,18,35,0.6))',marginBottom:'.35rem',cursor:'pointer',transition:'all .2s'}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'.28rem'}}>
-                  <div style={{display:'flex',alignItems:'center',gap:'.3rem',fontSize:'12px',fontWeight:700,color:'var(--text,#eef0ff)'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'.3rem',fontSize:'12px',fontWeight:700,color:'var(--text)'}}>
                     {i===0 && <i className="ti ti-flame" style={{fontSize:'12px',color:'#f5a623'}} aria-hidden="true"/>}
                     {c.n}
                   </div>
@@ -219,7 +220,7 @@ function JobMap({ search }) {
                 <div style={{height:'2px',background:'var(--border,rgba(255,255,255,0.05))',borderRadius:'2px',overflow:'hidden',marginBottom:'.28rem'}}>
                   <div style={{height:'100%',width:`${(c.j/maxJ)*100}%`,background:c.color,borderRadius:'2px',transition:'width .6s'}}/>
                 </div>
-                <div style={{fontSize:'9px',color:'var(--text3,#4a5168)',display:'flex',justifyContent:'space-between'}}>
+                <div style={{fontSize:'9px',color:'var(--text3)',display:'flex',justifyContent:'space-between'}}>
                   <span style={{display:'flex',alignItems:'center',gap:'.2rem'}}><i className="ti ti-map-pin" style={{fontSize:'10px'}} aria-hidden="true"/>{c.state}</span>
                   <span style={{color:c.estimated?'#f5a623':'#00e5a0'}}>{c.estimated?'est':'live'}</span>
                 </div>
@@ -227,10 +228,10 @@ function JobMap({ search }) {
             ))}
           </div>
           <div style={{padding:'.5rem',borderTop:'1px solid var(--border,rgba(255,255,255,0.05))'}}>
-            <div style={{fontSize:'9px',color:'var(--text3,#4a5168)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem',fontWeight:600}}>Quick select</div>
+            <div style={{fontSize:'9px',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem',fontWeight:600}}>Quick select</div>
             <div style={{display:'flex',flexWrap:'wrap',gap:'.25rem'}}>
               {['Karnataka','Kerala','Maharashtra','Tamil Nadu','Delhi','Telangana','Gujarat','West Bengal'].map(s=>(
-                <button key={s} onClick={()=>{const ns=s===selectedState?'':s;setSelectedState(ns);setTimeout(()=>runSearch(),50)}} style={{fontSize:'9px',padding:'2px 7px',borderRadius:'10px',cursor:'pointer',fontFamily:'Inter,sans-serif',border:`1px solid ${selectedState===s?'rgba(0,229,160,0.4)':'var(--border,rgba(255,255,255,0.08))'}`,background:selectedState===s?'rgba(0,229,160,0.1)':'none',color:selectedState===s?'#00e5a0':'var(--text2,#8b93b0)',transition:'all .15s'}}>{s.split(' ')[0]}</button>
+                <button key={s} onClick={()=>{const ns=s===selectedState?'':s;setSelectedState(ns);setTimeout(()=>runSearch(),50)}} style={{fontSize:'9px',padding:'2px 7px',borderRadius:'10px',cursor:'pointer',fontFamily:'Inter,sans-serif',border:`1px solid ${selectedState===s?'rgba(0,229,160,0.4)':'var(--border)'}`,background:selectedState===s?'rgba(0,229,160,0.1)':'none',color:selectedState===s?'#00e5a0':'var(--text2)',transition:'all .15s'}}>{s.split(' ')[0]}</button>
               ))}
             </div>
           </div>
@@ -311,25 +312,25 @@ export default function Jobs() {
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
   .dark-tiles{filter:invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.7);}
-        .jobs-page{display:flex;height:calc(100vh - 52px);background:var(--bg,#080c18);}
-        .jobs-sidebar{width:200px;background:var(--bg2,#0d1120);border-right:1px solid var(--border,rgba(255,255,255,0.07));padding:1rem .85rem;overflow-y:auto;flex-shrink:0;}
-        .side-label{font-size:10px;font-weight:600;color:var(--text3,#4a5168);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;padding:.25rem .4rem;}
-        .side-item{padding:.45rem .7rem;border-radius:8px;font-size:13px;color:var(--text2,#8b93b0);cursor:pointer;margin-bottom:2px;transition:all .15s;}
-        .side-item:hover{background:rgba(0,229,160,0.08);color:var(--text,#eef0ff);}
+        .jobs-page{display:flex;height:calc(100vh - 52px);background:var(--bg);}
+        .jobs-sidebar{width:200px;background:var(--bg2);border-right:1px solid var(--border);padding:1rem .85rem;overflow-y:auto;flex-shrink:0;}
+        .side-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;padding:.25rem .4rem;}
+        .side-item{padding:.45rem .7rem;border-radius:8px;font-size:13px;color:var(--text2);cursor:pointer;margin-bottom:2px;transition:all .15s;}
+        .side-item:hover{background:rgba(0,229,160,0.08);color:var(--text);}
         .side-item.active{background:rgba(0,229,160,0.1);color:#00e5a0;font-weight:500;}
         .jobs-main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
-        .jobs-topbar{padding:.75rem 1rem;border-bottom:1px solid var(--border,rgba(255,255,255,0.07));background:var(--bg2,#0d1120);display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;}
-        .jobs-search{flex:1;min-width:0;background:var(--card,rgba(255,255,255,0.04));border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:9px;padding:.5rem .85rem;color:var(--text,#eef0ff);font-size:13px;outline:none;font-family:Inter,sans-serif;}
-        .jobs-search::placeholder{color:var(--text3,#4a5168);}
-        .jobs-count{font-size:12px;color:var(--text2,#8b93b0);white-space:nowrap;}
-        .view-toggle{display:flex;gap:.3rem;background:var(--card,rgba(255,255,255,0.04));border:1px solid var(--border,rgba(255,255,255,0.07));border-radius:8px;padding:3px;}
-        .vbtn{display:flex;align-items:center;gap:.3rem;padding:.3rem .65rem;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:none;font-family:Inter,sans-serif;color:var(--text2,#8b93b0);background:none;transition:all .15s;}
+        .jobs-topbar{padding:.75rem 1rem;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;}
+        .jobs-search{flex:1;min-width:0;background:var(--card,rgba(255,255,255,0.04));border:1px solid var(--border);border-radius:9px;padding:.5rem .85rem;color:var(--text);font-size:13px;outline:none;font-family:Inter,sans-serif;}
+        .jobs-search::placeholder{color:var(--text3);}
+        .jobs-count{font-size:12px;color:var(--text2);white-space:nowrap;}
+        .view-toggle{display:flex;gap:.3rem;background:var(--card,rgba(255,255,255,0.04));border:1px solid var(--border);border-radius:8px;padding:3px;}
+        .vbtn{display:flex;align-items:center;gap:.3rem;padding:.3rem .65rem;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:none;font-family:Inter,sans-serif;color:var(--text2);background:none;transition:all .15s;}
         .vbtn i{font-size:13px;}
         .vbtn.active{background:rgba(0,229,160,0.15);color:#00e5a0;}
-        .jobs-feed{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.55rem;background:var(--bg,#080c18);}
+        .jobs-feed{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.55rem;background:var(--bg);}
         .search-btn{display:flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:linear-gradient(135deg,#00e5a0,#00c484);border:none;border-radius:9px;color:#060d0a;font-size:13px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;white-space:nowrap;flex-shrink:0;}
         .search-btn i{font-size:15px;}
-        .icon-btn{display:flex;align-items:center;gap:.35rem;padding:.38rem .75rem;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2,#8b93b0);font-size:12px;cursor:pointer;font-family:Inter,sans-serif;position:relative;white-space:nowrap;}
+        .icon-btn{display:flex;align-items:center;gap:.35rem;padding:.38rem .75rem;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);font-size:12px;cursor:pointer;font-family:Inter,sans-serif;position:relative;white-space:nowrap;}
         .icon-btn i{font-size:14px;}
         .icon-btn.active{border-color:rgba(0,229,160,0.4);color:#00e5a0;background:rgba(0,229,160,0.08);}
         .notif-badge{position:absolute;top:-5px;right:-5px;background:#E24B4A;color:#fff;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
@@ -396,11 +397,11 @@ export default function Jobs() {
                 {showNotifs && (
                   <div className="notif-dropdown">
                     <div className="notif-header">
-                      <span style={{fontSize:'13px',fontWeight:700,color:'#eef0ff'}}>Notifications</span>
+                      <span style={{fontSize:'13px',fontWeight:700,color:'var(--text)'}}>Notifications</span>
                       {unreadCount>0 && <button onClick={markAllRead} style={{fontSize:'11px',color:'#00e5a0',background:'none',border:'none',cursor:'pointer'}}>Mark all read</button>}
                     </div>
                     {notifications.length===0
-                      ? <div style={{padding:'1.5rem',textAlign:'center',color:'#4a5168',fontSize:'12px'}}>No notifications yet.<br/>Set a job alert to get notified!</div>
+                      ? <div style={{padding:'1.5rem',textAlign:'center',color:'var(--text3)',fontSize:'12px'}}>No notifications yet.<br/>Set a job alert to get notified!</div>
                       : notifications.slice(0,8).map(n=>(
                         <div key={n.id} className={`notif-item ${!n.read?'unread':''}`}>
                           {!n.read && <i className="ti ti-circle-filled" style={{fontSize:'8px',color:'#00e5a0',marginRight:'4px'}} aria-hidden="true"/>}
@@ -413,12 +414,12 @@ export default function Jobs() {
               </div>
 
               {/* Tracker link */}
-              <a href="/tracker" style={{display:'flex',alignItems:'center',gap:'.35rem',padding:'.38rem .75rem',borderRadius:'8px',border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.04)',color:'#8b93b0',fontSize:'12px',textDecoration:'none',whiteSpace:'nowrap',fontFamily:'Inter,sans-serif'}}>
+              <a href="/tracker" style={{display:'flex',alignItems:'center',gap:'.35rem',padding:'.38rem .75rem',borderRadius:'8px',border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.04)',color:'var(--text2)',fontSize:'12px',textDecoration:'none',whiteSpace:'nowrap',fontFamily:'Inter,sans-serif'}}>
                 <i className="ti ti-layout-kanban" style={{fontSize:'14px'}} aria-hidden="true"/>
                 Tracker
               </a>
             </>}
-            {view==='map' && <div style={{display:'flex',alignItems:'center',gap:'.5rem',fontSize:'13px',color:'var(--text2,#8b93b0)',fontWeight:500}}><i className="ti ti-map" style={{fontSize:'16px'}} aria-hidden="true"/> Job hotspot map — search by role and state</div>}
+            {view==='map' && <div style={{display:'flex',alignItems:'center',gap:'.5rem',fontSize:'13px',color:'var(--text2)',fontWeight:500}}><i className="ti ti-map" style={{fontSize:'16px'}} aria-hidden="true"/> Job hotspot map — search by role and state</div>}
             <div className="view-toggle" style={{marginLeft:'auto'}}>
               <button className={`vbtn ${view==='list'?'active':''}`} onClick={()=>setView('list')}><i className="ti ti-list" aria-hidden="true"/> List</button>
               <button className={`vbtn ${view==='map'?'active':''}`} onClick={()=>setView('map')}><i className="ti ti-map" aria-hidden="true"/> Map</button>
@@ -441,11 +442,11 @@ export default function Jobs() {
                 </div>
               </div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:'13.5px',fontWeight:800,color:'var(--text,#eef0ff)',marginBottom:'3px',display:'flex',alignItems:'center',gap:'.5rem'}}>
+                <div style={{fontSize:'13.5px',fontWeight:800,color:'var(--text)',marginBottom:'3px',display:'flex',alignItems:'center',gap:'.5rem'}}>
                   Find jobs that match your resume
                   <span style={{fontSize:'9px',padding:'2px 6px',borderRadius:'20px',background:'rgba(0,229,160,0.15)',border:'1px solid rgba(0,229,160,0.3)',color:'#00e5a0',fontWeight:700,animation:'bannerPulse 2s ease-in-out infinite'}}>AI Powered</span>
                 </div>
-                <div style={{fontSize:'11.5px',color:'var(--text2,#8b93b0)'}}>Upload CV → AI extracts skills → Shows best matching jobs with score</div>
+                <div style={{fontSize:'11.5px',color:'var(--text2)'}}>Upload CV → AI extracts skills → Shows best matching jobs with score</div>
               </div>
               <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'.4rem',flexShrink:0}}>
                 <div className="banner-btn" style={{display:'flex',alignItems:'center',gap:'.4rem',padding:'.45rem 1rem',background:'linear-gradient(135deg,#00e5a0,#00c484)',borderRadius:'20px',color:'#060d0a',fontSize:'12px',fontWeight:700,whiteSpace:'nowrap',transition:'transform .2s'}}>
@@ -475,6 +476,11 @@ export default function Jobs() {
                   {smartJobs.map((job,i)=>(
                     <div key={job.id||i} className="job-card-wrap" onClick={()=>handleJobClick(job)} style={{position:'relative'}}>
                       <JobCard job={job}/>
+                      <button onClick={e=>{e.stopPropagation();setTailorJob(job)}}
+                        style={{position:'absolute',bottom:'.65rem',right:'.65rem',display:'inline-flex',alignItems:'center',gap:'.25rem',padding:'.25rem .6rem',background:'rgba(124,111,247,0.12)',border:'0.5px solid rgba(124,111,247,0.3)',borderRadius:'6px',color:'#7c6ff7',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',zIndex:2}}
+                        aria-label="Tailor resume for this job">
+                        <i className="ti ti-file-text" style={{fontSize:'12px'}} aria-hidden="true"/> Tailor
+                      </button>
                       {job.matchScore>0 && (
                         <div style={{position:'absolute',top:'.75rem',right:'2.5rem'}}>
                           <div style={{fontSize:'11px',fontWeight:700,padding:'2px 8px',borderRadius:'20px',background:job.matchScore>60?'rgba(0,229,160,0.15)':job.matchScore>30?'rgba(124,111,247,0.15)':'rgba(255,166,35,0.15)',color:job.matchScore>60?'#00e5a0':job.matchScore>30?'#7c6ff7':'#f5a623',border:`1px solid ${job.matchScore>60?'rgba(0,229,160,0.3)':job.matchScore>30?'rgba(124,111,247,0.3)':'rgba(255,166,35,0.3)'}`}}>{job.matchScore}% match</div>
@@ -484,13 +490,13 @@ export default function Jobs() {
                   ))}
                 </>
               ) : loading ? (
-                <div style={{textAlign:'center',color:'var(--text2,#8b93b0)',padding:'3rem',fontSize:'14px',display:'flex',flexDirection:'column',alignItems:'center',gap:'.75rem'}}>
+                <div style={{textAlign:'center',color:'var(--text2)',padding:'3rem',fontSize:'14px',display:'flex',flexDirection:'column',alignItems:'center',gap:'.75rem'}}>
                   <i className="ti ti-loader" style={{fontSize:'28px',animation:'spin .8s linear infinite'}} aria-hidden="true"/>
                   Loading jobs...
                 </div>
               ) : filtered.length===0 ? (
-                <div style={{textAlign:'center',color:'var(--text2,#8b93b0)',padding:'3rem',fontSize:'14px'}}>
-                  <i className="ti ti-search-off" style={{fontSize:'32px',display:'block',marginBottom:'.75rem',color:'#4a5168'}} aria-hidden="true"/>
+                <div style={{textAlign:'center',color:'var(--text2)',padding:'3rem',fontSize:'14px'}}>
+                  <i className="ti ti-search-off" style={{fontSize:'32px',display:'block',marginBottom:'.75rem',color:'var(--text3)'}} aria-hidden="true"/>
                   No jobs found. Try a different search!
                 </div>
               ) : (
@@ -509,6 +515,7 @@ export default function Jobs() {
       {showMatch && <SmartJobMatch onMatched={(jobs,analysis)=>{setSmartJobs(jobs);setResumeAnalysis(analysis);setShowMatch(false);setUserSkills(analysis?.skills||[])}} onClose={()=>setShowMatch(false)}/>}
       {showAlert && <JobAlertModal onClose={()=>{setShowAlert(false);loadUserData()}}/>}
       {showSkillGap && selectedJob && <SkillGapModal job={selectedJob} userSkills={userSkills} onClose={()=>setShowSkillGap(false)} onTrack={handleTrack}/>}
+      {tailorJob && user && <TailorModal job={tailorJob} user={user} onClose={()=>setTailorJob(null)}/>}
     </>
   )
 }

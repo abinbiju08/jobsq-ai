@@ -7,7 +7,7 @@ from routes import resume_builder
 from routes import tracker
 from routes import alerts
 from scraper.job_scraper import start_scheduler, scrape_and_save
-from routes import jobs, resume, auth, resume_match, chatbot_route, resume_builder, tracker, alerts, interview, moderation
+from routes import jobs, resume, auth, resume_match, chatbot_route, resume_builder, tracker, alerts, interview, moderation, tailor
 from routes import interview
 import uvicorn
 import asyncio
@@ -37,6 +37,7 @@ app.include_router(tracker.router,       prefix="/tracker", tags=["tracker"])
 app.include_router(alerts.router,        prefix="/alerts",  tags=["alerts"])
 app.include_router(interview.router,     prefix="/interview")
 app.include_router(moderation.router,    prefix="/moderation")
+app.include_router(tailor.router,        prefix="/builder")
 
 @app.get("/")
 def root():
