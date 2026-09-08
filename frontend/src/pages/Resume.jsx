@@ -32,32 +32,32 @@ export default function Resume() {
     <>
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
       <style>{`
-        .resume-page{background:var(--bg,#080c18);min-height:calc(100vh - 52px);overflow-y:auto;}
+        .resume-page{background:var(--bg);min-height:calc(100vh - 52px);overflow-y:auto;}
         .resume-wrap{max-width:800px;margin:0 auto;padding:1.5rem 1rem;}
-        .resume-h1{font-size:22px;font-weight:800;margin-bottom:.35rem;color:var(--text,#eef0ff);}
-        .resume-sub{font-size:13px;color:var(--text2,#8b93b0);margin-bottom:1.5rem;}
-        .resume-upload-card{background:var(--bg3,#141828);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:16px;padding:1.5rem;margin-bottom:1.25rem;}
+        .resume-h1{font-size:22px;font-weight:800;margin-bottom:.35rem;color:var(--text);}
+        .resume-sub{font-size:13px;color:var(--text2);margin-bottom:1.5rem;}
+        .resume-upload-card{background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:1.5rem;margin-bottom:1.25rem;}
         .resume-dropzone{border:2px dashed var(--border,rgba(255,255,255,0.1));border-radius:12px;padding:2rem;text-align:center;cursor:pointer;margin-bottom:1rem;transition:border-color .2s;}
         .resume-dropzone:hover{border-color:rgba(0,229,160,0.4);}
         .resume-dropzone-icon{width:52px;height:52px;border-radius:14px;background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.2);display:flex;align-items:center;justify-content:center;margin:0 auto .75rem;}
         .resume-dropzone-icon i{font-size:24px;color:#00e5a0;}
-        .resume-dropzone-title{font-weight:600;margin-bottom:.25rem;color:var(--text,#eef0ff);}
-        .resume-dropzone-sub{font-size:12px;color:var(--text2,#8b93b0);}
-        .resume-score-hero{background:var(--bg3,#141828);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:16px;padding:1.4rem;display:flex;gap:1.5rem;align-items:center;margin-bottom:1rem;}
-        .resume-score-text{font-size:13px;color:var(--text2,#8b93b0);}
-        .resume-score-title{font-size:18px;font-weight:700;margin-bottom:.35rem;color:var(--text,#eef0ff);}
+        .resume-dropzone-title{font-weight:600;margin-bottom:.25rem;color:var(--text);}
+        .resume-dropzone-sub{font-size:12px;color:var(--text2);}
+        .resume-score-hero{background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:1.4rem;display:flex;gap:1.5rem;align-items:center;margin-bottom:1rem;}
+        .resume-score-text{font-size:13px;color:var(--text2);}
+        .resume-score-title{font-size:18px;font-weight:700;margin-bottom:.35rem;color:var(--text);}
         .resume-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem;}
-        .resume-card{background:var(--bg3,#141828);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:12px;padding:1rem;}
-        .resume-card-title{display:flex;align-items:center;gap:.4rem;font-size:11px;font-weight:600;color:var(--text3,#4a5168);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.65rem;}
+        .resume-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:1rem;}
+        .resume-card-title{display:flex;align-items:center;gap:.4rem;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.65rem;}
         .resume-card-title i{font-size:14px;}
         .resume-bar-bg{height:5px;background:var(--border,rgba(255,255,255,0.06));border-radius:3px;overflow:hidden;}
-        .resume-section-label{font-size:12px;color:var(--text,#eef0ff);}
-        .resume-match-card{background:var(--bg3,#141828);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:12px;padding:1rem;margin-bottom:1rem;}
-        .resume-match-title{display:flex;align-items:center;gap:.5rem;font-size:14px;font-weight:600;margin-bottom:.75rem;color:var(--text,#eef0ff);}
+        .resume-section-label{font-size:12px;color:var(--text);}
+        .resume-match-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:1rem;}
+        .resume-match-title{display:flex;align-items:center;gap:.5rem;font-size:14px;font-weight:600;margin-bottom:.75rem;color:var(--text);}
         .resume-match-title i{font-size:16px;color:#00e5a0;}
         .resume-match-row{display:flex;align-items:center;gap:.75rem;padding:.55rem 0;border-bottom:1px solid var(--border,rgba(255,255,255,0.06));}
-        .resume-job-title{font-size:13px;font-weight:600;color:var(--text,#eef0ff);}
-        .resume-job-sub{font-size:11px;color:var(--text2,#8b93b0);}
+        .resume-job-title{font-size:13px;font-weight:600;color:var(--text);}
+        .resume-job-sub{font-size:11px;color:var(--text2);}
         @keyframes spin{to{transform:rotate(360deg)}}
         @media(max-width:600px){.resume-grid{grid-template-columns:1fr;}}
       `}</style>
@@ -102,7 +102,7 @@ export default function Resume() {
             </div>
 
             <button
-              style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:'.5rem',padding:'.78rem',background:'linear-gradient(135deg,#00e5a0,#00c484)',color:'#080c18',border:'none',borderRadius:'10px',fontSize:'14px',fontWeight:700,cursor:'pointer',opacity:(!file||loading)?0.5:1,fontFamily:'Inter,sans-serif'}}
+              style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:'.5rem',padding:'.78rem',background:'linear-gradient(135deg,#00e5a0,#00c484)',color:'var(--bg)',border:'none',borderRadius:'10px',fontSize:'14px',fontWeight:700,cursor:'pointer',opacity:(!file||loading)?0.5:1,fontFamily:'Inter,sans-serif'}}
               onClick={handleUpload} disabled={!file||loading}>
               {loading ? (
                 <><i className="ti ti-loader" style={{fontSize:'16px',animation:'spin .8s linear infinite'}} aria-hidden="true"/>{loadingText||'Analysing...'}</>
@@ -117,7 +117,7 @@ export default function Resume() {
               <div className="resume-score-hero">
                 <div style={{width:'84px',height:'84px',borderRadius:'50%',border:'3px solid #00e5a0',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                   <span style={{fontSize:'28px',fontWeight:800,color:'#00e5a0'}}>{result.ats_score}</span>
-                  <span style={{fontSize:'10px',color:'var(--text2,#8b93b0)',textTransform:'uppercase'}}>ATS</span>
+                  <span style={{fontSize:'10px',color:'var(--text2)',textTransform:'uppercase'}}>ATS</span>
                 </div>
                 <div>
                   <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.35rem'}}>
@@ -174,21 +174,16 @@ export default function Resume() {
                   Top matching jobs — real data
                 </h4>
                 {result.top_matches?.map((j,i)=>(
-                  <div key={i} className="resume-match-row">
-                    <span style={{fontSize:'13px',fontWeight:700,color:'#00e5a0',minWidth:'40px'}}>{j.match}%</span>
-                    <div style={{flex:1}}>
-                      <div className="resume-job-title">{j.title} — {j.company}</div>
-                      <div className="resume-job-sub">{j.location} · {j.salary}</div>
+                    <div key={i} className="resume-match-row">
+                      <div style={{flex:1,minWidth:0}}>
+                        <div className="resume-job-title">{j.title} — {j.company}</div>
+                        <div className="resume-job-sub">{j.location} · {j.salary}</div>
+                      </div>
+                      <div style={{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0,gap:"2px"}}>
+                        <span style={{fontSize:"13px",fontWeight:800,color:"#7c6ff7"}}>{j.match}%</span>
+                        <span style={{fontSize:"10px",color:"var(--text3)",whiteSpace:"nowrap"}}>View details</span>
+                      </div>
                     </div>
-                    {j.url
-                      ? <a href={j.url} target="_blank" rel="noreferrer" style={{display:'inline-flex',alignItems:'center',gap:'.3rem',fontSize:'11px',padding:'.3rem .75rem',background:'#00e5a0',color:'#080c18',border:'none',borderRadius:'6px',cursor:'pointer',fontWeight:700,textDecoration:'none'}}>
-                          Apply <i className="ti ti-arrow-right" style={{fontSize:'12px'}} aria-hidden="true"/>
-                        </a>
-                      : <button style={{display:'inline-flex',alignItems:'center',gap:'.3rem',fontSize:'11px',padding:'.3rem .75rem',background:'rgba(0,229,160,0.1)',color:'#00e5a0',border:'1px solid rgba(0,229,160,0.3)',borderRadius:'6px',cursor:'pointer',fontWeight:700,fontFamily:'Inter,sans-serif'}}>
-                          <i className="ti ti-eye" style={{fontSize:'12px'}} aria-hidden="true"/> View
-                        </button>
-                    }
-                  </div>
                 ))}
               </div>
             </div>
