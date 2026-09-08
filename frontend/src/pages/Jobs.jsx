@@ -60,6 +60,7 @@ function JobMap({ search }) {
   const tileLayerRef = useRef(null)
 
   useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => { if(data?.user) setUser(data.user) })
     if (window.L) { setLeafletLoaded(true); return }
     const link = document.createElement('link'); link.rel='stylesheet'; link.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(link)
     const script = document.createElement('script'); script.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; script.onload=()=>setLeafletLoaded(true); document.head.appendChild(script)
@@ -522,7 +523,7 @@ export default function Jobs() {
       {showMatch && <SmartJobMatch onMatched={(jobs,analysis)=>{setSmartJobs(jobs);setResumeAnalysis(analysis);setShowMatch(false);setUserSkills(analysis?.skills||[])}} onClose={()=>setShowMatch(false)}/>}
       {showAlert && <JobAlertModal onClose={()=>{setShowAlert(false);loadUserData()}}/>}
       {showSkillGap && selectedJob && <SkillGapModal job={selectedJob} userSkills={userSkills} onClose={()=>setShowSkillGap(false)} onTrack={handleTrack}/>}
-      {tailorJob && user && <TailorModal job={tailorJob} user={user} onClose={()=>setTailorJob(null)}/>}
+      {tailorJob && <TailorModal job={tailorJob} user={user} onClose={()=>setTailorJob(null)}/>}
     </>
   )
 }

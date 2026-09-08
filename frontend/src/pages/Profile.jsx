@@ -1,8 +1,8 @@
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
-
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import FaceRegister from '../components/FaceRegister'
+
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 export default function Profile() {
   const [user, setUser] = useState(null)
@@ -171,6 +171,73 @@ export default function Profile() {
                 <div className="info-val">{new Date(user?.created_at).toLocaleDateString('en-US',{month:'long',year:'numeric'})}</div>
               </div>
             </div>
+          </div>
+
+
+          {/* RESUME SECTION */}
+          <div className="prof-card">
+            <div className="sec-title">
+              <i className="ti ti-file-cv" aria-hidden="true"/>
+              My resume
+              {resumeInfo
+                ? <span style={{marginLeft:'auto',fontSize:'10px',padding:'2px 8px',borderRadius:'20px',background:'rgba(0,229,160,0.1)',border:'0.5px solid rgba(0,229,160,0.25)',color:'#00e5a0',display:'flex',alignItems:'center',gap:'3px'}}>
+                    <i className="ti ti-circle-check" style={{fontSize:'11px'}} aria-hidden="true"/> Uploaded
+                  </span>
+                : <span style={{marginLeft:'auto',fontSize:'10px',padding:'2px 8px',borderRadius:'20px',background:'var(--bg2)',border:'0.5px solid var(--border)',color:'var(--text3)'}}>Not uploaded</span>
+              }
+            </div>
+
+            {resumeMsg && (
+              <div style={{padding:'.4rem .75rem',borderRadius:'8px',background:resumeMsg.includes('success')?'rgba(0,229,160,0.08)':'rgba(226,75,74,0.08)',border:`0.5px solid ${resumeMsg.includes('success')?'rgba(0,229,160,0.2)':'rgba(226,75,74,0.2)'}`,color:resumeMsg.includes('success')?'#00e5a0':'#E24B4A',fontSize:'12px',marginBottom:'.75rem',display:'flex',alignItems:'center',gap:'.35rem'}}>
+                <i className={`ti ${resumeMsg.includes('success')?'ti-circle-check':'ti-alert-circle'}`} style={{fontSize:'13px'}} aria-hidden="true"/>
+                {resumeMsg}
+              </div>
+            )}
+
+            {resumeInfo ? (
+              <>
+                <div style={{display:'flex',alignItems:'center',gap:'.65rem',padding:'.55rem .75rem',background:'rgba(0,229,160,0.05)',border:'0.5px solid rgba(0,229,160,0.15)',borderRadius:'9px',marginBottom:'.75rem'}}>
+                  <div style={{width:'34px',height:'34px',borderRadius:'8px',background:'rgba(0,229,160,0.12)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <i className="ti ti-file-type-pdf" style={{fontSize:'17px',color:'#00e5a0'}} aria-hidden="true"/>
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:'13px',fontWeight:600,color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{resumeInfo.file_name}</div>
+                    <div style={{fontSize:'11px',color:'var(--text3)'}}>{resumeInfo.file_size ? Math.round(resumeInfo.file_size/1024)+'KB' : ''}</div>
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:'.5rem',marginBottom:'.75rem'}}>
+                  <label style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:'.35rem',padding:'.45rem',background:'var(--bg2)',border:'0.5px solid var(--border)',borderRadius:'8px',cursor:'pointer',fontSize:'12px',color:'var(--text2)',fontFamily:'Inter,sans-serif'}}>
+                    <i className="ti ti-refresh" style={{fontSize:'13px'}} aria-hidden="true"/>
+                    {resumeUploading ? 'Uploading...' : 'Replace resume'}
+                    <input type="file" accept=".pdf" onChange={e=>uploadResume(e.target.files[0])} style={{display:'none'}} disabled={resumeUploading}/>
+                  </label>
+                  <button onClick={removeResume} style={{padding:'.45rem .75rem',background:'rgba(226,75,74,0.08)',border:'0.5px solid rgba(226,75,74,0.2)',borderRadius:'8px',cursor:'pointer',color:'#E24B4A',fontSize:'12px',fontFamily:'Inter,sans-serif',display:'flex',alignItems:'center',gap:'.3rem'}}>
+                    <i className="ti ti-trash" style={{fontSize:'13px'}} aria-hidden="true"/> Remove
+                  </button>
+                </div>
+                <div style={{paddingTop:'.65rem',borderTop:'0.5px solid var(--border)'}}>
+                  <div style={{fontSize:'11px',color:'var(--text3)',marginBottom:'.35rem'}}>Active features:</div>
+                  {['Smart job match enabled','Tailor resume — click any job card','ATS score ready'].map((f,i)=>(
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:'.35rem',fontSize:'12px',color:'var(--text2)',padding:'.2rem 0'}}>
+                      <i className="ti ti-circle-check" style={{fontSize:'13px',color:'#00e5a0'}} aria-hidden="true"/> {f}
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <label style={{display:'block',border:'1.5px dashed var(--border)',borderRadius:'10px',padding:'1.5rem',textAlign:'center',cursor:'pointer',background:'var(--bg2)',marginBottom:'.65rem'}}>
+                  <i className="ti ti-cloud-upload" style={{fontSize:'28px',color:'var(--text3)',display:'block',marginBottom:'.5rem'}} aria-hidden="true"/>
+                  <div style={{fontSize:'13px',fontWeight:600,color:'var(--text)',marginBottom:'3px'}}>{resumeUploading?'Uploading...':'Upload your resume'}</div>
+                  <div style={{fontSize:'11px',color:'var(--text3)',marginBottom:'.65rem'}}>PDF · Max 5MB</div>
+                  <span style={{display:'inline-flex',alignItems:'center',gap:'.3rem',padding:'.35rem .85rem',background:'linear-gradient(135deg,#00e5a0,#00c484)',borderRadius:'7px',color:'#060d0a',fontSize:'12px',fontWeight:700}}>
+                    <i className="ti ti-upload" style={{fontSize:'12px'}} aria-hidden="true"/> Choose file
+                  </span>
+                  <input type="file" accept=".pdf" onChange={e=>uploadResume(e.target.files[0])} style={{display:'none'}} disabled={resumeUploading}/>
+                </label>
+                <div style={{fontSize:'11px',color:'var(--text3)'}}>Upload once → enables Smart job match, Tailor resume, and ATS score.</div>
+              </>
+            )}
           </div>
 
           {/* Face ID */}
