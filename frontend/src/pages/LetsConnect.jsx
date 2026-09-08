@@ -134,7 +134,29 @@ function ChatRoom({ room, user, onBack }) {
         setTimeout(() => setBlockedMsg(''), 4000)
         return
       }
-    } catch { /* allow if moderation fails */ }
+    } catch {
+      // If moderation API fails, still do client-side bad word check
+      const badWords = ['fuck','shit','bitch','asshole','bastard','crap','dick',
+        'nigger','nigga','faggot','slut','whore','cunt','retard','kys','porn','sex']
+      const lower = text.toLowerCase()
+      if (badWords.some(w => lower.includes(w))) {
+        setBlockedMsg('Please keep the conversation respectful and professional.')
+        setSending(false)
+        setTimeout(() => setBlockedMsg(''), 4000)
+        return
+      }
+    }
+
+    // Check if user is banned
+    try {
+      const banRes = await fetch(`${API}/moderation/check-ban/${user.id}`)
+      const banData = await banRes.json()
+      if (banData.banned) {
+        setBlockedMsg('You have been banned from this community.')
+        setSending(false)
+        return
+      }
+    } catch {}
 
     setInput('')
     const full = tag ? `[${tag}] ${text}` : text
