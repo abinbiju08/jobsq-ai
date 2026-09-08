@@ -256,6 +256,8 @@ export default function Jobs() {
   const [showAlert, setShowAlert]     = useState(false)
   const [showSkillGap, setShowSkillGap] = useState(false)
   const [selectedJob, setSelectedJob] = useState(null)
+  const [tailorJob, setTailorJob]     = useState(null)
+  const [user, setUser]               = useState(null)
   const [userSkills, setUserSkills]   = useState([])
   const [notifications, setNotifications] = useState([])
   const [showNotifs, setShowNotifs]   = useState(false)
