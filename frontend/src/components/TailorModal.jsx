@@ -19,16 +19,6 @@ export default function TailorModal({ job, user, onClose }) {
   }, [])
 
   const tailorResume = async () => {
-    if (!uploadFile && !resumeInfo) {
-      setError('Please upload your resume PDF to tailor it for this job.')
-      setStep('error')
-      return
-    }
-    if (!uploadFile) {
-      setError('Please upload your resume PDF here. We need the file to tailor it.')
-      setStep('error')
-      return
-    }
     setStep('loading')
     try {
       // Get current user
@@ -39,6 +29,12 @@ export default function TailorModal({ job, user, onClose }) {
       }
       if (!currentUser?.id) {
         setError('Session expired. Please refresh and try again.')
+        setStep('error')
+        return
+      }
+
+      if (!uploadFile) {
+        setError('Please upload your resume PDF using the upload button above.')
         setStep('error')
         return
       }
@@ -65,9 +61,13 @@ export default function TailorModal({ job, user, onClose }) {
         throw new Error(errMsg)
       }
 
-      const keywords   = JSON.parse(response.headers.get('x-keywords-added') || response.headers.get('X-Keywords-Added') || '[]')
-      const origScore  = parseInt(response.headers.get('x-original-score') || response.headers.get('X-Original-Score') || '0')
-      const newScore   = parseInt(response.headers.get('x-tailored-score') || response.headers.get('X-Tailored-Score') || '0')
+      let keywords = []
+      try {
+        const kwRaw = response.headers.get('x-keywords-added') || response.headers.get('X-Keywords-Added') || '[]'
+        keywords = JSON.parse(kwRaw)
+      } catch { keywords = [] }
+      const origScore = parseInt(response.headers.get('x-original-score') || response.headers.get('X-Original-Score') || '0')
+      const newScore  = parseInt(response.headers.get('x-tailored-score') || response.headers.get('X-Tailored-Score') || '0')
       const blob       = await response.blob()
       const url        = URL.createObjectURL(blob)
       const fileName   = `tailored_${(job.title || 'resume').replace(/\s+/g,'_')}.pdf`
@@ -123,25 +123,22 @@ export default function TailorModal({ job, user, onClose }) {
             {/* CHECK step */}
             {step === 'check' && (
               <div style={{animation:'fadeIn .2s ease'}}>
-                {/* Always show upload - simplest and most reliable */}
-                <div style={{border:'1.5px dashed rgba(124,111,247,0.3)',borderRadius:'12px',padding:'1.25rem',textAlign:'center',background:'rgba(124,111,247,0.04)',marginBottom:'1rem',cursor:'pointer'}}
-                  onClick={()=>document.getElementById('tailor-file-input').click()}>
-                  <i className="ti ti-cloud-upload" style={{fontSize:'28px',color:uploadFile?'#7c6ff7':'var(--text3,#4a5168)',display:'block',marginBottom:'.5rem'}} aria-hidden="true"/>
+                {/* Upload zone */}
+                <label style={{display:'block',border:`1.5px dashed ${uploadFile?'rgba(0,229,160,0.4)':'rgba(124,111,247,0.3)'}`,borderRadius:'12px',padding:'1.25rem',textAlign:'center',background:uploadFile?'rgba(0,229,160,0.04)':'rgba(124,111,247,0.04)',marginBottom:'1rem',cursor:'pointer'}}>
+                  <i className={`ti ${uploadFile?'ti-circle-check':'ti-cloud-upload'}`} style={{fontSize:'28px',color:uploadFile?'#00e5a0':'#7c6ff7',display:'block',marginBottom:'.5rem'}} aria-hidden="true"/>
                   {uploadFile ? (
                     <>
-                      <div style={{fontSize:'13px',fontWeight:600,color:'#7c6ff7',marginBottom:'2px'}}>{uploadFile.name}</div>
-                      <div style={{fontSize:'11px',color:'var(--text2,#8b93b0)'}}>✓ Ready to tailor</div>
+                      <div style={{fontSize:'13px',fontWeight:600,color:'#00e5a0',marginBottom:'2px'}}>{uploadFile.name}</div>
+                      <div style={{fontSize:'11px',color:'var(--text2,#8b93b0)'}}>✓ Ready to tailor — click to change</div>
                     </>
                   ) : (
                     <>
                       <div style={{fontSize:'13px',fontWeight:600,color:'var(--text,#eef0ff)',marginBottom:'2px'}}>Upload your resume PDF</div>
-                      <div style={{fontSize:'11px',color:'var(--text3,#4a5168)'}}>Click to choose file</div>
+                      <div style={{fontSize:'11px',color:'var(--text3,#4a5168)'}}>Click to choose file · PDF only</div>
                     </>
                   )}
-                  <input id="tailor-file-input" type="file" accept=".pdf"
-                    onChange={e=>setUploadFile(e.target.files[0])}
-                    style={{display:'none'}}/>
-                </div>
+                  <input type="file" accept=".pdf" onChange={e=>setUploadFile(e.target.files[0])} style={{display:'none'}}/>
+                </label>
 
                 <div style={{fontSize:'12px',color:'var(--text2,#8b93b0)',marginBottom:'1rem',lineHeight:1.6}}>
                   AI will compare your resume with this job and add missing keywords, rewrite your summary, and align experience bullets — without changing your actual facts.
