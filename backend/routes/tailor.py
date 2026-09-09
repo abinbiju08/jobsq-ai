@@ -37,50 +37,50 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
     story = []
 
     def clean(text):
-        """Remove special chars that cause black squares"""
+        """Strip all non-ASCII characters to avoid black squares with Helvetica"""
         if not text: return ""
-        import unicodedata
-        cleaned = ""
+        result = ""
         for ch in str(text):
-            cat = unicodedata.category(ch)
-            if cat.startswith('C') and ch not in ('\n', '\t', ' '):
-                cleaned += ' '
-            else:
-                cleaned += ch
-        return cleaned.strip()
+            if ord(ch) < 128:
+                result += ch
+            elif ch in (u'–', u'—'): result += '-'
+            elif ch in (u'‘', u'’'): result += "'"
+            elif ch in (u'“', u'”'): result += '"'
+            elif ch in (u'•', u'·'):  result += '-'
+            elif ch in (u'é', u'è'): result += 'e'
+            elif ch in (u'à', u'â'): result += 'a'
+            elif ch in (u'ô', u'ö'): result += 'o'
+            elif ch in (u'ü', u'û'): result += 'u'
+            else: result += ' '
+        return ' '.join(result.split())
 
     # Styles
-    name_s    = ParagraphStyle('n', fontSize=18, fontName='Helvetica-Bold',
-                    textColor=colors.HexColor('#1a1a2e'), spaceAfter=3, alignment=TA_CENTER)
+    name_s = ParagraphStyle('n', fontSize=18, fontName='Helvetica-Bold',
+                textColor=colors.HexColor('#1a1a2e'), spaceAfter=3, alignment=TA_CENTER)
     contact_s = ParagraphStyle('c', fontSize=9, fontName='Helvetica',
-                    textColor=colors.HexColor('#555555'), spaceAfter=10, alignment=TA_CENTER)
-    tag_s     = ParagraphStyle('t', fontSize=8.5, fontName='Helvetica',
-                    textColor=colors.HexColor('#7c6ff7'), spaceAfter=10, alignment=TA_CENTER,
-                    borderColor=colors.HexColor('#7c6ff7'), borderWidth=0.5,
-                    borderPadding=4, backColor=colors.HexColor('#f5f3ff'))
-    sec_s     = ParagraphStyle('s', fontSize=10.5, fontName='Helvetica-Bold',
-                    textColor=colors.HexColor('#00a572'), spaceBefore=10, spaceAfter=3)
-    body_s    = ParagraphStyle('b', fontSize=9.5, fontName='Helvetica',
-                    textColor=colors.HexColor('#222222'), spaceAfter=4, leading=14)
-    bullet_s  = ParagraphStyle('bl', fontSize=9, fontName='Helvetica',
-                    textColor=colors.HexColor('#333333'), spaceAfter=2,
-                    leftIndent=10, leading=13)
-    jobt_s    = ParagraphStyle('jt', fontSize=10, fontName='Helvetica-Bold',
-                    textColor=colors.HexColor('#1a1a2e'), spaceAfter=1)
-    jobs_s    = ParagraphStyle('js', fontSize=8.5, fontName='Helvetica',
-                    textColor=colors.HexColor('#666666'), spaceAfter=4)
+                textColor=colors.HexColor('#555555'), spaceAfter=8, alignment=TA_CENTER)
+    sec_s = ParagraphStyle('s', fontSize=10.5, fontName='Helvetica-Bold',
+                textColor=colors.HexColor('#00a572'), spaceBefore=10, spaceAfter=3)
+    body_s = ParagraphStyle('b', fontSize=9.5, fontName='Helvetica',
+                textColor=colors.HexColor('#222222'), spaceAfter=4, leading=14)
+    bullet_s = ParagraphStyle('bl', fontSize=9, fontName='Helvetica',
+                textColor=colors.HexColor('#333333'), spaceAfter=2,
+                leftIndent=12, leading=13)
+    jobt_s = ParagraphStyle('jt', fontSize=10, fontName='Helvetica-Bold',
+                textColor=colors.HexColor('#1a1a2e'), spaceAfter=1)
+    jobs_s = ParagraphStyle('js', fontSize=8.5, fontName='Helvetica',
+                textColor=colors.HexColor('#666666'), spaceAfter=4)
 
     hr = lambda: HRFlowable(width="100%", thickness=0.5,
-                    color=colors.HexColor('#dddddd'), spaceAfter=5)
+                color=colors.HexColor('#dddddd'), spaceAfter=5)
     hr_green = lambda: HRFlowable(width="100%", thickness=1.5,
-                    color=colors.HexColor('#00a572'), spaceAfter=6)
+                color=colors.HexColor('#00a572'), spaceAfter=8)
 
-    # Name & contact
+    # Name & contact — NO "Tailored for" tag
     story.append(Paragraph(clean(tailored.get('name', 'Candidate')), name_s))
     if tailored.get('contact'):
         story.append(Paragraph(clean(tailored['contact']), contact_s))
     story.append(hr_green())
-    story.append(Paragraph(f'Tailored for: {clean(job_title)} at {clean(company)}', tag_s))
 
     # Summary
     if tailored.get('summary'):
@@ -94,7 +94,10 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
         story.append(Paragraph('SKILLS', sec_s))
         story.append(hr())
         skills_clean = [clean(s) for s in skills if s]
-        story.append(Paragraph('  |  '.join(skills_clean), body_s))
+        # Split into rows of 6
+        rows = [skills_clean[i:i+6] for i in range(0, len(skills_clean), 6)]
+        for row in rows:
+            story.append(Paragraph('   |   '.join(row), body_s))
 
     # Experience
     experience = tailored.get('experience', [])
@@ -103,13 +106,15 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
         story.append(hr())
         for exp in experience:
             story.append(Paragraph(clean(exp.get('title', '')), jobt_s))
-            sub = f"{clean(exp.get('company',''))}  |  {clean(exp.get('duration',''))}"
-            story.append(Paragraph(sub, jobs_s))
+            company_dur = []
+            if exp.get('company'): company_dur.append(clean(exp['company']))
+            if exp.get('duration'): company_dur.append(clean(exp['duration']))
+            story.append(Paragraph('  |  '.join(company_dur), jobs_s))
             for bullet in exp.get('bullets', []):
-                b = clean(bullet).strip()
+                b = clean(bullet).strip('- ').strip()
                 if b:
-                    story.append(Paragraph(f"• {b}", bullet_s))
-            story.append(Spacer(1, 5))
+                    story.append(Paragraph(f'- {b}', bullet_s))
+            story.append(Spacer(1, 4))
 
     # Education
     education = tailored.get('education', [])
@@ -117,10 +122,10 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
         story.append(Paragraph('EDUCATION', sec_s))
         story.append(hr())
         for edu in education:
-            deg  = clean(edu.get('degree', ''))
+            deg = clean(edu.get('degree', ''))
             inst = clean(edu.get('institution', ''))
-            yr   = clean(edu.get('year', ''))
-            story.append(Paragraph(f"{deg}  —  {inst}", jobt_s))
+            yr = clean(edu.get('year', ''))
+            story.append(Paragraph(f'{deg} - {inst}', jobt_s))
             if yr:
                 story.append(Paragraph(yr, jobs_s))
 
