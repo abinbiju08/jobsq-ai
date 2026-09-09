@@ -207,42 +207,50 @@ STRICT RULES:
 6. Do NOT add fake experience or skills the person does not have
 7. Keep bullet points exactly as they are - only append a keyword phrase if it fits naturally
 
-Return ONLY valid JSON with same structure as original resume:
+Return ONLY a valid JSON object, no explanation, no markdown:
 {{
-  "name": "exact name from resume",
-  "contact": "exact contact from resume",
-  "summary": "2-3 sentence summary mentioning {job_title}",
-  "skills": ["ALL existing skills", "plus any missing JD skills that are real"],
-  "experience": [
-    {{
-      "title": "exact title unchanged",
-      "company": "exact company unchanged",
-      "duration": "exact dates unchanged",
-      "bullets": ["existing bullet unchanged or with 1-2 keywords added naturally"]
-    }}
-  ],
-  "education": [{{"degree": "exact", "institution": "exact", "year": "exact"}}],
-  "keywords_added": ["only new keywords actually inserted"]
+  "name": "candidate name",
+  "contact": "email and phone from resume",
+  "summary": "2-3 sentences for {job_title} role",
+  "skills": ["skill1", "skill2", "skill3"],
+  "experience": [{{"title": "job title", "company": "company name", "duration": "dates", "bullets": ["bullet 1", "bullet 2"]}}],
+  "education": [{{"degree": "degree name", "institution": "university", "year": "year"}}],
+  "keywords_added": ["keyword1", "keyword2"]
 }}"""
 
         response = groq_client.chat.completions.create(
-            model="openai/gpt-oss-120b",
+            model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_tokens=2000
         )
 
         raw = response.choices[0].message.content.strip()
+        print(f"AI raw response (first 200): {raw[:200]}")
+
+        # Clean response
         if '<think>' in raw:
             raw = raw.split('</think>')[-1].strip()
-        if '```' in raw:
-            raw = raw.split('```')[1].replace('json','').strip()
+        # Remove markdown code blocks
+        import re as _re
+        raw = _re.sub(r'```(?:json)?', '', raw).strip()
+        # Find JSON object
         start = raw.find('{')
         end = raw.rfind('}')
         if start == -1 or end == -1:
+            print(f"No JSON found in: {raw[:300]}")
             raise HTTPException(status_code=500, detail="AI response parsing failed")
 
-        tailored = json.loads(raw[start:end+1])
+        json_str = raw[start:end+1]
+        # Fix common JSON issues
+        json_str = _re.sub(r',\s*}', '}', json_str)  # trailing commas
+        json_str = _re.sub(r',\s*]', ']', json_str)  # trailing commas in arrays
+
+        try:
+            tailored = json.loads(json_str)
+        except json.JSONDecodeError as je:
+            print(f"JSON parse error: {je}\nJSON: {json_str[:300]}")
+            raise HTTPException(status_code=500, detail=f"AI response parsing failed: {str(je)}")
 
         # Calculate real tailored score
         tailored_text = json.dumps(tailored)
@@ -367,7 +375,7 @@ Create a tailored resume. Return ONLY valid JSON:
 }}"""
 
         response = groq_client.chat.completions.create(
-            model="openai/gpt-oss-120b",
+            model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_tokens=2000
