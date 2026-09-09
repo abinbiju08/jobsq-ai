@@ -186,35 +186,24 @@ async def tailor_resume(
         missing = jd_kws - resume_kws
         original_score = min(95, int((len(matched) / max(len(jd_kws), 1)) * 100))
 
-        prompt = f"""You are an ATS resume optimizer. Return ONLY a JSON object, nothing else.
+        prompt = f"""You are an ATS resume optimizer. Analyze the resume and job description.
 
-Resume text:
+Resume:
 {resume_text[:2000]}
 
 Job: {job_title} at {company}
-Missing keywords to add: {', '.join(list(missing)[:15])}
+Keywords to add: {', '.join(list(missing)[:15])}
 
-Rules:
-- Keep all facts, dates, companies exactly as they are
-- Only add missing keywords naturally where they fit
-- Rewrite summary to mention the job title
+Return a JSON object. Use double quotes only. No trailing commas. Example format:
+{{"name":"John Smith","contact":"john@email.com | 9876543210","summary":"Experienced developer targeting {job_title} role with expertise in relevant technologies.","skills":["Python","Django","REST API","Docker"],"experience":[{{"title":"Software Engineer","company":"Tech Corp","duration":"2022-2024","bullets":["Developed REST APIs using Python and Django","Implemented Docker containerization"]}}],"education":[{{"degree":"B.Tech Computer Science","institution":"University Name","year":"2022"}}],"keywords_added":["Docker","REST API"]}}
 
-JSON format (return this exact structure):
-{{
-  "name": "name from resume",
-  "contact": "contact from resume",
-  "summary": "2-3 sentences for {job_title}",
-  "skills": ["existing skills plus missing JD skills"],
-  "experience": [{{"title": "exact title", "company": "exact company", "duration": "exact dates", "bullets": ["bullet with keywords added"]}}],
-  "education": [{{"degree": "exact degree", "institution": "exact institution", "year": "exact year"}}],
-  "keywords_added": ["new keywords added"]
-}}"""
+Now return the actual JSON for the resume above, tailored for {job_title}:"""
 
         response = groq_client.chat.completions.create(
             model="openai/gpt-oss-120b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
-            max_tokens=2000
+            max_tokens=3000
         )
 
         raw = response.choices[0].message.content.strip()
@@ -399,7 +388,7 @@ Create a tailored resume. Return ONLY valid JSON:
             model="openai/gpt-oss-120b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
-            max_tokens=2000
+            max_tokens=3000
         )
 
         raw = response.choices[0].message.content.strip()
