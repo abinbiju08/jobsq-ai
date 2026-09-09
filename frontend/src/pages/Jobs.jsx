@@ -264,8 +264,7 @@ export default function Jobs() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [alertActive, setAlertActive] = useState(false)
 
-  useEffect(() => { fetchJobs(); loadUserData() }, [])
-    supabase.auth.getUser().then(({ data }) => { if(data?.user) setUser(data.user) })
+  useEffect(() => { fetchJobs(); loadUserData(); supabase.auth.getUser().then(({ data }) => { if(data?.user) setUser(data.user) }) }, [])
   useEffect(() => {
     let result = jobs
     if (search) result = result.filter(j=>j.title?.toLowerCase().includes(search.toLowerCase())||j.company?.toLowerCase().includes(search.toLowerCase()))
