@@ -1,4 +1,16 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+import re as _re
+
+def extract_keywords(text):
+    """Extract meaningful keywords from text for ATS scoring"""
+    words = _re.findall(r'\b[a-zA-Z][a-zA-Z0-9+#.]*\b', text.lower())
+    stopwords = {'the','a','an','and','or','but','in','on','at','to','for',
+                'of','with','by','is','are','was','be','this','that','we',
+                'you','have','has','will','can','our','your','they','from',
+                'as','it','its','not','all','been','their','more','also',
+                'which','when','what','who','how','than','then','them','these',
+                'those','such','each','both','about','into','through','during'}
+    return {w for w in words if len(w) > 2 and w not in stopwords}
 from groq import Groq
 from supabase import create_client
 from pydantic import BaseModel
@@ -149,14 +161,7 @@ async def tailor_resume(
 
         # AI tailor prompt
         # Calculate real ATS score before tailoring
-        import re
-        def extract_keywords(text):
-            words = re.findall(r'\b[a-zA-Z][a-zA-Z0-9+#.]*\b', text.lower())
-            stopwords = {'the','a','an','and','or','but','in','on','at','to','for',
-                        'of','with','by','is','are','was','be','this','that','we',
-                        'you','have','has','will','can','our','your','they','from',
-                        'as','it','its','not','all','been','their','more','also'}
-            return {w for w in words if len(w) > 2 and w not in stopwords}
+        
 
         resume_kws = extract_keywords(resume_text)
         jd_kws = extract_keywords(job_description)
