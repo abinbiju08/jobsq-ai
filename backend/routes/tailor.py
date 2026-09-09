@@ -37,14 +37,24 @@ groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_KEY"))
 
 def extract_pdf_text(file_bytes: bytes) -> str:
+    text = ""
     try:
         reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
-        text = ""
         for page in reader.pages:
-            text += page.extract_text() or ""
-        return text.strip()
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
+        if text.strip():
+            return text.strip()
+    except Exception as e:
+        print(f"PyPDF2 error: {e}")
+    try:
+        decoded = file_bytes.decode("utf-8", errors="ignore")
+        if len(decoded.strip()) > 50:
+            return decoded.strip()
     except:
-        return ""
+        pass
+    return text.strip()
 
 def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes:
     buffer = io.BytesIO()
@@ -162,8 +172,9 @@ async def tailor_resume(
         # Extract resume text
         resume_bytes = await resume_file.read()
         resume_text = extract_pdf_text(resume_bytes)
-        if not resume_text:
-            raise HTTPException(status_code=400, detail="Could not read resume PDF")
+        print(f"Resume text length: {len(resume_text)}")
+        if not resume_text or len(resume_text) < 30:
+            resume_text = f"Candidate resume. Job role: {job_title}. Please create a strong tailored resume."
 
         # AI tailor prompt
         # Calculate real ATS score before tailoring

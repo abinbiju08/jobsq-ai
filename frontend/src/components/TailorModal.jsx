@@ -57,13 +57,17 @@ export default function TailorModal({ job, user, onClose }) {
       })
 
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}))
-        throw new Error(errData.detail || `Server error ${response.status}`)
+        let errMsg = `Server error ${response.status}`
+        try {
+          const errData = await response.json()
+          errMsg = errData.detail || errMsg
+        } catch {}
+        throw new Error(errMsg)
       }
 
-      const keywords   = JSON.parse(response.headers.get('X-Keywords-Added') || '[]')
-      const origScore  = parseInt(response.headers.get('X-Original-Score') || '0')
-      const newScore   = parseInt(response.headers.get('X-Tailored-Score') || '0')
+      const keywords   = JSON.parse(response.headers.get('x-keywords-added') || response.headers.get('X-Keywords-Added') || '[]')
+      const origScore  = parseInt(response.headers.get('x-original-score') || response.headers.get('X-Original-Score') || '0')
+      const newScore   = parseInt(response.headers.get('x-tailored-score') || response.headers.get('X-Tailored-Score') || '0')
       const blob       = await response.blob()
       const url        = URL.createObjectURL(blob)
       const fileName   = `tailored_${(job.title || 'resume').replace(/\s+/g,'_')}.pdf`
