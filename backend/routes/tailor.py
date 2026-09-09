@@ -186,40 +186,32 @@ async def tailor_resume(
         missing = jd_kws - resume_kws
         original_score = min(95, int((len(matched) / max(len(jd_kws), 1)) * 100))
 
-        prompt = f"""You are an ATS keyword optimization specialist.
+        prompt = f"""You are an ATS resume optimizer. Return ONLY a JSON object, nothing else.
 
-TASK: Add missing job keywords to this resume MINIMALLY. Keep everything else EXACTLY the same.
+Resume text:
+{resume_text[:2000]}
 
-ORIGINAL RESUME:
-{resume_text[:3000]}
+Job: {job_title} at {company}
+Missing keywords to add: {', '.join(list(missing)[:15])}
 
-JOB TITLE: {job_title}
-JOB DESCRIPTION: {job_description[:1500]}
+Rules:
+- Keep all facts, dates, companies exactly as they are
+- Only add missing keywords naturally where they fit
+- Rewrite summary to mention the job title
 
-MISSING KEYWORDS TO ADD: {', '.join(list(missing)[:20])}
-
-STRICT RULES:
-1. Keep the EXACT same resume structure, sections and format
-2. Keep ALL existing bullet points - only add 1-2 missing keywords per bullet if they naturally fit
-3. Only ADD keywords to skills section - do not remove any existing skills
-4. Rewrite ONLY the professional summary (2-3 sentences max) to mention the job title
-5. Do NOT change any dates, company names, job titles, or achievements
-6. Do NOT add fake experience or skills the person does not have
-7. Keep bullet points exactly as they are - only append a keyword phrase if it fits naturally
-
-Return ONLY a valid JSON object, no explanation, no markdown:
+JSON format (return this exact structure):
 {{
-  "name": "candidate name",
-  "contact": "email and phone from resume",
-  "summary": "2-3 sentences for {job_title} role",
-  "skills": ["skill1", "skill2", "skill3"],
-  "experience": [{{"title": "job title", "company": "company name", "duration": "dates", "bullets": ["bullet 1", "bullet 2"]}}],
-  "education": [{{"degree": "degree name", "institution": "university", "year": "year"}}],
-  "keywords_added": ["keyword1", "keyword2"]
+  "name": "name from resume",
+  "contact": "contact from resume",
+  "summary": "2-3 sentences for {job_title}",
+  "skills": ["existing skills plus missing JD skills"],
+  "experience": [{{"title": "exact title", "company": "exact company", "duration": "exact dates", "bullets": ["bullet with keywords added"]}}],
+  "education": [{{"degree": "exact degree", "institution": "exact institution", "year": "exact year"}}],
+  "keywords_added": ["new keywords added"]
 }}"""
 
         response = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_tokens=2000
@@ -375,7 +367,7 @@ Create a tailored resume. Return ONLY valid JSON:
 }}"""
 
         response = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_tokens=2000
