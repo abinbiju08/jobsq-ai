@@ -9,6 +9,8 @@ export default function TailorModal({ job, user, onClose }) {
   const [error, setError]         = useState('')
   const [resumeInfo, setResumeInfo] = useState(null)
   const [uploadFile, setUploadFile] = useState(null)
+  const [showPreview, setShowPreview] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState(null)
 
   useEffect(() => {
     // Check localStorage for saved resume info
@@ -72,7 +74,8 @@ export default function TailorModal({ job, user, onClose }) {
       const url        = URL.createObjectURL(blob)
       const fileName   = `tailored_${(job.title || 'resume').replace(/\s+/g,'_')}.pdf`
 
-      setResult({ keywords, origScore, newScore, downloadUrl: url, fileName })
+      setResult({ keywords, origScore, newScore, downloadUrl: url, fileName, pdfBlob: blob })
+      setPreviewUrl(url)
       setStep('result')
 
     } catch(e) {
@@ -81,10 +84,33 @@ export default function TailorModal({ job, user, onClose }) {
     }
   }
 
-  const download = () => {
+  const downloadPDF = () => {
     const a = document.createElement('a')
     a.href = result.downloadUrl
     a.download = result.fileName
+    a.click()
+  }
+
+  const downloadDOC = async () => {
+    // Create a simple HTML version that Word can open
+    const keywords = result.keywords.join(', ')
+    const html = `
+      <html><body>
+      <h1 style="text-align:center">Tailored Resume</h1>
+      <p style="text-align:center">Tailored for: ${job.title} at ${job.company}</p>
+      <hr/>
+      <h2>Keywords Added</h2>
+      <p>${keywords}</p>
+      <h2>ATS Score Improvement</h2>
+      <p>Original: ${result.origScore}% → Tailored: ${result.newScore}%</p>
+      <p>Download the PDF version for the complete tailored resume.</p>
+      </body></html>
+    `
+    const blob = new Blob([html], { type: 'application/msword' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = result.fileName.replace('.pdf', '.doc')
     a.click()
   }
 
@@ -200,13 +226,50 @@ export default function TailorModal({ job, user, onClose }) {
                   ))}
                 </div>
 
-                <button onClick={download} style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:'.5rem',padding:'.65rem',background:'linear-gradient(135deg,#00e5a0,#00c484)',border:'none',borderRadius:'10px',color:'#060d0a',fontSize:'13px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',marginBottom:'.5rem'}}>
-                  <i className="ti ti-download" style={{fontSize:'15px'}} aria-hidden="true"/>
-                  Download tailored resume PDF
+                {/* Preview */}
+                <button onClick={()=>setShowPreview(true)}
+                  style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:'.5rem',padding:'.55rem',background:'rgba(255,255,255,0.06)',border:'0.5px solid var(--border,rgba(255,255,255,0.1))',borderRadius:'10px',color:'var(--text,#eef0ff)',fontSize:'13px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',marginBottom:'.5rem'}}>
+                  <i className="ti ti-eye" style={{fontSize:'15px'}} aria-hidden="true"/>
+                  Preview tailored resume
                 </button>
+
+                {/* Download options */}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.5rem',marginBottom:'.5rem'}}>
+                  <button onClick={downloadPDF}
+                    style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'.4rem',padding:'.55rem',background:'linear-gradient(135deg,#00e5a0,#00c484)',border:'none',borderRadius:'10px',color:'#060d0a',fontSize:'12px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+                    <i className="ti ti-file-type-pdf" style={{fontSize:'14px'}} aria-hidden="true"/>
+                    Download PDF
+                  </button>
+                  <button onClick={downloadDOC}
+                    style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'.4rem',padding:'.55rem',background:'rgba(59,130,246,0.12)',border:'0.5px solid rgba(59,130,246,0.3)',borderRadius:'10px',color:'#3b82f6',fontSize:'12px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+                    <i className="ti ti-file-type-doc" style={{fontSize:'14px'}} aria-hidden="true"/>
+                    Download DOC
+                  </button>
+                </div>
                 <div style={{fontSize:'11px',color:'var(--text3,#4a5168)',textAlign:'center'}}>
                   Your original resume is unchanged · This is a new tailored version
                 </div>
+
+                {/* PDF Preview Modal */}
+                {showPreview && previewUrl && (
+                  <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',zIndex:3000,display:'flex',flexDirection:'column'}}
+                    onClick={e=>e.target===e.currentTarget&&setShowPreview(false)}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.75rem 1rem',background:'#1a1a2e',borderBottom:'1px solid rgba(255,255,255,0.1)'}}>
+                      <span style={{color:'#eef0ff',fontSize:'13px',fontWeight:600}}>Preview — {job.title} tailored resume</span>
+                      <div style={{display:'flex',gap:'.5rem'}}>
+                        <button onClick={downloadPDF}
+                          style={{display:'inline-flex',alignItems:'center',gap:'.3rem',padding:'.35rem .75rem',background:'#00e5a0',border:'none',borderRadius:'7px',color:'#060d0a',fontSize:'12px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+                          <i className="ti ti-download" style={{fontSize:'13px'}} aria-hidden="true"/> Download PDF
+                        </button>
+                        <button onClick={()=>setShowPreview(false)}
+                          style={{background:'rgba(255,255,255,0.08)',border:'none',borderRadius:'7px',padding:'.35rem .6rem',cursor:'pointer',color:'#eef0ff',display:'flex',alignItems:'center'}}>
+                          <i className="ti ti-x" style={{fontSize:'16px'}} aria-hidden="true"/>
+                        </button>
+                      </div>
+                    </div>
+                    <iframe src={previewUrl} style={{flex:1,border:'none',width:'100%'}} title="Resume preview"/>
+                  </div>
+                )}
               </div>
             )}
 
