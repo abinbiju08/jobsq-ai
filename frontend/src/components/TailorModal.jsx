@@ -12,17 +12,34 @@ export default function TailorModal({ job, user, onClose }) {
 
   // Check if user has saved resume on mount
   useEffect(() => {
+    // Check localStorage first (instant)
+    const cached = localStorage.getItem('jobsq_resume_info')
+    if (cached) {
+      try { setResumeInfo(JSON.parse(cached)) } catch {}
+    }
+    // Then verify with backend
+    if (!user?.id) return
     const check = async () => {
       try {
         const res = await fetch(`${API}/builder/resume-info/${user.id}`)
-        const data = await res.json()
-        setResumeInfo(data)
+        if (res.ok) {
+          const data = await res.json()
+          if (data && data.file_name) {
+            setResumeInfo(data)
+            localStorage.setItem('jobsq_resume_info', JSON.stringify(data))
+          }
+        }
       } catch {}
     }
     check()
-  }, [user.id])
+  }, [user?.id])
 
   const tailorResume = async () => {
+    if (!user?.id) {
+      setError('Please log in to use this feature.')
+      setStep('error')
+      return
+    }
     setStep('loading')
     try {
       let response
@@ -32,7 +49,7 @@ export default function TailorModal({ job, user, onClose }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            user_id: user.id,
+            user_id: user?.id,
             job_title: job.title,
             job_description: job.description || job.title,
             company: job.company

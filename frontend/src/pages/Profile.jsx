@@ -65,7 +65,9 @@ export default function Profile() {
       const res = await fetch(`${API}/builder/save-resume`, { method:'POST', body:form })
       const data = await res.json()
       if (data.success) {
-        setResumeInfo({ file_name: data.file_name, file_size: data.file_size })
+        const info = { file_name: data.file_name, file_size: data.file_size }
+        setResumeInfo(info)
+        localStorage.setItem('jobsq_resume_info', JSON.stringify(info))
         setResumeMsg('Resume uploaded successfully!')
       } else {
         setResumeMsg('Upload failed — ' + (data.error || 'try again'))
