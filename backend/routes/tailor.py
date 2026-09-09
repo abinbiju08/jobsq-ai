@@ -14,6 +14,18 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 
 load_dotenv()
+
+# Try importing python-docx
+try:
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+    DOCX_AVAILABLE = True
+except ImportError:
+    DOCX_AVAILABLE = False
+    print("WARNING: python-docx not installed")
 router = APIRouter()
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_KEY"))
@@ -202,9 +214,8 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
     return buffer.getvalue()
 
 def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> bytes:
-    from docx import Document
-    from docx.shared import Pt, RGBColor
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    if not DOCX_AVAILABLE:
+        raise ImportError('python-docx not installed on server')
 
     doc = Document()
 
@@ -223,8 +234,6 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
         r, g, b = int(color[:2],16), int(color[2:4],16), int(color[4:],16)
         run.font.color.rgb = RGBColor(r, g, b)
         # Add border below
-        from docx.oxml.ns import qn
-        from docx.oxml import OxmlElement
         pPr = p._p.get_or_add_pPr()
         pBdr = OxmlElement('w:pBdr')
         bottom = OxmlElement('w:bottom')
@@ -478,8 +487,8 @@ Keys: name, contact, summary (2 sentences for {job_title}), skills, experience (
         response = groq_client.chat.completions.create(
             model="openai/gpt-oss-120b",
             messages=[
-                {{"role": "system", "content": "Return only valid JSON."}},
-                {{"role": "user", "content": prompt}}
+                {"role": "system", "content": "Return only valid JSON."},
+                {"role": "user", "content": prompt}
             ],
             temperature=0.1,
             max_tokens=3000
@@ -499,8 +508,9 @@ Keys: name, contact, summary (2 sentences for {job_title}), skills, experience (
         )
     except Exception as e:
         import traceback
-        print(f"DOCX ERROR: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e))
+        tb = traceback.format_exc()
+        print(f"DOCX ERROR: {tb}")
+        raise HTTPException(status_code=500, detail=f"{str(e)} | {tb[-300:]}")
 
 
 @router.post("/save-resume")
