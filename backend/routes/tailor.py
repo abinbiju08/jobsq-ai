@@ -186,43 +186,219 @@ async def tailor_resume(
         missing = jd_kws - resume_kws
         original_score = min(95, int((len(matched) / max(len(jd_kws), 1)) * 100))
 
-        prompt = f"""Analyze this resume and return tailored version as JSON.
+        prompt = f"""You will receive a resume and a list of missing keywords. Your ONLY task is:
+1. Copy the resume EXACTLY as it is
+2. Add the missing keywords to the Skills section only
+3. Rewrite ONLY the summary section (2 sentences max)
+4. Do NOT change anything else - not bullets, not experience, not education, not formatting
 
-RESUME TEXT:
-{resume_text[:2000]}
+RESUME:
+{resume_text[:2500]}
 
-TARGET JOB: {job_title} at {company}
-ADD THESE KEYWORDS WHERE THEY FIT: {', '.join(list(missing)[:10])}
+MISSING KEYWORDS TO ADD TO SKILLS ONLY: {', '.join(list(missing)[:15])}
+JOB TITLE FOR SUMMARY: {job_title}
 
-INSTRUCTIONS:
-1. Extract the actual name, contact, skills, experience from the resume above
-2. Add the missing keywords naturally to skills and bullets
-3. Rewrite summary for the target job
-4. Return ONLY the JSON below with real data from the resume
+Return JSON with the resume data, only skills and summary modified:"""IRouter, UploadFile, File, Form, HTTPException
+import re as _re
 
-REQUIRED OUTPUT FORMAT (fill with real data, no placeholders):
-{{
-"name": "<actual name from resume>",
-"contact": "<actual email and phone>",
-"summary": "<2 sentences about candidate targeting {job_title}>",
-"skills": [<list of skills from resume plus missing keywords>],
-"experience": [
-{{
-"title": "<actual job title>",
-"company": "<actual company>",
-"duration": "<actual dates>",
-"bullets": [<actual bullets with keywords added>]
-}}
-],
-"education": [
-{{
-"degree": "<actual degree>",
-"institution": "<actual institution>",
-"year": "<actual year>"
-}}
-],
-"keywords_added": [<list of new keywords added>]
-}}"""
+def extract_keywords(text):
+    """Extract meaningful keywords from text for ATS scoring"""
+    words = _re.findall(r'\b[a-zA-Z][a-zA-Z0-9+#.]*\b', text.lower())
+    stopwords = {'the','a','an','and','or','but','in','on','at','to','for',
+                'of','with','by','is','are','was','be','this','that','we',
+                'you','have','has','will','can','our','your','they','from',
+                'as','it','its','not','all','been','their','more','also',
+                'which','when','what','who','how','than','then','them','these',
+                'those','such','each','both','about','into','through','during'}
+    return {w for w in words if len(w) > 2 and w not in stopwords}
+from groq import Groq
+from supabase import create_client
+from pydantic import BaseModel
+import os, json, re, io
+from dotenv import load_dotenv
+import PyPDF2
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
+from reportlab.lib.enums import TA_LEFT, TA_CENTER
+from fastapi.responses import StreamingResponse
+
+load_dotenv()
+class TailorSavedRequest(BaseModel):
+    user_id: str
+    job_title: str
+    job_description: str
+    company: str = "Company"
+
+router = APIRouter()
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_KEY"))
+
+def extract_pdf_text(file_bytes: bytes) -> str:
+    text = ""
+    try:
+        reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+        for page in reader.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
+        if text.strip():
+            return text.strip()
+    except Exception as e:
+        print(f"PyPDF2 error: {e}")
+    try:
+        decoded = file_bytes.decode("utf-8", errors="ignore")
+        if len(decoded.strip()) > 50:
+            return decoded.strip()
+    except:
+        pass
+    return text.strip()
+
+def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes:
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+        rightMargin=18*mm, leftMargin=18*mm,
+        topMargin=14*mm, bottomMargin=14*mm)
+
+    story = []
+
+    def clean(text):
+        """Strip all non-ASCII characters to avoid black squares with Helvetica"""
+        if not text: return ""
+        result = ""
+        for ch in str(text):
+            if ord(ch) < 128:
+                result += ch
+            elif ch in (u'–', u'—'): result += '-'
+            elif ch in (u'‘', u'’'): result += "'"
+            elif ch in (u'“', u'”'): result += '"'
+            elif ch in (u'•', u'·'):  result += '-'
+            elif ch in (u'é', u'è'): result += 'e'
+            elif ch in (u'à', u'â'): result += 'a'
+            elif ch in (u'ô', u'ö'): result += 'o'
+            elif ch in (u'ü', u'û'): result += 'u'
+            else: result += ' '
+        return ' '.join(result.split())
+
+    # Styles
+    name_s = ParagraphStyle('n', fontSize=20, fontName='Helvetica-Bold',
+                textColor=colors.HexColor('#1a1a2e'), spaceAfter=4, alignment=TA_CENTER, leading=24)
+    contact_s = ParagraphStyle('c', fontSize=9, fontName='Helvetica',
+                textColor=colors.HexColor('#555555'), spaceAfter=8, alignment=TA_CENTER)
+    sec_s = ParagraphStyle('s', fontSize=10.5, fontName='Helvetica-Bold',
+                textColor=colors.HexColor('#00a572'), spaceBefore=10, spaceAfter=3)
+    body_s = ParagraphStyle('b', fontSize=9.5, fontName='Helvetica',
+                textColor=colors.HexColor('#222222'), spaceAfter=4, leading=14)
+    bullet_s = ParagraphStyle('bl', fontSize=9, fontName='Helvetica',
+                textColor=colors.HexColor('#333333'), spaceAfter=2,
+                leftIndent=12, leading=13)
+    jobt_s = ParagraphStyle('jt', fontSize=10, fontName='Helvetica-Bold',
+                textColor=colors.HexColor('#1a1a2e'), spaceAfter=1)
+    jobs_s = ParagraphStyle('js', fontSize=8.5, fontName='Helvetica',
+                textColor=colors.HexColor('#666666'), spaceAfter=4)
+
+    hr = lambda: HRFlowable(width="100%", thickness=0.5,
+                color=colors.HexColor('#dddddd'), spaceAfter=5)
+    hr_green = lambda: HRFlowable(width="100%", thickness=1.5,
+                color=colors.HexColor('#00a572'), spaceAfter=8)
+
+    # Name & contact — NO "Tailored for" tag
+    story.append(Paragraph(clean(tailored.get('name', 'Candidate')), name_s))
+    if tailored.get('contact'):
+        story.append(Paragraph(clean(tailored['contact']), contact_s))
+    story.append(hr_green())
+
+    # Summary
+    if tailored.get('summary'):
+        story.append(Paragraph('PROFESSIONAL SUMMARY', sec_s))
+        story.append(hr())
+        story.append(Paragraph(clean(tailored['summary']), body_s))
+
+    # Skills
+    skills = tailored.get('skills', [])
+    if skills:
+        story.append(Paragraph('SKILLS', sec_s))
+        story.append(hr())
+        skills_clean = [clean(s) for s in skills if s]
+        # Split into rows of 6
+        rows = [skills_clean[i:i+6] for i in range(0, len(skills_clean), 6)]
+        for row in rows:
+            story.append(Paragraph('   |   '.join(row), body_s))
+
+    # Experience
+    experience = tailored.get('experience', [])
+    if experience:
+        story.append(Paragraph('EXPERIENCE', sec_s))
+        story.append(hr())
+        for exp in experience:
+            story.append(Paragraph(clean(exp.get('title', '')), jobt_s))
+            company_dur = []
+            if exp.get('company'): company_dur.append(clean(exp['company']))
+            if exp.get('duration'): company_dur.append(clean(exp['duration']))
+            story.append(Paragraph('  |  '.join(company_dur), jobs_s))
+            for bullet in exp.get('bullets', []):
+                b = clean(bullet).strip('- ').strip()
+                if b:
+                    story.append(Paragraph(f'- {b}', bullet_s))
+            story.append(Spacer(1, 4))
+
+    # Education
+    education = tailored.get('education', [])
+    if education:
+        story.append(Paragraph('EDUCATION', sec_s))
+        story.append(hr())
+        for edu in education:
+            deg = clean(edu.get('degree', ''))
+            inst = clean(edu.get('institution', ''))
+            yr = clean(edu.get('year', ''))
+            story.append(Paragraph(f'{deg} - {inst}', jobt_s))
+            if yr:
+                story.append(Paragraph(yr, jobs_s))
+
+    doc.build(story)
+    return buffer.getvalue()
+
+@router.post("/tailor")
+async def tailor_resume(
+    resume_file: UploadFile = File(...),
+    job_title: str = Form(...),
+    job_description: str = Form(...),
+    company: str = Form(default="Company"),
+    user_id: str = Form(...)
+):
+    try:
+        # Extract resume text
+        resume_bytes = await resume_file.read()
+        resume_text = extract_pdf_text(resume_bytes)
+        print(f"Resume text length: {len(resume_text)}")
+        if not resume_text or len(resume_text) < 30:
+            resume_text = f"Candidate resume. Job role: {job_title}. Please create a strong tailored resume."
+
+        # AI tailor prompt
+        # Calculate real ATS score before tailoring
+        
+
+        resume_kws = extract_keywords(resume_text)
+        jd_kws = extract_keywords(job_description)
+        matched = resume_kws & jd_kws
+        missing = jd_kws - resume_kws
+        original_score = min(95, int((len(matched) / max(len(jd_kws), 1)) * 100))
+
+        prompt = f"""You have a resume and missing keywords. Do the following:
+1. Copy ALL resume content exactly as-is
+2. Add missing keywords ONLY to the skills list
+3. Write a new 2-sentence summary mentioning the job title
+4. Change NOTHING else
+
+RESUME:
+{resume_text[:2500]}
+
+ADD TO SKILLS: {", ".join(list(missing)[:12])}
+JOB: {job_title}
+
+Return JSON with keys: name, contact, summary, skills, experience, education, keywords_added"""
 
         response = groq_client.chat.completions.create(
             model="openai/gpt-oss-120b",
