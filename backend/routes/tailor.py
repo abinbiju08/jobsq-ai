@@ -241,8 +241,24 @@ JSON format (return this exact structure):
         try:
             tailored = json.loads(json_str)
         except json.JSONDecodeError as je:
-            print(f"JSON parse error: {je}\nJSON: {json_str[:300]}")
-            raise HTTPException(status_code=500, detail=f"AI response parsing failed: {str(je)}")
+            print(f"JSON parse error: {je}\nJSON: {json_str[:500]}")
+            # Try to fix by finding matching braces
+            try:
+                depth = 0
+                end_pos = 0
+                for i, ch in enumerate(json_str):
+                    if ch == '{': depth += 1
+                    elif ch == '}':
+                        depth -= 1
+                        if depth == 0:
+                            end_pos = i + 1
+                            break
+                fixed = json_str[:end_pos]
+                tailored = json.loads(fixed)
+                print(f"Fixed JSON parsing succeeded!")
+            except Exception as e2:
+                print(f"Fix also failed: {e2}")
+                raise HTTPException(status_code=500, detail=f"AI response parsing failed: {str(je)}")
 
         # Calculate real tailored score
         tailored_text = json.dumps(tailored)
