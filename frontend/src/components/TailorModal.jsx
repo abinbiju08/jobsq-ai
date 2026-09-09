@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -35,12 +36,18 @@ export default function TailorModal({ job, user, onClose }) {
   }, [user?.id])
 
   const tailorResume = async () => {
-    if (!user?.id) {
-      setError('Please log in to use this feature.')
+    setStep('loading')
+    // Get fresh user if prop is null
+    let currentUser = user
+    if (!currentUser?.id) {
+      const { data } = await supabase.auth.getUser()
+      currentUser = data?.user
+    }
+    if (!currentUser?.id) {
+      setError('Session expired. Please refresh and try again.')
       setStep('error')
       return
     }
-    setStep('loading')
     try {
       let response
       if (resumeInfo) {
@@ -49,7 +56,7 @@ export default function TailorModal({ job, user, onClose }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            user_id: user?.id,
+            user_id: currentUser.id,
             job_title: job.title,
             job_description: job.description || job.title,
             company: job.company
@@ -62,7 +69,7 @@ export default function TailorModal({ job, user, onClose }) {
         form.append('job_title', job.title)
         form.append('job_description', job.description || job.title)
         form.append('company', job.company)
-        form.append('user_id', user.id)
+        form.append('user_id', currentUser.id)
         response = await fetch(`${API}/builder/tailor`, { method: 'POST', body: form })
       } else {
         setError('No resume found. Please upload your resume in Profile first.')

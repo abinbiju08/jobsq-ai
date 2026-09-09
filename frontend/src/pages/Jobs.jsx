@@ -60,7 +60,6 @@ function JobMap({ search }) {
   const tileLayerRef = useRef(null)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => { if(data?.user) setUser(data.user) })
     if (window.L) { setLeafletLoaded(true); return }
     const link = document.createElement('link'); link.rel='stylesheet'; link.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(link)
     const script = document.createElement('script'); script.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; script.onload=()=>setLeafletLoaded(true); document.head.appendChild(script)
@@ -266,6 +265,7 @@ export default function Jobs() {
   const [alertActive, setAlertActive] = useState(false)
 
   useEffect(() => { fetchJobs(); loadUserData() }, [])
+    supabase.auth.getUser().then(({ data }) => { if(data?.user) setUser(data.user) })
   useEffect(() => {
     let result = jobs
     if (search) result = result.filter(j=>j.title?.toLowerCase().includes(search.toLowerCase())||j.company?.toLowerCase().includes(search.toLowerCase()))
