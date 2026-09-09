@@ -186,51 +186,43 @@ async def tailor_resume(
         missing = jd_kws - resume_kws
         original_score = min(95, int((len(matched) / max(len(jd_kws), 1)) * 100))
 
-        prompt = f"""You are an ATS resume optimization expert.
+        prompt = f"""You are an ATS keyword optimization specialist.
 
-TASK: Improve this resume to better match the job description WITHOUT changing facts or fabricating experience.
+TASK: Add missing job keywords to this resume MINIMALLY. Keep everything else EXACTLY the same.
 
 ORIGINAL RESUME:
 {resume_text[:3000]}
 
 JOB TITLE: {job_title}
-COMPANY: {company}
-JOB DESCRIPTION:
-{job_description[:2000]}
+JOB DESCRIPTION: {job_description[:1500]}
 
-MISSING KEYWORDS FROM JD: {', '.join(list(missing)[:30])}
+MISSING KEYWORDS TO ADD: {', '.join(list(missing)[:20])}
 
-RULES:
-1. Keep ALL existing experience, education, and facts exactly as they are
-2. Only ADD missing keywords naturally into existing bullet points where they genuinely fit
-3. Rewrite the professional summary to match this specific role
-4. Add missing technical skills to skills section only if they are mentioned in JD
-5. Do NOT fabricate any experience, companies, or achievements
-6. Do NOT change dates, company names, or job titles
-7. Keep the same structure and format
+STRICT RULES:
+1. Keep the EXACT same resume structure, sections and format
+2. Keep ALL existing bullet points - only add 1-2 missing keywords per bullet if they naturally fit
+3. Only ADD keywords to skills section - do not remove any existing skills
+4. Rewrite ONLY the professional summary (2-3 sentences max) to mention the job title
+5. Do NOT change any dates, company names, job titles, or achievements
+6. Do NOT add fake experience or skills the person does not have
+7. Keep bullet points exactly as they are - only append a keyword phrase if it fits naturally
 
-Return ONLY valid JSON:
+Return ONLY valid JSON with same structure as original resume:
 {{
   "name": "exact name from resume",
   "contact": "exact contact from resume",
-  "summary": "rewritten summary targeting {job_title} role",
-  "skills": ["all existing skills plus relevant missing ones from JD only"],
+  "summary": "2-3 sentence summary mentioning {job_title}",
+  "skills": ["ALL existing skills", "plus any missing JD skills that are real"],
   "experience": [
     {{
-      "title": "exact title from resume",
-      "company": "exact company from resume",
-      "duration": "exact dates from resume",
-      "bullets": ["existing bullet with keywords added naturally", "existing bullet 2", "existing bullet 3"]
+      "title": "exact title unchanged",
+      "company": "exact company unchanged",
+      "duration": "exact dates unchanged",
+      "bullets": ["existing bullet unchanged or with 1-2 keywords added naturally"]
     }}
   ],
-  "education": [
-    {{
-      "degree": "exact degree from resume",
-      "institution": "exact institution from resume",
-      "year": "exact year from resume"
-    }}
-  ],
-  "keywords_added": ["only the new keywords actually added"]
+  "education": [{{"degree": "exact", "institution": "exact", "year": "exact"}}],
+  "keywords_added": ["only new keywords actually inserted"]
 }}"""
 
         response = groq_client.chat.completions.create(
@@ -262,11 +254,11 @@ Return ONLY valid JSON:
             media_type="application/pdf",
             headers={"Content-Disposition": f"attachment; filename={filename}",
                      "X-Keywords-Added": json.dumps(tailored.get('keywords_added',[])),
-                     "X-Original-Score": str(tailored.get('original_score', 0)),
-                     "X-Tailored-Score": str(tailored.get('tailored_score', 0))}
+                     "x-original-score": str(original_score),
+                     "x-tailored-score": str(tailored_score),
+                     "x-keywords-added": json.dumps(tailored.get("keywords_added",[])),
+                     "Access-Control-Expose-Headers": "x-original-score,x-tailored-score,x-keywords-added"}
         )
-
-    except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -397,10 +389,10 @@ Create a tailored resume. Return ONLY valid JSON:
             media_type="application/pdf",
             headers={
                 "Content-Disposition": f"attachment; filename={filename}",
-                "X-Keywords-Added": json.dumps(tailored.get('keywords_added',[])),
-                "X-Original-Score": str(original_score),
-                "X-Tailored-Score": str(tailored_score),
-                "Access-Control-Expose-Headers": "X-Keywords-Added,X-Original-Score,X-Tailored-Score"
+                "x-keywords-added": json.dumps(tailored.get('keywords_added',[])),
+                "x-original-score": str(original_score),
+                "x-tailored-score": str(tailored_score),
+                "Access-Control-Expose-Headers": "x-keywords-added,x-original-score,x-tailored-score"
             }
         )
     except HTTPException: raise
