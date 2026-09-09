@@ -201,6 +201,140 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
     doc.build(story)
     return buffer.getvalue()
 
+def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> bytes:
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+    doc = Document()
+
+    # Remove default margins
+    for section in doc.sections:
+        section.top_margin = section.bottom_margin = Pt(36)
+        section.left_margin = section.right_margin = Pt(50)
+
+    def add_heading(text, color='00a572'):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(10)
+        p.paragraph_format.space_after = Pt(2)
+        run = p.add_run(text.upper())
+        run.bold = True
+        run.font.size = Pt(10.5)
+        r, g, b = int(color[:2],16), int(color[2:4],16), int(color[4:],16)
+        run.font.color.rgb = RGBColor(r, g, b)
+        # Add border below
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+        pPr = p._p.get_or_add_pPr()
+        pBdr = OxmlElement('w:pBdr')
+        bottom = OxmlElement('w:bottom')
+        bottom.set(qn('w:val'), 'single')
+        bottom.set(qn('w:sz'), '4')
+        bottom.set(qn('w:space'), '1')
+        bottom.set(qn('w:color'), color)
+        pBdr.append(bottom)
+        pPr.append(pBdr)
+
+    def clean_text(text):
+        if not text: return ""
+        return str(text).encode('ascii', 'ignore').decode().strip()
+
+    # Name
+    name_para = doc.add_paragraph()
+    name_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    name_run = name_para.add_run(clean_text(tailored.get('name', '')))
+    name_run.bold = True
+    name_run.font.size = Pt(20)
+
+    # Contact
+    if tailored.get('contact'):
+        contact_para = doc.add_paragraph()
+        contact_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        contact_run = contact_para.add_run(clean_text(tailored['contact']))
+        contact_run.font.size = Pt(9)
+        contact_run.font.color.rgb = RGBColor(85, 85, 85)
+
+    # Summary
+    if tailored.get('summary'):
+        add_heading('Professional Summary')
+        p = doc.add_paragraph(clean_text(tailored['summary']))
+        p.paragraph_format.space_after = Pt(4)
+
+    # Skills
+    skills = tailored.get('skills', [])
+    if skills:
+        add_heading('Skills')
+        rows = [skills[i:i+6] for i in range(0, len(skills), 6)]
+        for row in rows:
+            p = doc.add_paragraph('   |   '.join([clean_text(s) for s in row if s]))
+            p.paragraph_format.space_after = Pt(2)
+
+    # Experience
+    experience = tailored.get('experience', [])
+    if experience:
+        add_heading('Experience')
+        for exp in experience:
+            p = doc.add_paragraph()
+            r = p.add_run(clean_text(exp.get('title', '')))
+            r.bold = True
+            r.font.size = Pt(10)
+            sub = doc.add_paragraph()
+            sub.paragraph_format.space_after = Pt(2)
+            sr = sub.add_run(f"{clean_text(exp.get('company',''))}  |  {clean_text(exp.get('duration',''))}")
+            sr.font.size = Pt(8.5)
+            sr.font.color.rgb = RGBColor(100, 100, 100)
+            for bullet in exp.get('bullets', []):
+                b = clean_text(bullet).strip('- ').strip()
+                if b:
+                    bp = doc.add_paragraph(style='List Bullet')
+                    bp.paragraph_format.space_after = Pt(1)
+                    br = bp.add_run(b)
+                    br.font.size = Pt(9)
+
+    # Projects
+    projects = tailored.get('projects', [])
+    if projects:
+        add_heading('Projects')
+        for proj in projects:
+            if proj.get('name'):
+                p = doc.add_paragraph()
+                r = p.add_run(clean_text(proj.get('name', '')))
+                r.bold = True
+                r.font.size = Pt(10)
+            if proj.get('description'):
+                dp = doc.add_paragraph(style='List Bullet')
+                dr = dp.add_run(clean_text(proj.get('description', '')))
+                dr.font.size = Pt(9)
+
+    # Education
+    education = tailored.get('education', [])
+    if education:
+        add_heading('Education')
+        for edu in education:
+            p = doc.add_paragraph()
+            r = p.add_run(f"{clean_text(edu.get('degree',''))} - {clean_text(edu.get('institution',''))}")
+            r.bold = True
+            r.font.size = Pt(10)
+            if edu.get('year'):
+                yp = doc.add_paragraph(clean_text(edu['year']))
+                yp.paragraph_format.space_after = Pt(2)
+                yp.runs[0].font.size = Pt(8.5)
+                yp.runs[0].font.color.rgb = RGBColor(100, 100, 100)
+
+    # Certifications
+    certs = tailored.get('certifications', [])
+    if certs:
+        add_heading('Certifications')
+        for cert in certs:
+            cp = doc.add_paragraph(style='List Bullet')
+            cr = cp.add_run(clean_text(str(cert)))
+            cr.font.size = Pt(9)
+
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    return buffer.getvalue()
+
+
 @router.post("/tailor")
 async def tailor_resume(
     resume_file: UploadFile = File(...),
@@ -308,6 +442,64 @@ Return complete JSON:
     except Exception as e:
         import traceback
         print(f"TAILOR ERROR: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/tailor-docx")
+async def tailor_resume_docx(
+    resume_file: UploadFile = File(...),
+    job_title: str = Form(...),
+    job_description: str = Form(...),
+    company: str = Form(default="Company"),
+    user_id: str = Form(...)
+):
+    """Same as /tailor but returns DOCX instead of PDF"""
+    try:
+        resume_bytes = await resume_file.read()
+        resume_text = extract_pdf_text(resume_bytes)
+        if not resume_text or len(resume_text) < 30:
+            resume_text = f"Candidate applying for {job_title} role."
+
+        resume_kws = extract_keywords(resume_text)
+        jd_kws = extract_keywords(job_description + " " + job_title)
+        missing = jd_kws - resume_kws
+
+        prompt = f"""Extract ALL content from this resume and return as JSON. Include every section.
+
+RESUME:
+{resume_text[:3000]}
+
+JOB: {job_title} at {company}
+KEYWORDS TO ADD TO SKILLS: {', '.join(list(missing)[:12])}
+
+Return complete JSON with all resume data, adding keywords to skills only.
+Keys: name, contact, summary (2 sentences for {job_title}), skills, experience (with all bullets), projects, education, certifications, keywords_added"""
+
+        response = groq_client.chat.completions.create(
+            model="openai/gpt-oss-120b",
+            messages=[
+                {{"role": "system", "content": "Return only valid JSON."}},
+                {{"role": "user", "content": prompt}}
+            ],
+            temperature=0.1,
+            max_tokens=3000
+        )
+
+        tailored = parse_ai_response(response.choices[0].message.content.strip())
+        docx_bytes = generate_tailored_docx(tailored, job_title, company)
+        filename = f"tailored_{job_title.replace(' ','_')}.docx"
+
+        return StreamingResponse(
+            io.BytesIO(docx_bytes),
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Access-Control-Expose-Headers": "Content-Disposition"
+            }
+        )
+    except Exception as e:
+        import traceback
+        print(f"DOCX ERROR: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

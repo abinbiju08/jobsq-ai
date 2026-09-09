@@ -92,26 +92,29 @@ export default function TailorModal({ job, user, onClose }) {
   }
 
   const downloadDOC = async () => {
-    // Create a simple HTML version that Word can open
-    const keywords = result.keywords.join(', ')
-    const html = `
-      <html><body>
-      <h1 style="text-align:center">Tailored Resume</h1>
-      <p style="text-align:center">Tailored for: ${job.title} at ${job.company}</p>
-      <hr/>
-      <h2>Keywords Added</h2>
-      <p>${keywords}</p>
-      <h2>ATS Score Improvement</h2>
-      <p>Original: ${result.origScore}% → Tailored: ${result.newScore}%</p>
-      <p>Download the PDF version for the complete tailored resume.</p>
-      </body></html>
-    `
-    const blob = new Blob([html], { type: 'application/msword' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = result.fileName.replace('.pdf', '.doc')
-    a.click()
+    if (!uploadFile) return
+    try {
+      const form = new FormData()
+      form.append('resume_file', uploadFile)
+      form.append('job_title', job.title || '')
+      form.append('job_description', job.description || job.title || '')
+      form.append('company', job.company || 'Company')
+      form.append('user_id', user?.id || 'user')
+
+      const response = await fetch(`${API}/builder/tailor-docx`, {
+        method: 'POST',
+        body: form
+      })
+      if (!response.ok) throw new Error('DOCX generation failed')
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = result.fileName.replace('.pdf', '.docx')
+      a.click()
+    } catch(e) {
+      alert('DOC download failed: ' + e.message)
+    }
   }
 
   return (
