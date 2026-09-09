@@ -19,6 +19,16 @@ export default function TailorModal({ job, user, onClose }) {
   }, [])
 
   const tailorResume = async () => {
+    if (!uploadFile && !resumeInfo) {
+      setError('Please upload your resume PDF to tailor it for this job.')
+      setStep('error')
+      return
+    }
+    if (!uploadFile) {
+      setError('Please upload your resume PDF here. We need the file to tailor it.')
+      setStep('error')
+      return
+    }
     setStep('loading')
     try {
       // Get current user
@@ -33,43 +43,18 @@ export default function TailorModal({ job, user, onClose }) {
         return
       }
 
-      // Get resume text from backend (downloads from storage)
-      let resumeText = ''
-      if (resumeInfo && !uploadFile) {
-        try {
-          const textRes = await fetch(`${API}/builder/resume-text/${currentUser.id}`)
-          if (textRes.ok) {
-            const textData = await textRes.json()
-            resumeText = textData.text || ''
-          }
-        } catch {}
-      }
+      // Send file directly to /tailor endpoint
+      const form = new FormData()
+      form.append('resume_file', uploadFile)
+      form.append('job_title', job.title || '')
+      form.append('job_description', job.description || job.title || '')
+      form.append('company', job.company || 'Company')
+      form.append('user_id', currentUser.id)
 
-      let response
-      if (uploadFile || resumeText) {
-        // Build form data with file OR text
-        const form = new FormData()
-        if (uploadFile) {
-          form.append('resume_file', uploadFile)
-        } else {
-          // Create a blob from resume text to send as file
-          const blob = new Blob([resumeText], { type: 'text/plain' })
-          form.append('resume_file', blob, 'resume.txt')
-        }
-        form.append('job_title', job.title || '')
-        form.append('job_description', job.description || job.title || '')
-        form.append('company', job.company || 'Company')
-        form.append('user_id', currentUser.id)
-
-        response = await fetch(`${API}/builder/tailor`, {
-          method: 'POST',
-          body: form
-        })
-      } else {
-        setError('No resume found. Please upload your resume in Profile first, or upload one below.')
-        setStep('error')
-        return
-      }
+      const response = await fetch(`${API}/builder/tailor`, {
+        method: 'POST',
+        body: form
+      })
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}))
@@ -134,42 +119,25 @@ export default function TailorModal({ job, user, onClose }) {
             {/* CHECK step */}
             {step === 'check' && (
               <div style={{animation:'fadeIn .2s ease'}}>
-                {resumeInfo ? (
-                  <div style={{background:'rgba(0,229,160,0.06)',border:'0.5px solid rgba(0,229,160,0.2)',borderRadius:'10px',padding:'.85rem',marginBottom:'1rem'}}>
-                    <div style={{display:'flex',alignItems:'center',gap:'.5rem'}}>
-                      <i className="ti ti-circle-check" style={{fontSize:'18px',color:'#00e5a0'}} aria-hidden="true"/>
-                      <div>
-                        <div style={{fontSize:'13px',fontWeight:600,color:'var(--text,#eef0ff)'}}>Resume ready</div>
-                        <div style={{fontSize:'11px',color:'var(--text2,#8b93b0)'}}>{resumeInfo.file_name}</div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{background:'rgba(245,166,35,0.06)',border:'0.5px solid rgba(245,166,35,0.2)',borderRadius:'10px',padding:'.85rem',marginBottom:'1rem'}}>
-                    <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.5rem'}}>
-                      <i className="ti ti-alert-circle" style={{fontSize:'16px',color:'#f5a623'}} aria-hidden="true"/>
-                      <div style={{fontSize:'13px',fontWeight:600,color:'var(--text,#eef0ff)'}}>No saved resume</div>
-                    </div>
-                    <div style={{fontSize:'11px',color:'var(--text2,#8b93b0)',marginBottom:'.65rem'}}>Upload your resume below or save it in Profile for future use.</div>
-                    <label style={{display:'inline-flex',alignItems:'center',gap:'.4rem',padding:'.4rem .75rem',background:'rgba(255,255,255,0.04)',border:'0.5px solid var(--border,rgba(255,255,255,0.08))',borderRadius:'8px',cursor:'pointer',fontSize:'12px',color:'var(--text2,#8b93b0)'}}>
-                      <i className="ti ti-upload" style={{fontSize:'13px'}} aria-hidden="true"/>
-                      {uploadFile ? uploadFile.name : 'Choose PDF'}
-                      <input type="file" accept=".pdf" onChange={e=>setUploadFile(e.target.files[0])} style={{display:'none'}}/>
-                    </label>
-                  </div>
-                )}
-
-                {/* Option to replace with different file */}
-                {resumeInfo && (
-                  <div style={{marginBottom:'1rem'}}>
-                    <label style={{display:'inline-flex',alignItems:'center',gap:'.4rem',fontSize:'11px',color:'var(--text3,#4a5168)',cursor:'pointer'}}>
-                      <i className="ti ti-refresh" style={{fontSize:'12px'}} aria-hidden="true"/>
-                      Use a different resume for this job
-                      <input type="file" accept=".pdf" onChange={e=>setUploadFile(e.target.files[0])} style={{display:'none'}}/>
-                    </label>
-                    {uploadFile && <span style={{fontSize:'11px',color:'#00e5a0',marginLeft:'.5rem'}}>✓ {uploadFile.name}</span>}
-                  </div>
-                )}
+                {/* Always show upload - simplest and most reliable */}
+                <div style={{border:'1.5px dashed rgba(124,111,247,0.3)',borderRadius:'12px',padding:'1.25rem',textAlign:'center',background:'rgba(124,111,247,0.04)',marginBottom:'1rem',cursor:'pointer'}}
+                  onClick={()=>document.getElementById('tailor-file-input').click()}>
+                  <i className="ti ti-cloud-upload" style={{fontSize:'28px',color:uploadFile?'#7c6ff7':'var(--text3,#4a5168)',display:'block',marginBottom:'.5rem'}} aria-hidden="true"/>
+                  {uploadFile ? (
+                    <>
+                      <div style={{fontSize:'13px',fontWeight:600,color:'#7c6ff7',marginBottom:'2px'}}>{uploadFile.name}</div>
+                      <div style={{fontSize:'11px',color:'var(--text2,#8b93b0)'}}>✓ Ready to tailor</div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{fontSize:'13px',fontWeight:600,color:'var(--text,#eef0ff)',marginBottom:'2px'}}>Upload your resume PDF</div>
+                      <div style={{fontSize:'11px',color:'var(--text3,#4a5168)'}}>Click to choose file</div>
+                    </>
+                  )}
+                  <input id="tailor-file-input" type="file" accept=".pdf"
+                    onChange={e=>setUploadFile(e.target.files[0])}
+                    style={{display:'none'}}/>
+                </div>
 
                 <div style={{fontSize:'12px',color:'var(--text2,#8b93b0)',marginBottom:'1rem',lineHeight:1.6}}>
                   AI will compare your resume with this job and add missing keywords, rewrite your summary, and align experience bullets — without changing your actual facts.
@@ -177,8 +145,8 @@ export default function TailorModal({ job, user, onClose }) {
 
                 <div style={{display:'flex',gap:'.5rem'}}>
                   <button onClick={tailorResume}
-                    disabled={!resumeInfo && !uploadFile}
-                    style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:'.4rem',padding:'.6rem',background:(!resumeInfo&&!uploadFile)?'rgba(255,255,255,0.06)':'linear-gradient(135deg,#7c6ff7,#5a52d5)',border:'none',borderRadius:'9px',color:(!resumeInfo&&!uploadFile)?'var(--text3,#4a5168)':'white',fontSize:'13px',fontWeight:700,cursor:(!resumeInfo&&!uploadFile)?'not-allowed':'pointer',fontFamily:'Inter,sans-serif'}}>
+                    disabled={!uploadFile}
+                    style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:'.4rem',padding:'.6rem',background:!uploadFile?'rgba(255,255,255,0.06)':'linear-gradient(135deg,#7c6ff7,#5a52d5)',border:'none',borderRadius:'9px',color:!uploadFile?'var(--text3,#4a5168)':'white',fontSize:'13px',fontWeight:700,cursor:!uploadFile?'not-allowed':'pointer',fontFamily:'Inter,sans-serif'}}>
                     <i className="ti ti-sparkles" style={{fontSize:'14px'}} aria-hidden="true"/>
                     Generate tailored resume
                   </button>
