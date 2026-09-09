@@ -20,8 +20,27 @@ export default function Profile() {
     const { data: { user } } = await supabase.auth.getUser()
     setUser(user)
     if (user) {
+      // Load face profile
       const { data } = await supabase.from('face_profiles').select('id').eq('user_id', user.id).single()
       setHasFace(!!data)
+
+      // Load resume info from localStorage first (instant)
+      const cached = localStorage.getItem('jobsq_resume_info')
+      if (cached) {
+        try { setResumeInfo(JSON.parse(cached)) } catch {}
+      }
+
+      // Then verify with backend
+      try {
+        const res = await fetch(`${API}/builder/resume-info/${user.id}`)
+        if (res.ok) {
+          const info = await res.json()
+          if (info && info.file_name) {
+            setResumeInfo(info)
+            localStorage.setItem('jobsq_resume_info', JSON.stringify(info))
+          }
+        }
+      } catch {}
     }
     setLoading(false)
   }
@@ -31,6 +50,38 @@ export default function Profile() {
     await supabase.from('face_profiles').delete().eq('user_id', user.id)
     setHasFace(false)
     setMsg('Face ID removed successfully.')
+  }
+
+  const uploadResume = async (file) => {
+    if (!file || !user) return
+    setResumeUploading(true)
+    setResumeMsg('')
+    try {
+      const form = new FormData()
+      form.append('resume_file', file)
+      form.append('user_id', user.id)
+      const res = await fetch(`${API}/builder/save-resume`, { method:'POST', body:form })
+      const data = await res.json()
+      if (data.success) {
+        const info = { file_name: data.file_name, file_size: data.file_size }
+        setResumeInfo(info)
+        localStorage.setItem('jobsq_resume_info', JSON.stringify(info))
+        setResumeMsg('Resume uploaded successfully!')
+      } else {
+        setResumeMsg('Upload failed — ' + (data.error || 'try again'))
+      }
+    } catch {
+      setResumeMsg('Upload failed — check your connection')
+    }
+    setResumeUploading(false)
+    setTimeout(() => setResumeMsg(''), 4000)
+  }
+
+  const removeResume = () => {
+    setResumeInfo(null)
+    localStorage.removeItem('jobsq_resume_info')
+    setResumeMsg('Resume removed')
+    setTimeout(() => setResumeMsg(''), 3000)
   }
 
   if (loading) return (
@@ -54,61 +105,27 @@ export default function Profile() {
     { icon:'ti-shield-check',title:'Spoof protected',   desc:'Liveness detection blocks photos and videos from bypassing security' },
   ]
 
-  const uploadResume = async (file) => {
-    if (!file || !user) return
-    setResumeUploading(true)
-    setResumeMsg('')
-    try {
-      const form = new FormData()
-      form.append('resume_file', file)
-      form.append('user_id', user.id)
-      const res = await fetch(`${API}/builder/save-resume`, { method:'POST', body:form })
-      const data = await res.json()
-      if (data.success) {
-        const info = { file_name: data.file_name, file_size: data.file_size }
-        setResumeInfo(info)
-        localStorage.setItem('jobsq_resume_info', JSON.stringify(info))
-        setResumeMsg('Resume uploaded successfully!')
-      } else {
-        setResumeMsg('Upload failed — ' + (data.error || 'try again'))
-      }
-    } catch(e) {
-      setResumeMsg('Upload failed — check your connection')
-    }
-    setResumeUploading(false)
-    setTimeout(() => setResumeMsg(''), 4000)
-  }
-
-  const removeResume = async () => {
-    setResumeInfo(null)
-    setResumeMsg('Resume removed')
-    setTimeout(() => setResumeMsg(''), 3000)
-  }
-
   return (
     <>
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         @keyframes spin{to{transform:rotate(360deg)}}
-        .prof-page{min-height:calc(100vh - 52px);background:#080c18;font-family:'Inter',sans-serif;display:flex;align-items:flex-start;justify-content:center;padding:2.5rem 1rem;}
+        .prof-page{min-height:calc(100vh - 52px);background:var(--bg);font-family:'Inter',sans-serif;display:flex;align-items:flex-start;justify-content:center;padding:2.5rem 1rem;}
         .prof-wrap{width:100%;max-width:560px;display:flex;flex-direction:column;gap:1rem;}
         .prof-card{background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:1.5rem;position:relative;overflow:hidden;}
         .prof-card::before{content:'';position:absolute;inset:0;border-radius:16px;background:linear-gradient(135deg,rgba(0,229,160,0.03),transparent);pointer-events:none;}
         .sec-title{display:flex;align-items:center;gap:.4rem;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem;}
         .sec-title i{font-size:13px;}
-        .info-row{display:flex;align-items:center;gap:.75rem;padding:.65rem 0;border-bottom:1px solid rgba(255,255,255,0.05);}
+        .info-row{display:flex;align-items:center;gap:.75rem;padding:.65rem 0;border-bottom:1px solid var(--border);}
         .info-row:last-child{border-bottom:none;}
         .info-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
         .info-icon i{font-size:17px;}
-        .info-label{font-size:11px;color:#4a5168;margin-bottom:2px;}
-        .info-val{font-size:13.5px;color:#eef0ff;font-weight:500;}
-        .btn-green{padding:.65rem 1.25rem;border:none;border-radius:10px;background:linear-gradient(135deg,#00e5a0,#00c484);color:#060d0a;font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;box-shadow:0 4px 20px rgba(0,229,160,0.28);transition:transform .15s,box-shadow .2s;display:inline-flex;align-items:center;gap:.4rem;}
-        .btn-green:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(0,229,160,0.42);}
-        .btn-purple{padding:.65rem 1.25rem;border:none;border-radius:10px;background:linear-gradient(135deg,#7c6ff7,#5a52d5);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;box-shadow:0 4px 20px rgba(124,111,247,0.28);transition:transform .15s,box-shadow .2s;display:inline-flex;align-items:center;gap:.4rem;}
-        .btn-purple:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(124,111,247,0.42);}
-        .btn-red{padding:.65rem 1.25rem;border:1px solid rgba(255,77,77,0.3);border-radius:10px;background:rgba(255,77,77,0.06);color:#ff6b6b;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;display:inline-flex;align-items:center;gap:.4rem;}
-        .btn-red:hover{background:rgba(255,77,77,0.12);border-color:rgba(255,77,77,0.5);}
+        .info-label{font-size:11px;color:var(--text3);margin-bottom:2px;}
+        .info-val{font-size:13.5px;color:var(--text);font-weight:500;}
+        .btn-green{padding:.65rem 1.25rem;border:none;border-radius:10px;background:linear-gradient(135deg,#00e5a0,#00c484);color:#060d0a;font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;display:inline-flex;align-items:center;gap:.4rem;}
+        .btn-purple{padding:.65rem 1.25rem;border:none;border-radius:10px;background:linear-gradient(135deg,#7c6ff7,#5a52d5);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;display:inline-flex;align-items:center;gap:.4rem;}
+        .btn-red{padding:.65rem 1.25rem;border:1px solid rgba(255,77,77,0.3);border-radius:10px;background:rgba(255,77,77,0.06);color:#ff6b6b;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;display:inline-flex;align-items:center;gap:.4rem;}
         .face-status{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;}
         .face-badge{display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .85rem;border-radius:20px;font-size:12px;font-weight:600;}
         .face-badge i{font-size:13px;}
@@ -175,8 +192,7 @@ export default function Profile() {
             </div>
           </div>
 
-
-          {/* RESUME SECTION */}
+          {/* MY RESUME */}
           <div className="prof-card">
             <div className="sec-title">
               <i className="ti ti-file-cv" aria-hidden="true"/>
@@ -248,7 +264,6 @@ export default function Profile() {
               <i className="ti ti-face-id" aria-hidden="true"/>
               Face ID security
             </div>
-
             {!showRegister ? (
               <>
                 <p style={{fontSize:'13px',color:'var(--text2)',lineHeight:1.6,marginBottom:'1rem'}}>
@@ -258,44 +273,32 @@ export default function Profile() {
                   <div>
                     <div style={{fontSize:'12px',color:'var(--text3)',marginBottom:'.35rem'}}>Status</div>
                     {hasFace ? (
-                      <span className="face-badge on">
-                        <i className="ti ti-circle-check" aria-hidden="true"/>
-                        Face ID enabled
-                      </span>
+                      <span className="face-badge on"><i className="ti ti-circle-check" aria-hidden="true"/> Face ID enabled</span>
                     ) : (
-                      <span className="face-badge off">
-                        <i className="ti ti-circle-dashed" aria-hidden="true"/>
-                        Not registered
-                      </span>
+                      <span className="face-badge off"><i className="ti ti-circle-dashed" aria-hidden="true"/> Not registered</span>
                     )}
                   </div>
                   <div style={{display:'flex',gap:'.5rem',flexWrap:'wrap'}}>
                     {!hasFace ? (
                       <button className="btn-purple" onClick={()=>setShowRegister(true)}>
-                        <i className="ti ti-camera" aria-hidden="true"/>
-                        Register Face ID
+                        <i className="ti ti-camera" aria-hidden="true"/> Register Face ID
                       </button>
                     ) : (
                       <>
                         <button className="btn-green" onClick={()=>setShowRegister(true)}>
-                          <i className="ti ti-refresh" aria-hidden="true"/>
-                          Update Face ID
+                          <i className="ti ti-refresh" aria-hidden="true"/> Update Face ID
                         </button>
                         <button className="btn-red" onClick={removeFace}>
-                          <i className="ti ti-trash" aria-hidden="true"/>
-                          Remove
+                          <i className="ti ti-trash" aria-hidden="true"/> Remove
                         </button>
                       </>
                     )}
                   </div>
                 </div>
-
-                {/* Security badges */}
                 <div style={{display:'flex',gap:'.4rem',flexWrap:'wrap'}}>
                   {securityFeatures.map(f=>(
                     <span key={f.label} style={{display:'inline-flex',alignItems:'center',gap:'.3rem',fontSize:'10px',fontWeight:600,padding:'3px 8px',borderRadius:'20px',background:'rgba(0,229,160,0.06)',border:'1px solid rgba(0,229,160,0.15)',color:'rgba(0,229,160,0.8)'}}>
-                      <i className={`ti ${f.icon}`} style={{fontSize:'11px'}} aria-hidden="true"/>
-                      {f.label}
+                      <i className={`ti ${f.icon}`} style={{fontSize:'11px'}} aria-hidden="true"/> {f.label}
                     </span>
                   ))}
                 </div>
@@ -303,11 +306,7 @@ export default function Profile() {
             ) : (
               <FaceRegister
                 onBack={()=>setShowRegister(false)}
-                onSuccess={()=>{
-                  setShowRegister(false)
-                  setHasFace(true)
-                  setMsg('Face ID registered successfully! You can now use Face Login.')
-                }}
+                onSuccess={()=>{setShowRegister(false);setHasFace(true);setMsg('Face ID registered successfully! You can now use Face Login.')}}
               />
             )}
           </div>
@@ -320,7 +319,7 @@ export default function Profile() {
                 How Face ID works
               </div>
               {howItWorks.map((s,i)=>(
-                <div key={i} style={{display:'flex',gap:'.75rem',padding:'.6rem 0',borderBottom:i<howItWorks.length-1?'1px solid rgba(255,255,255,0.05)':'none'}}>
+                <div key={i} style={{display:'flex',gap:'.75rem',padding:'.6rem 0',borderBottom:i<howItWorks.length-1?'1px solid var(--border)':'none'}}>
                   <div style={{width:'32px',height:'32px',borderRadius:'8px',background:'rgba(124,111,247,0.1)',border:'1px solid rgba(124,111,247,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                     <i className={`ti ${s.icon}`} style={{fontSize:'16px',color:'#7c6ff7'}} aria-hidden="true"/>
                   </div>
