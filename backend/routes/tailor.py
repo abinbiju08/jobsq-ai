@@ -218,47 +218,60 @@ JSON format (return this exact structure):
         )
 
         raw = response.choices[0].message.content.strip()
-        print(f"AI raw response (first 200): {raw[:200]}")
+        print(f"RAW AI: {raw[:300]}")
 
-        # Clean response
+        # Strip think tags
         if '<think>' in raw:
             raw = raw.split('</think>')[-1].strip()
-        # Remove markdown code blocks
-        import re as _re
-        raw = _re.sub(r'```(?:json)?', '', raw).strip()
-        # Find JSON object
-        start = raw.find('{')
-        end = raw.rfind('}')
-        if start == -1 or end == -1:
-            print(f"No JSON found in: {raw[:300]}")
-            raise HTTPException(status_code=500, detail="AI response parsing failed")
 
-        json_str = raw[start:end+1]
-        # Fix common JSON issues
-        json_str = _re.sub(r',\s*}', '}', json_str)  # trailing commas
-        json_str = _re.sub(r',\s*]', ']', json_str)  # trailing commas in arrays
+        # Strip markdown
+        raw = raw.replace('```json', '').replace('```', '').strip()
+
+        # Extract JSON using brace matching - most reliable method
+        depth = 0
+        start_pos = -1
+        end_pos = -1
+        in_string = False
+        escape_next = False
+        for i, ch in enumerate(raw):
+            if escape_next:
+                escape_next = False
+                continue
+            if ch == '\\':
+                escape_next = True
+                continue
+            if ch == '"' and not escape_next:
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch == '{':
+                if depth == 0:
+                    start_pos = i
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    end_pos = i + 1
+                    break
+
+        if start_pos == -1 or end_pos == -1:
+            print(f"No JSON found in: {raw[:300]}")
+            raise HTTPException(status_code=500, detail="AI did not return valid JSON")
+
+        json_str = raw[start_pos:end_pos]
+        print(f"Extracted JSON: {json_str[:200]}")
+
+        # Fix trailing commas
+        import re as _re
+        json_str = _re.sub(r',\s*}', '}', json_str)
+        json_str = _re.sub(r',\s*]', ']', json_str)
 
         try:
             tailored = json.loads(json_str)
         except json.JSONDecodeError as je:
-            print(f"JSON parse error: {je}\nJSON: {json_str[:500]}")
-            # Try to fix by finding matching braces
-            try:
-                depth = 0
-                end_pos = 0
-                for i, ch in enumerate(json_str):
-                    if ch == '{': depth += 1
-                    elif ch == '}':
-                        depth -= 1
-                        if depth == 0:
-                            end_pos = i + 1
-                            break
-                fixed = json_str[:end_pos]
-                tailored = json.loads(fixed)
-                print(f"Fixed JSON parsing succeeded!")
-            except Exception as e2:
-                print(f"Fix also failed: {e2}")
-                raise HTTPException(status_code=500, detail=f"AI response parsing failed: {str(je)}")
+            print(f"JSON error: {je} | str: {json_str[:200]}")
+            raise HTTPException(status_code=500, detail=f"JSON parse error: {str(je)}")
 
         # Calculate real tailored score
         tailored_text = json.dumps(tailored)
