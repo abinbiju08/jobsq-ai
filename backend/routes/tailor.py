@@ -244,6 +244,14 @@ Return ONLY valid JSON with same structure as original resume:
 
         tailored = json.loads(raw[start:end+1])
 
+        # Calculate real tailored score
+        tailored_text = json.dumps(tailored)
+        tailored_kws = extract_keywords(tailored_text)
+        new_matched = tailored_kws & jd_kws
+        tailored_score = min(97, int((len(new_matched) / max(len(jd_kws), 1)) * 100))
+        if tailored_score <= original_score:
+            tailored_score = min(97, original_score + len(tailored.get('keywords_added', [])) * 2)
+
         # Generate PDF
         pdf_bytes = generate_tailored_pdf(tailored, job_title, company)
 
