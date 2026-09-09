@@ -300,6 +300,17 @@ async def get_resume_info(user_id: str):
     except Exception as e:
         return None
 
+@router.get("/resume-text/{user_id}")
+async def get_resume_text(user_id: str):
+    """Download resume from storage and extract text"""
+    try:
+        storage_path = f"{user_id}/resume.pdf"
+        file_bytes = supabase.storage.from_("resumes").download(storage_path)
+        text = extract_pdf_text(file_bytes)
+        return {"text": text, "success": True}
+    except Exception as e:
+        return {"text": "", "success": False, "error": str(e)}
+
 
 @router.post("/tailor-saved")
 async def tailor_saved_resume(data: TailorSavedRequest):
@@ -309,14 +320,19 @@ async def tailor_saved_resume(data: TailorSavedRequest):
         job_title = data.job_title
         job_description = data.job_description
         company = data.company
+        resume_text = data.resume_text
 
-        # Get resume from storage
-        storage_path = f"{user_id}/resume.pdf"
-        file_bytes = supabase.storage.from_("resumes").download(storage_path)
-
-        resume_text = extract_pdf_text(file_bytes)
+        # If no resume text provided, try storage
         if not resume_text:
-            raise HTTPException(status_code=400, detail="Could not read saved resume")
+            try:
+                storage_path = f"{user_id}/resume.pdf"
+                file_bytes = supabase.storage.from_("resumes").download(storage_path)
+                resume_text = extract_pdf_text(file_bytes)
+            except:
+                pass
+
+        if not resume_text:
+            raise HTTPException(status_code=400, detail="No resume found. Please upload your resume in Profile first.")
 
         prompt = f"""You are an expert resume writer and ATS specialist.
 

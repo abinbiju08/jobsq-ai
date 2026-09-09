@@ -50,7 +50,18 @@ export default function TailorModal({ job, user, onClose }) {
     try {
       let response
       if (resumeInfo) {
-        // Use saved resume
+        // Extract text from saved PDF via resume-info then send to tailor
+        // We send resume text directly to avoid storage download issues
+        let resumeText = ''
+        try {
+          // Try to get resume file from storage via backend proxy
+          const fileRes = await fetch(`${API}/builder/resume-text/${currentUser.id}`)
+          if (fileRes.ok) {
+            const fileData = await fileRes.json()
+            resumeText = fileData.text || ''
+          }
+        } catch {}
+
         response = await fetch(`${API}/builder/tailor-saved`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -58,7 +69,8 @@ export default function TailorModal({ job, user, onClose }) {
             user_id: currentUser.id,
             job_title: job.title,
             job_description: job.description || job.title,
-            company: job.company
+            company: job.company,
+            resume_text: resumeText
           })
         })
       } else if (uploadFile) {
