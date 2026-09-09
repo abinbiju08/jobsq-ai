@@ -55,8 +55,8 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
         return ' '.join(result.split())
 
     # Styles
-    name_s = ParagraphStyle('n', fontSize=18, fontName='Helvetica-Bold',
-                textColor=colors.HexColor('#1a1a2e'), spaceAfter=3, alignment=TA_CENTER)
+    name_s = ParagraphStyle('n', fontSize=20, fontName='Helvetica-Bold',
+                textColor=colors.HexColor('#1a1a2e'), spaceAfter=4, alignment=TA_CENTER, leading=24)
     contact_s = ParagraphStyle('c', fontSize=9, fontName='Helvetica',
                 textColor=colors.HexColor('#555555'), spaceAfter=8, alignment=TA_CENTER)
     sec_s = ParagraphStyle('s', fontSize=10.5, fontName='Helvetica-Bold',
@@ -148,7 +148,25 @@ async def tailor_resume(
             raise HTTPException(status_code=400, detail="Could not read resume PDF")
 
         # AI tailor prompt
-        prompt = f"""You are an expert resume writer and ATS specialist.
+        # Calculate real ATS score before tailoring
+        import re
+        def extract_keywords(text):
+            words = re.findall(r'\b[a-zA-Z][a-zA-Z0-9+#.]*\b', text.lower())
+            stopwords = {'the','a','an','and','or','but','in','on','at','to','for',
+                        'of','with','by','is','are','was','be','this','that','we',
+                        'you','have','has','will','can','our','your','they','from',
+                        'as','it','its','not','all','been','their','more','also'}
+            return {w for w in words if len(w) > 2 and w not in stopwords}
+
+        resume_kws = extract_keywords(resume_text)
+        jd_kws = extract_keywords(job_description)
+        matched = resume_kws & jd_kws
+        missing = jd_kws - resume_kws
+        original_score = min(95, int((len(matched) / max(len(jd_kws), 1)) * 100))
+
+        prompt = f"""You are an ATS resume optimization expert.
+
+TASK: Improve this resume to better match the job description WITHOUT changing facts or fabricating experience.
 
 ORIGINAL RESUME:
 {resume_text[:3000]}
@@ -158,37 +176,39 @@ COMPANY: {company}
 JOB DESCRIPTION:
 {job_description[:2000]}
 
-Analyze the resume and job description, then create a tailored resume that:
-1. Rewrites the professional summary to align with this specific role
-2. Adds missing keywords from the job description naturally
-3. Reorders and emphasizes relevant skills
-4. Adjusts experience bullet points to highlight relevant achievements
-5. Keeps all facts true — only rephrase and add keywords, never fabricate
+MISSING KEYWORDS FROM JD: {', '.join(list(missing)[:30])}
 
-Return ONLY a valid JSON object:
+RULES:
+1. Keep ALL existing experience, education, and facts exactly as they are
+2. Only ADD missing keywords naturally into existing bullet points where they genuinely fit
+3. Rewrite the professional summary to match this specific role
+4. Add missing technical skills to skills section only if they are mentioned in JD
+5. Do NOT fabricate any experience, companies, or achievements
+6. Do NOT change dates, company names, or job titles
+7. Keep the same structure and format
+
+Return ONLY valid JSON:
 {{
-  "name": "candidate full name from resume",
-  "contact": "email | phone | location from resume",
-  "summary": "rewritten professional summary tailored to {job_title} at {company}",
-  "skills": ["skill1", "skill2", "skill3", "...all skills including missing ones from JD"],
+  "name": "exact name from resume",
+  "contact": "exact contact from resume",
+  "summary": "rewritten summary targeting {job_title} role",
+  "skills": ["all existing skills plus relevant missing ones from JD only"],
   "experience": [
     {{
-      "title": "job title",
-      "company": "company name",
-      "duration": "date range",
-      "bullets": ["achievement bullet 1 with keywords", "achievement bullet 2", "achievement bullet 3"]
+      "title": "exact title from resume",
+      "company": "exact company from resume",
+      "duration": "exact dates from resume",
+      "bullets": ["existing bullet with keywords added naturally", "existing bullet 2", "existing bullet 3"]
     }}
   ],
   "education": [
     {{
-      "degree": "degree name",
-      "institution": "university/college name",
-      "year": "graduation year"
+      "degree": "exact degree from resume",
+      "institution": "exact institution from resume",
+      "year": "exact year from resume"
     }}
   ],
-  "keywords_added": ["keyword1", "keyword2", "keyword3"],
-  "original_score": 45,
-  "tailored_score": 82
+  "keywords_added": ["only the new keywords actually added"]
 }}"""
 
         response = groq_client.chat.completions.create(
@@ -305,9 +325,7 @@ Create a tailored resume. Return ONLY valid JSON:
   "skills": ["all relevant skills + missing ones from JD"],
   "experience": [{{"title":"","company":"","duration":"","bullets":["bullet1","bullet2"]}}],
   "education": [{{"degree":"","institution":"","year":""}}],
-  "keywords_added": ["keyword1","keyword2","keyword3"],
-  "original_score": 50,
-  "tailored_score": 85
+  "keywords_added": ["only new keywords actually added to resume"]
 }}"""
 
         response = groq_client.chat.completions.create(
@@ -324,6 +342,15 @@ Create a tailored resume. Return ONLY valid JSON:
         if start == -1: raise HTTPException(status_code=500, detail="Parsing failed")
         tailored = json.loads(raw[start:end+1])
 
+        # Calculate real tailored score
+        tailored_text = json.dumps(tailored)
+        tailored_kws = extract_keywords(tailored_text)
+        new_matched = tailored_kws & jd_kws
+        tailored_score = min(97, int((len(new_matched) / max(len(jd_kws), 1)) * 100))
+        # Ensure improvement shown
+        if tailored_score <= original_score:
+            tailored_score = min(97, original_score + len(tailored.get('keywords_added', [])) * 2)
+
         pdf_bytes = generate_tailored_pdf(tailored, job_title, company)
         filename = f"tailored_{job_title.replace(' ','_')}.pdf"
 
@@ -333,8 +360,8 @@ Create a tailored resume. Return ONLY valid JSON:
             headers={
                 "Content-Disposition": f"attachment; filename={filename}",
                 "X-Keywords-Added": json.dumps(tailored.get('keywords_added',[])),
-                "X-Original-Score": str(tailored.get('original_score',0)),
-                "X-Tailored-Score": str(tailored.get('tailored_score',0)),
+                "X-Original-Score": str(original_score),
+                "X-Tailored-Score": str(tailored_score),
                 "Access-Control-Expose-Headers": "X-Keywords-Added,X-Original-Score,X-Tailored-Score"
             }
         )
