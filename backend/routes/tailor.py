@@ -186,23 +186,51 @@ async def tailor_resume(
         missing = jd_kws - resume_kws
         original_score = min(95, int((len(matched) / max(len(jd_kws), 1)) * 100))
 
-        prompt = f"""You are an ATS resume optimizer. Analyze the resume and job description.
+        prompt = f"""Analyze this resume and return tailored version as JSON.
 
-Resume:
+RESUME TEXT:
 {resume_text[:2000]}
 
-Job: {job_title} at {company}
-Keywords to add: {', '.join(list(missing)[:15])}
+TARGET JOB: {job_title} at {company}
+ADD THESE KEYWORDS WHERE THEY FIT: {', '.join(list(missing)[:10])}
 
-Return a JSON object. Use double quotes only. No trailing commas. Example format:
-{{"name":"John Smith","contact":"john@email.com | 9876543210","summary":"Experienced developer targeting {job_title} role with expertise in relevant technologies.","skills":["Python","Django","REST API","Docker"],"experience":[{{"title":"Software Engineer","company":"Tech Corp","duration":"2022-2024","bullets":["Developed REST APIs using Python and Django","Implemented Docker containerization"]}}],"education":[{{"degree":"B.Tech Computer Science","institution":"University Name","year":"2022"}}],"keywords_added":["Docker","REST API"]}}
+INSTRUCTIONS:
+1. Extract the actual name, contact, skills, experience from the resume above
+2. Add the missing keywords naturally to skills and bullets
+3. Rewrite summary for the target job
+4. Return ONLY the JSON below with real data from the resume
 
-Now return the actual JSON for the resume above, tailored for {job_title}:"""
+REQUIRED OUTPUT FORMAT (fill with real data, no placeholders):
+{{
+"name": "<actual name from resume>",
+"contact": "<actual email and phone>",
+"summary": "<2 sentences about candidate targeting {job_title}>",
+"skills": [<list of skills from resume plus missing keywords>],
+"experience": [
+{{
+"title": "<actual job title>",
+"company": "<actual company>",
+"duration": "<actual dates>",
+"bullets": [<actual bullets with keywords added>]
+}}
+],
+"education": [
+{{
+"degree": "<actual degree>",
+"institution": "<actual institution>",
+"year": "<actual year>"
+}}
+],
+"keywords_added": [<list of new keywords added>]
+}}"""
 
         response = groq_client.chat.completions.create(
             model="openai/gpt-oss-120b",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
+            messages=[
+                {"role": "system", "content": "You are a JSON generator. Always respond with valid JSON only. No explanations, no markdown, no text before or after the JSON object."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.1,
             max_tokens=3000
         )
 
