@@ -31,89 +31,98 @@ def extract_pdf_text(file_bytes: bytes) -> str:
 def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes:
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4,
-        rightMargin=20*mm, leftMargin=20*mm,
-        topMargin=15*mm, bottomMargin=15*mm)
-
-    styles = getSampleStyleSheet()
-    name_style = ParagraphStyle('Name', fontSize=20, fontName='Helvetica-Bold',
-        textColor=colors.HexColor('#1a1a2e'), spaceAfter=2, alignment=TA_CENTER)
-    contact_style = ParagraphStyle('Contact', fontSize=9, fontName='Helvetica',
-        textColor=colors.HexColor('#666666'), spaceAfter=8, alignment=TA_CENTER)
-    section_style = ParagraphStyle('Section', fontSize=11, fontName='Helvetica-Bold',
-        textColor=colors.HexColor('#00a572'), spaceBefore=10, spaceAfter=4)
-    body_style = ParagraphStyle('Body', fontSize=9.5, fontName='Helvetica',
-        textColor=colors.HexColor('#333333'), spaceAfter=4, leading=14)
-    bullet_style = ParagraphStyle('Bullet', fontSize=9.5, fontName='Helvetica',
-        textColor=colors.HexColor('#333333'), spaceAfter=3, leftIndent=12, leading=13)
-    job_title_style = ParagraphStyle('JobTitle', fontSize=10, fontName='Helvetica-Bold',
-        textColor=colors.HexColor('#1a1a2e'), spaceAfter=1)
-    job_sub_style = ParagraphStyle('JobSub', fontSize=9, fontName='Helvetica',
-        textColor=colors.HexColor('#666666'), spaceAfter=3)
+        rightMargin=18*mm, leftMargin=18*mm,
+        topMargin=14*mm, bottomMargin=14*mm)
 
     story = []
 
-    # Name & contact
-    name = tailored.get('name', 'Candidate Name')
-    contact = tailored.get('contact', '')
-    story.append(Paragraph(name, name_style))
-    if contact:
-        story.append(Paragraph(contact, contact_style))
-    story.append(HRFlowable(width="100%", thickness=1.5,
-        color=colors.HexColor('#00a572'), spaceAfter=6))
+    def clean(text):
+        """Remove special chars that cause black squares"""
+        if not text: return ""
+        import unicodedata
+        cleaned = ""
+        for ch in str(text):
+            cat = unicodedata.category(ch)
+            if cat.startswith('C') and ch not in ('\n', '\t', ' '):
+                cleaned += ' '
+            else:
+                cleaned += ch
+        return cleaned.strip()
 
-    # Tailored note
-    story.append(Paragraph(
-        f'<font color="#7c6ff7"><b>Tailored for:</b></font> {job_title} at {company}',
-        ParagraphStyle('Note', fontSize=8.5, fontName='Helvetica',
-            textColor=colors.HexColor('#7c6ff7'), spaceAfter=8,
-            borderColor=colors.HexColor('#7c6ff7'), borderWidth=0.5,
-            borderPadding=4, backColor=colors.HexColor('#f5f3ff'))))
+    # Styles
+    name_s    = ParagraphStyle('n', fontSize=18, fontName='Helvetica-Bold',
+                    textColor=colors.HexColor('#1a1a2e'), spaceAfter=3, alignment=TA_CENTER)
+    contact_s = ParagraphStyle('c', fontSize=9, fontName='Helvetica',
+                    textColor=colors.HexColor('#555555'), spaceAfter=10, alignment=TA_CENTER)
+    tag_s     = ParagraphStyle('t', fontSize=8.5, fontName='Helvetica',
+                    textColor=colors.HexColor('#7c6ff7'), spaceAfter=10, alignment=TA_CENTER,
+                    borderColor=colors.HexColor('#7c6ff7'), borderWidth=0.5,
+                    borderPadding=4, backColor=colors.HexColor('#f5f3ff'))
+    sec_s     = ParagraphStyle('s', fontSize=10.5, fontName='Helvetica-Bold',
+                    textColor=colors.HexColor('#00a572'), spaceBefore=10, spaceAfter=3)
+    body_s    = ParagraphStyle('b', fontSize=9.5, fontName='Helvetica',
+                    textColor=colors.HexColor('#222222'), spaceAfter=4, leading=14)
+    bullet_s  = ParagraphStyle('bl', fontSize=9, fontName='Helvetica',
+                    textColor=colors.HexColor('#333333'), spaceAfter=2,
+                    leftIndent=10, leading=13)
+    jobt_s    = ParagraphStyle('jt', fontSize=10, fontName='Helvetica-Bold',
+                    textColor=colors.HexColor('#1a1a2e'), spaceAfter=1)
+    jobs_s    = ParagraphStyle('js', fontSize=8.5, fontName='Helvetica',
+                    textColor=colors.HexColor('#666666'), spaceAfter=4)
+
+    hr = lambda: HRFlowable(width="100%", thickness=0.5,
+                    color=colors.HexColor('#dddddd'), spaceAfter=5)
+    hr_green = lambda: HRFlowable(width="100%", thickness=1.5,
+                    color=colors.HexColor('#00a572'), spaceAfter=6)
+
+    # Name & contact
+    story.append(Paragraph(clean(tailored.get('name', 'Candidate')), name_s))
+    if tailored.get('contact'):
+        story.append(Paragraph(clean(tailored['contact']), contact_s))
+    story.append(hr_green())
+    story.append(Paragraph(f'Tailored for: {clean(job_title)} at {clean(company)}', tag_s))
 
     # Summary
-    summary = tailored.get('summary', '')
-    if summary:
-        story.append(Paragraph('PROFESSIONAL SUMMARY', section_style))
-        story.append(HRFlowable(width="100%", thickness=0.5,
-            color=colors.HexColor('#e0e0e0'), spaceAfter=4))
-        story.append(Paragraph(summary, body_style))
+    if tailored.get('summary'):
+        story.append(Paragraph('PROFESSIONAL SUMMARY', sec_s))
+        story.append(hr())
+        story.append(Paragraph(clean(tailored['summary']), body_s))
 
     # Skills
     skills = tailored.get('skills', [])
     if skills:
-        story.append(Paragraph('SKILLS', section_style))
-        story.append(HRFlowable(width="100%", thickness=0.5,
-            color=colors.HexColor('#e0e0e0'), spaceAfter=4))
-        skills_text = ' • '.join(skills)
-        story.append(Paragraph(skills_text, body_style))
+        story.append(Paragraph('SKILLS', sec_s))
+        story.append(hr())
+        skills_clean = [clean(s) for s in skills if s]
+        story.append(Paragraph('  |  '.join(skills_clean), body_s))
 
     # Experience
     experience = tailored.get('experience', [])
     if experience:
-        story.append(Paragraph('EXPERIENCE', section_style))
-        story.append(HRFlowable(width="100%", thickness=0.5,
-            color=colors.HexColor('#e0e0e0'), spaceAfter=4))
+        story.append(Paragraph('EXPERIENCE', sec_s))
+        story.append(hr())
         for exp in experience:
-            story.append(Paragraph(
-                f"<b>{exp.get('title','')}</b>", job_title_style))
-            story.append(Paragraph(
-                f"{exp.get('company','')} | {exp.get('duration','')}",
-                job_sub_style))
+            story.append(Paragraph(clean(exp.get('title', '')), jobt_s))
+            sub = f"{clean(exp.get('company',''))}  |  {clean(exp.get('duration',''))}"
+            story.append(Paragraph(sub, jobs_s))
             for bullet in exp.get('bullets', []):
-                story.append(Paragraph(f"• {bullet}", bullet_style))
-            story.append(Spacer(1, 4))
+                b = clean(bullet).strip()
+                if b:
+                    story.append(Paragraph(f"• {b}", bullet_s))
+            story.append(Spacer(1, 5))
 
     # Education
     education = tailored.get('education', [])
     if education:
-        story.append(Paragraph('EDUCATION', section_style))
-        story.append(HRFlowable(width="100%", thickness=0.5,
-            color=colors.HexColor('#e0e0e0'), spaceAfter=4))
+        story.append(Paragraph('EDUCATION', sec_s))
+        story.append(hr())
         for edu in education:
-            story.append(Paragraph(
-                f"<b>{edu.get('degree','')}</b> — {edu.get('institution','')}",
-                job_title_style))
-            if edu.get('year'):
-                story.append(Paragraph(edu['year'], job_sub_style))
+            deg  = clean(edu.get('degree', ''))
+            inst = clean(edu.get('institution', ''))
+            yr   = clean(edu.get('year', ''))
+            story.append(Paragraph(f"{deg}  —  {inst}", jobt_s))
+            if yr:
+                story.append(Paragraph(yr, jobs_s))
 
     doc.build(story)
     return buffer.getvalue()
