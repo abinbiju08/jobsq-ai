@@ -372,4 +372,7 @@ Create a tailored resume. Return ONLY valid JSON:
         )
     except HTTPException: raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"TAILOR ERROR: {error_detail}")
+        raise HTTPException(status_code=500, detail=f"{str(e)} | {error_detail[-500:]}")
