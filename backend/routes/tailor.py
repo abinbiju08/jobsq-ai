@@ -26,6 +26,12 @@ from reportlab.lib.enums import TA_LEFT, TA_CENTER
 from fastapi.responses import StreamingResponse
 
 load_dotenv()
+class TailorSavedRequest(BaseModel):
+    user_id: str
+    job_title: str
+    job_description: str
+    company: str = "Company"
+
 router = APIRouter()
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_KEY"))
@@ -296,13 +302,13 @@ async def get_resume_info(user_id: str):
 
 
 @router.post("/tailor-saved")
-async def tailor_saved_resume(data: dict):
+async def tailor_saved_resume(data: TailorSavedRequest):
     """Tailor using saved resume from storage"""
     try:
-        user_id = data.get("user_id")
-        job_title = data.get("job_title", "")
-        job_description = data.get("job_description", "")
-        company = data.get("company", "Company")
+        user_id = data.user_id
+        job_title = data.job_title
+        job_description = data.job_description
+        company = data.company
 
         # Get resume from storage
         storage_path = f"{user_id}/resume.pdf"
