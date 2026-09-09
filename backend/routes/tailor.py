@@ -41,7 +41,13 @@ def extract_keywords(text):
     words = re.findall(r'\b[a-zA-Z][a-zA-Z0-9+#.]*\b', text.lower())
     stopwords = {'the','a','an','and','or','but','in','on','at','to','for','of','with',
                 'by','is','are','was','be','this','that','we','you','have','has','will',
-                'can','our','your','they','from','as','it','its','not','all','been'}
+                'can','our','your','they','from','as','it','its','not','all','been',
+                'immediate','joiners','growing','mode','required','important','team',
+                'before','bangalore','oppor','looking','hiring','seeking','must','good',
+                'work','role','position','job','apply','experience','years','year',
+                'strong','knowledge','ability','skills','skill','using','used','well',
+                'including','etc','also','should','would','could','may','need','needs',
+                'join','immediate','full','time','part','remote','hybrid','office'}
     return {w for w in words if len(w) > 2 and w not in stopwords}
 
 def extract_pdf_text(file_bytes: bytes) -> str:
@@ -63,6 +69,19 @@ def extract_pdf_text(file_bytes: bytes) -> str:
     except:
         pass
     return text.strip()
+
+def clean_contact(contact):
+    """Handle contact whether string or dict"""
+    if not contact:
+        return ""
+    if isinstance(contact, dict):
+        parts = []
+        if contact.get('email'): parts.append(contact['email'])
+        if contact.get('phone'): parts.append(contact['phone'])
+        if contact.get('location'): parts.append(contact['location'])
+        if contact.get('linkedin'): parts.append(contact['linkedin'])
+        return '  |  '.join(parts)
+    return clean(str(contact))
 
 def clean(text):
     if not text:
@@ -148,7 +167,7 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
 
     story.append(Paragraph(clean(tailored.get('name', 'Candidate')), name_s))
     if tailored.get('contact'):
-        story.append(Paragraph(clean(tailored['contact']), contact_s))
+        story.append(Paragraph(clean_contact(tailored['contact']), contact_s))
     story.append(hr_green())
 
     if tailored.get('summary'):
@@ -259,7 +278,8 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
     if tailored.get('contact'):
         contact_para = doc.add_paragraph()
         contact_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        contact_run = contact_para.add_run(clean_text(tailored['contact']))
+        contact_val = clean_contact(tailored['contact']) if isinstance(tailored.get('contact'), dict) else clean_text(str(tailored.get('contact','')))
+        contact_run = contact_para.add_run(contact_val)
         contact_run.font.size = Pt(9)
         contact_run.font.color.rgb = RGBColor(85, 85, 85)
 
@@ -617,3 +637,4 @@ Return: {{"name":"","contact":"","summary":"2 sentences for {data.job_title}","s
         import traceback
         print(f"ERROR: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
+        
