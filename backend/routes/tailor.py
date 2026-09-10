@@ -198,7 +198,13 @@ STRICT RULES:
 2. GITHUB: Search for github.com/ anywhere in resume text or EXTRACTED_LINKS section. Copy the FULL URL exactly. Never leave empty if found.
 3. SKILLS: Start with ALL skills from the candidate's resume. Then REMOVE skills irrelevant to this job. Then ADD relevant tech skills from JD that are missing. Keep only technical skills (frameworks, languages, tools, databases). No soft skills, no generic words.
 4. EXPERIENCE: Keep ALL jobs. Keep ALL bullet points. Only rephrase bullets where it naturally adds JD keywords.
-5. PROJECTS: Look for any section called Projects, Personal Projects, Academic Projects, Portfolio. Also look for named apps, tools, websites, or systems built by the candidate — even inside experience bullets. For each project: "name" = short project title only (max 6 words, NO tech names in the name), "tech" = comma-separated technologies used, "description" = one sentence what it does. Keep name, tech, and description strictly separate. If none exist, return [].
+5. PROJECTS: Find the Projects section. Each project MUST be ONE JSON object with these exact fields:
+   - "name": Project title only — 2 to 6 words, no tech names, no verbs, no punctuation at end (e.g. "Driver Drowsiness Detection System")
+   - "tech": All technologies as comma-separated list (e.g. "YOLOv5, Python, Django, OpenCV")
+   - "description": ONE complete sentence describing what the project does. Must start with capital letter. Must end properly. Max 20 words. (e.g. "Real-time drowsiness detection system using YOLOv5 for object detection.")
+   - "bullets": Array of 1-3 complete achievement sentences. Each must be a FULL sentence — never cut mid-sentence. Start each with a capital letter.
+   - "link": GitHub/project URL or empty string
+   CRITICAL: Never split one project across multiple JSON objects. Never truncate a sentence. Each bullet must be complete.
 6. EDUCATION: Copy exactly as in resume. Include degree, institution, year, grade/CGPA.
 7. CERTIFICATIONS: Copy ALL certifications exactly as in resume.
 8. LANGUAGES: Copy exactly as in resume.
@@ -803,95 +809,235 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
 # PROJECTS FALLBACK EXTRACTOR
 # ─────────────────────────────────────────────
 
+def sanitize_projects(projects: list) -> list:
+    """
+    Fix AI-returned projects that have sentences in name field or
+    are split across multiple entries. Merge and clean them.
+    """
+    if not projects:
+        return []
+
+    TECH_ONLY_WORDS = {
+        'machine learning','deep learning','python','java','react','django','flask',
+        'node','nodejs','spring','spring boot','html','css','javascript','typescript',
+        'mysql','mongodb','postgresql','aws','docker','kubernetes','git','github',
+        'react native','flutter','swift','kotlin','nlp','ai','ml','api','rest',
+        'tensorflow','pytorch','opencv','yolov5','yolo','bootstrap','jquery',
+        'android','ios','microservices','firebase','supabase','redis','kafka'
+    }
+
+    def looks_like_title(s: str) -> bool:
+        """True if string looks like a project title, not a sentence."""
+        if not s or len(s) < 3:
+            return False
+        sl = s.strip().lower()
+        if sl in TECH_ONLY_WORDS:
+            return False
+        # Sentences start with lowercase continuation words or end with punctuation
+        bad_starts = re.compile(r'^(with |and |using |approximately |below |about |the |a |an |to |for |in |of |that |this |which |•|-|achieving|integrating|improving|reducing|automate|streamline)', re.IGNORECASE)
+        if bad_starts.match(s.strip()):
+            return False
+        # Very long = sentence, not title
+        if len(s) > 70:
+            return False
+        # Ends with period/comma = sentence fragment
+        if s.rstrip().endswith(('.', ',', 'and')):
+            return False
+        return True
+
+    # Pass 1: merge entries where name is a sentence continuation
+    merged = []
+    for proj in projects:
+        if not isinstance(proj, dict):
+            continue
+        name = clean(proj.get('name', proj.get('title', '')))
+        tech = clean(proj.get('tech', proj.get('technologies', '')))
+        desc = clean(proj.get('description', ''))
+        link = clean(proj.get('link', proj.get('url', '')))
+        bullets = list(proj.get('bullets', []))
+
+        # FIRST: try to split name on separator BEFORE checking if it's a title
+        # This handles "App Name | React Django Python" pattern
+        for sep in [' | ', ' — ', ' – ', ' - ']:
+            if sep in name:
+                parts = name.split(sep, 1)
+                left, right = parts[0].strip(), parts[1].strip()
+                if len(left) <= 60 and looks_like_title(left):
+                    name = left
+                    if not tech:
+                        tech = right
+                    break
+
+        if looks_like_title(name):
+            merged.append({'name': name, 'tech': tech, 'description': desc, 'link': link, 'bullets': bullets})
+        else:
+            # Continuation — append content to previous project
+            if merged:
+                prev = merged[-1]
+                combined = ' '.join(filter(None, [name, desc])).strip()
+                if not prev['description'] and combined:
+                    prev['description'] = combined
+                elif combined:
+                    prev['bullets'].append(combined)
+                if link and not prev['link']:
+                    prev['link'] = link
+                if tech and not prev['tech']:
+                    prev['tech'] = tech
+
+    # Pass 1b: absorb any tech-word-only names into previous project
+    absorbed = []
+    for proj in merged:
+        if proj['name'].strip().lower() in TECH_ONLY_WORDS and absorbed:
+            prev = absorbed[-1]
+            combined = ' '.join(filter(None, [proj['description']] + proj['bullets']))
+            if not prev['description'] and combined:
+                prev['description'] = combined
+            elif combined:
+                prev['bullets'].append(combined)
+            if proj['tech'] and not prev['tech']:
+                prev['tech'] = proj['tech']
+        else:
+            absorbed.append(proj)
+    merged = absorbed
+
+    # Pass 2: clean up each merged project
+    result = []
+    for proj in merged:
+        name = proj['name'].strip()
+        tech = proj['tech'].strip()
+        desc = proj['description'].strip()
+        link = proj['link'].strip()
+        raw_bullets = [clean(str(b)).lstrip('-•* ').strip() for b in proj['bullets'] if b]
+
+        # Remove trailing punctuation from name
+        name = name.rstrip('.,;:')
+
+        # Fix desc starting lowercase (AI truncation) — capitalise first letter
+        if desc and desc[0].islower():
+            desc = desc[0].upper() + desc[1:]
+
+        # Cap description at 160 chars cleanly
+        if len(desc) > 160:
+            desc = desc[:157].rsplit(' ', 1)[0] + '...'
+
+        # Clean bullets — filter out junk
+        seen_b = set()
+        clean_bullets = []
+        for b in raw_bullets:
+            b = b.strip().rstrip('.,;')  # strip trailing punctuation
+            bl = b.lower()
+            # Skip: too short, duplicate, same as desc, pure continuation fragments
+            if len(b) < 8:
+                continue
+            if bl in seen_b:
+                continue
+            if b.lower() == desc.lower():
+                continue
+            # Skip continuation fragments — starts mid-sentence (lowercase after period context)
+            # or starts with connector words
+            if re.match(r'^(such as|as well|and |or |but |with |for |in |to |the |a |an |make |reduce |process|improve|streamline|automate)', b, re.IGNORECASE):
+                continue
+            # Skip if bullet is just a phrase ending with a noun/gerund but no real action
+            # (fragment like "driver fatigue." or "processes." or "canteen ordering workflow...")
+            words = b.split()
+            if len(words) <= 4 and b.endswith('.'):
+                continue
+            # Skip if first word is lowercase (mid-sentence continuation)
+            if words and words[0][0].islower():
+                continue
+            clean_bullets.append(b)
+            seen_b.add(bl)
+
+        if name:
+            result.append({
+                'name': name,
+                'tech': tech,
+                'description': desc,
+                'link': link,
+                'bullets': clean_bullets[:3]
+            })
+
+    print(f"sanitize_projects: {len(projects)} raw -> {len(result)} clean")
+    return result
+
+
 def extract_projects_from_resume(resume_text: str) -> list:
     """
-    Server-side fallback: scan resume text for project sections or
-    named things built inside experience bullets.
+    Server-side fallback: find Projects section in resume text.
+    Only uses explicit Projects section — does NOT mine experience bullets
+    (that caused false positives like partial sentences becoming project names).
     """
     projects = []
     lines = resume_text.splitlines()
 
-    # 1. Look for explicit Projects section
-    in_projects = False
-    current = None
     project_headers = re.compile(
         r'^(projects?|personal projects?|academic projects?|portfolio|side projects?|key projects?)\s*$',
         re.IGNORECASE
     )
-    # Sections that end the projects block
     end_headers = re.compile(
-        r'^(education|experience|skills|certifications?|languages?|declaration|work|employment|summary|objective)\s*$',
+        r'^(education|experience|work experience|skills|technical skills|certifications?|languages?|declaration|employment|summary|objective|hobbies|achievements?)\s*$',
         re.IGNORECASE
     )
+
+    in_projects = False
+    current = None
 
     for line in lines:
         stripped = line.strip()
         if not stripped:
             continue
+
         if project_headers.match(stripped):
             in_projects = True
             continue
-        if end_headers.match(stripped) and in_projects:
-            if current:
-                projects.append(current)
-                current = None
-            in_projects = False
-            continue
-        if in_projects:
-            # New project entry — starts with a title-like line (not a bullet)
-            if not stripped.startswith(('-', '•', '*')) and len(stripped) < 80 and len(stripped) > 3:
+
+        if end_headers.match(stripped):
+            if in_projects:
                 if current:
                     projects.append(current)
-                current = {"name": stripped, "tech": "", "description": "", "link": ""}
-            elif current:
-                # Bullet = description
-                desc = stripped.lstrip('-•* ').strip()
-                if not current["description"]:
-                    current["description"] = desc
-                # Pick up tech from patterns like "Tech: React, Node" or URLs
-                tech_match = re.search(r'(?:tech|stack|built with|using)[: ]+([^,.]{3,50})', desc, re.IGNORECASE)
-                if tech_match and not current["tech"]:
-                    current["tech"] = tech_match.group(1).strip()
+                    current = None
+            in_projects = False
+            continue
+
+        if not in_projects:
+            continue
+
+        is_bullet = stripped.startswith(('-', '•', '*', '–'))
+
+        if not is_bullet:
+            # Could be a project title or tech line
+            # Tech line: short, contains commas or known tech separators, no verb
+            looks_like_tech = (
+                ',' in stripped or
+                re.match(r'^[A-Za-z0-9#+.\-\s]{3,60}$', stripped) and
+                re.search(r'(react|node|python|java|django|spring|mysql|mongodb|html|css|js|ts|aws|git|flask|vue|angular|next|express|kotlin|swift|flutter)', stripped, re.IGNORECASE)
+            )
+
+            if current and looks_like_tech and not current['tech']:
+                current['tech'] = stripped
+            else:
+                # New project title
+                if current:
+                    projects.append(current)
+                current = {'name': stripped, 'tech': '', 'description': '', 'link': '', 'bullets': []}
+        else:
+            if current:
+                desc = stripped.lstrip('-•*– ').strip()
                 url_match = re.search(r'https?://\S+', desc)
-                if url_match and not current["link"]:
-                    current["link"] = url_match.group(0)
+                if url_match:
+                    current['link'] = url_match.group(0)
+                    desc = desc.replace(url_match.group(0), '').strip()
+                if not current['description'] and desc:
+                    current['description'] = desc
+                elif desc:
+                    current['bullets'].append(desc)
 
     if current and in_projects:
         projects.append(current)
 
-    # 2. If nothing found via section scan, mine experience bullets for built things
-    if not projects:
-        built_pattern = re.compile(
-            r'(?:built|developed|created|designed|implemented|launched|deployed|engineered)\s+(?:a\s+|an\s+)?([A-Z][a-zA-Z0-9\s\-]{2,40}?)(?:\s+using|\s+with|\s+in|\s+for|\.|,)',
-            re.IGNORECASE
-        )
-        tech_pattern = re.compile(
-            r'(?:using|with|in|via|built on)\s+((?:[A-Za-z0-9#+.\-]+(?:,\s*)?){1,6})',
-            re.IGNORECASE
-        )
-        seen_names = set()
-        for line in lines:
-            stripped = line.strip().lstrip('-•* ')
-            m = built_pattern.search(stripped)
-            if m:
-                proj_name = m.group(1).strip().title()
-                if proj_name.lower() in seen_names or len(proj_name) < 4:
-                    continue
-                seen_names.add(proj_name.lower())
-                tech = ""
-                tm = tech_pattern.search(stripped)
-                if tm:
-                    tech = tm.group(1).strip().rstrip(',')
-                projects.append({
-                    "name": proj_name,
-                    "tech": tech,
-                    "description": stripped[:200],
-                    "link": ""
-                })
-                if len(projects) >= 4:
-                    break
-
+    print(f"Fallback extracted {len(projects)} raw projects from resume section")
     return projects
+
 
 # ─────────────────────────────────────────────
 # SHARED TAILOR LOGIC
@@ -929,10 +1075,13 @@ def run_tailor_ai(resume_text: str, job_title: str, job_description: str):
     # Projects fallback — if AI returned empty projects, extract server-side
     if not tailored.get('projects'):
         print("AI returned no projects — running server-side extraction fallback")
-        tailored['projects'] = extract_projects_from_resume(resume_text)
-        print(f"Fallback found {len(tailored['projects'])} projects: {[p['name'] for p in tailored['projects']]}")
+        raw = extract_projects_from_resume(resume_text)
+        tailored['projects'] = sanitize_projects(raw)
     else:
-        print(f"AI returned {len(tailored['projects'])} projects: {[p.get('name','?') for p in tailored['projects']]}")
+        print(f"AI returned {len(tailored['projects'])} raw projects")
+        tailored['projects'] = sanitize_projects(tailored['projects'])
+
+    print(f"Final projects ({len(tailored['projects'])}): {[p.get('name','?') for p in tailored['projects']]}")
     # Filter interview_kws — remove generic words
     interview_kws        = [k for k in interview_kws if len(k) > 1 and k.lower() not in BAD_SKILL_WORDS][:8]
 
