@@ -198,7 +198,7 @@ STRICT RULES:
 2. GITHUB: Search for github.com/ anywhere in resume text or EXTRACTED_LINKS section. Copy the FULL URL exactly. Never leave empty if found.
 3. SKILLS: Start with ALL skills from the candidate's resume. Then REMOVE skills irrelevant to this job. Then ADD relevant tech skills from JD that are missing. Keep only technical skills (frameworks, languages, tools, databases). No soft skills, no generic words.
 4. EXPERIENCE: Keep ALL jobs. Keep ALL bullet points. Only rephrase bullets where it naturally adds JD keywords.
-5. PROJECTS: Look for any section called Projects, Personal Projects, Academic Projects, Portfolio, or Work. Also look for any named apps, tools, websites, or systems the candidate built — even if mentioned inside experience bullets (e.g. "Built a dashboard using React" = a project). Extract every one with name, tech stack, and description. If truly none exist, return [].
+5. PROJECTS: Look for any section called Projects, Personal Projects, Academic Projects, Portfolio. Also look for named apps, tools, websites, or systems built by the candidate — even inside experience bullets. For each project: "name" = short project title only (max 6 words, NO tech names in the name), "tech" = comma-separated technologies used, "description" = one sentence what it does. Keep name, tech, and description strictly separate. If none exist, return [].
 6. EDUCATION: Copy exactly as in resume. Include degree, institution, year, grade/CGPA.
 7. CERTIFICATIONS: Copy ALL certifications exactly as in resume.
 8. LANGUAGES: Copy exactly as in resume.
@@ -428,6 +428,7 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
             if not isinstance(proj, dict):
                 bullet(str(proj))
                 continue
+
             name_p = clean(proj.get('name', proj.get('title', '')))
             tech   = clean(proj.get('tech', proj.get('technologies', proj.get('stack', ''))))
             desc   = clean(proj.get('description', proj.get('details', '')))
@@ -435,6 +436,29 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
             pbulls = proj.get('bullets', proj.get('highlights', []))
             if isinstance(pbulls, str):
                 pbulls = [pbulls]
+
+            # Guard: if name is too long (fallback merged name+tech), split it
+            if len(name_p) > 60:
+                # Try to split on | or — or : to get a shorter name
+                for sep in ['|', '—', ':', ' - ']:
+                    if sep in name_p:
+                        parts = name_p.split(sep, 1)
+                        name_p = parts[0].strip()
+                        # Rest becomes tech if tech is empty
+                        if not tech:
+                            tech = parts[1].strip()
+                        break
+                # Still too long — truncate
+                if len(name_p) > 60:
+                    name_p = name_p[:57] + '...'
+
+            # Guard: if desc is very long, only show first sentence as desc,
+            # rest goes as a bullet so it renders in normal weight
+            if len(desc) > 180:
+                sentences = desc.split('. ')
+                desc = sentences[0].strip()
+                if len(sentences) > 1:
+                    pbulls = ['. '.join(sentences[1:]).strip()] + list(pbulls)
 
             block = []
             if name_p:
@@ -696,6 +720,24 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
             pbulls    = proj.get('bullets', [])
             if isinstance(pbulls, str):
                 pbulls = [pbulls]
+
+            # Same guards as PDF — split long names
+            if len(name_proj) > 60:
+                for sep in ['|', '—', ':', ' - ']:
+                    if sep in name_proj:
+                        parts = name_proj.split(sep, 1)
+                        name_proj = parts[0].strip()
+                        if not tech:
+                            tech = parts[1].strip()
+                        break
+                if len(name_proj) > 60:
+                    name_proj = name_proj[:57] + '...'
+
+            if len(desc) > 180:
+                sentences = desc.split('. ')
+                desc = sentences[0].strip()
+                if len(sentences) > 1:
+                    pbulls = ['. '.join(sentences[1:]).strip()] + list(pbulls)
 
             if name_proj:
                 np2 = p(sb=5, sa=1)
