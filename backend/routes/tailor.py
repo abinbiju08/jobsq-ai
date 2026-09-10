@@ -731,6 +731,101 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
     return buf.getvalue()
 
 
+
+# ─────────────────────────────────────────────
+# PROJECTS FALLBACK EXTRACTOR
+# ─────────────────────────────────────────────
+
+def extract_projects_from_resume(resume_text: str) -> list:
+    """
+    Server-side fallback: scan resume text for project sections or
+    named things built inside experience bullets.
+    """
+    projects = []
+    lines = resume_text.splitlines()
+
+    # 1. Look for explicit Projects section
+    in_projects = False
+    current = None
+    project_headers = re.compile(
+        r'^(projects?|personal projects?|academic projects?|portfolio|side projects?|key projects?)\s*$',
+        re.IGNORECASE
+    )
+    # Sections that end the projects block
+    end_headers = re.compile(
+        r'^(education|experience|skills|certifications?|languages?|declaration|work|employment|summary|objective)\s*$',
+        re.IGNORECASE
+    )
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if project_headers.match(stripped):
+            in_projects = True
+            continue
+        if end_headers.match(stripped) and in_projects:
+            if current:
+                projects.append(current)
+                current = None
+            in_projects = False
+            continue
+        if in_projects:
+            # New project entry — starts with a title-like line (not a bullet)
+            if not stripped.startswith(('-', '•', '*')) and len(stripped) < 80 and len(stripped) > 3:
+                if current:
+                    projects.append(current)
+                current = {"name": stripped, "tech": "", "description": "", "link": ""}
+            elif current:
+                # Bullet = description
+                desc = stripped.lstrip('-•* ').strip()
+                if not current["description"]:
+                    current["description"] = desc
+                # Pick up tech from patterns like "Tech: React, Node" or URLs
+                tech_match = re.search(r'(?:tech|stack|built with|using)[: ]+([^,.]{3,50})', desc, re.IGNORECASE)
+                if tech_match and not current["tech"]:
+                    current["tech"] = tech_match.group(1).strip()
+                url_match = re.search(r'https?://\S+', desc)
+                if url_match and not current["link"]:
+                    current["link"] = url_match.group(0)
+
+    if current and in_projects:
+        projects.append(current)
+
+    # 2. If nothing found via section scan, mine experience bullets for built things
+    if not projects:
+        built_pattern = re.compile(
+            r'(?:built|developed|created|designed|implemented|launched|deployed|engineered)\s+(?:a\s+|an\s+)?([A-Z][a-zA-Z0-9\s\-]{2,40}?)(?:\s+using|\s+with|\s+in|\s+for|\.|,)',
+            re.IGNORECASE
+        )
+        tech_pattern = re.compile(
+            r'(?:using|with|in|via|built on)\s+((?:[A-Za-z0-9#+.\-]+(?:,\s*)?){1,6})',
+            re.IGNORECASE
+        )
+        seen_names = set()
+        for line in lines:
+            stripped = line.strip().lstrip('-•* ')
+            m = built_pattern.search(stripped)
+            if m:
+                proj_name = m.group(1).strip().title()
+                if proj_name.lower() in seen_names or len(proj_name) < 4:
+                    continue
+                seen_names.add(proj_name.lower())
+                tech = ""
+                tm = tech_pattern.search(stripped)
+                if tm:
+                    tech = tm.group(1).strip().rstrip(',')
+                projects.append({
+                    "name": proj_name,
+                    "tech": tech,
+                    "description": stripped[:200],
+                    "link": ""
+                })
+                if len(projects) >= 4:
+                    break
+
+    return projects
+
 # ─────────────────────────────────────────────
 # SHARED TAILOR LOGIC
 # ─────────────────────────────────────────────
@@ -763,6 +858,14 @@ def run_tailor_ai(resume_text: str, job_title: str, job_description: str):
     tailored['skills']   = filter_skills(tailored.get('skills', []))
     keywords_added       = filter_skills(tailored.get('keywords_added', []))
     interview_kws        = tailored.get('interview_keywords', list(missing)[:8])
+
+    # Projects fallback — if AI returned empty projects, extract server-side
+    if not tailored.get('projects'):
+        print("AI returned no projects — running server-side extraction fallback")
+        tailored['projects'] = extract_projects_from_resume(resume_text)
+        print(f"Fallback found {len(tailored['projects'])} projects: {[p['name'] for p in tailored['projects']]}")
+    else:
+        print(f"AI returned {len(tailored['projects'])} projects: {[p.get('name','?') for p in tailored['projects']]}")
     # Filter interview_kws — remove generic words
     interview_kws        = [k for k in interview_kws if len(k) > 1 and k.lower() not in BAD_SKILL_WORDS][:8]
 
