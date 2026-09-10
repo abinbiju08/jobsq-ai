@@ -9,6 +9,7 @@ export default function TailorModal({ job, user, onClose }) {
   const [resumeInfo, setResumeInfo] = useState(null)
   const [uploadFile, setUploadFile] = useState(null)
   const [showPreview, setShowPreview] = useState(false)
+  const [replacing, setReplacing] = useState(false)
 
   useEffect(() => {
     const check = async () => {
@@ -135,6 +136,28 @@ export default function TailorModal({ job, user, onClose }) {
     }
   }
 
+  const replaceResume = async (file) => {
+    if (!file) return
+    try {
+      setReplacing(true)
+      const form = new FormData()
+      form.append('resume_file', file)
+      form.append('user_id', user.id)
+      const res = await fetch(`${API}/builder/save-resume`, { method: 'POST', body: form })
+      const data = await res.json()
+      if (data.success) {
+        setResumeInfo({ file_name: file.name, file_size: file.size })
+        setUploadFile(null)
+      } else {
+        alert('Failed to save resume: ' + (data.error || 'Unknown error'))
+      }
+    } catch(e) {
+      alert('Upload failed: ' + e.message)
+    } finally {
+      setReplacing(false)
+    }
+  }
+
   return (
     <>
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
@@ -209,12 +232,26 @@ export default function TailorModal({ job, user, onClose }) {
                     </div>
                   )}
 
-                  {/* Upload button — always visible */}
-                  <label style={{display:'flex',alignItems:'center',gap:'.4rem',padding:'.4rem .75rem',background:'rgba(124,111,247,0.08)',border:'0.5px solid rgba(124,111,247,0.25)',borderRadius:'8px',cursor:'pointer',fontSize:'12px',color:'#a89ef7',width:'fit-content'}}>
-                    <i className="ti ti-upload" style={{fontSize:'13px'}}/>
-                    {uploadFile ? 'Change PDF' : resumeInfo ? 'Upload different resume' : 'Choose PDF'}
-                    <input type="file" accept=".pdf" onChange={e => setUploadFile(e.target.files[0])} style={{display:'none'}}/>
-                  </label>
+                  {/* Upload buttons row */}
+                  <div style={{display:'flex',gap:'.5rem',flexWrap:'wrap'}}>
+                    {/* Pick file for this tailoring only */}
+                    <label style={{display:'flex',alignItems:'center',gap:'.4rem',padding:'.4rem .75rem',background:'rgba(124,111,247,0.08)',border:'0.5px solid rgba(124,111,247,0.25)',borderRadius:'8px',cursor:'pointer',fontSize:'12px',color:'#a89ef7'}}>
+                      <i className="ti ti-upload" style={{fontSize:'13px'}}/>
+                      {uploadFile ? 'Change PDF' : resumeInfo ? 'Use different resume' : 'Choose PDF'}
+                      <input type="file" accept=".pdf" onChange={e => setUploadFile(e.target.files[0])} style={{display:'none'}}/>
+                    </label>
+
+                    {/* Replace saved resume permanently */}
+                    {resumeInfo && (
+                      <label style={{display:'flex',alignItems:'center',gap:'.4rem',padding:'.4rem .75rem',background:'rgba(245,166,35,0.08)',border:'0.5px solid rgba(245,166,35,0.25)',borderRadius:'8px',cursor:replacing?'wait':'pointer',fontSize:'12px',color:'#f5a623',opacity:replacing?0.6:1}}>
+                        {replacing
+                          ? <><i className="ti ti-loader" style={{fontSize:'13px',animation:'spin .8s linear infinite'}}/> Saving...</>
+                          : <><i className="ti ti-replace" style={{fontSize:'13px'}}/> Replace saved resume</>
+                        }
+                        <input type="file" accept=".pdf" disabled={replacing} onChange={e => e.target.files[0] && replaceResume(e.target.files[0])} style={{display:'none'}}/>
+                      </label>
+                    )}
+                  </div>
                 </div>
 
                 <div style={{fontSize:'12px',color:'var(--text2,#8b93b0)',marginBottom:'1rem',lineHeight:1.6}}>
