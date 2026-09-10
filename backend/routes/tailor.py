@@ -13,7 +13,7 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 
-load_dotenv()
+load_dotenv()  # v2.1 - strict skill filtering
 
 # Try importing python-docx
 try:
