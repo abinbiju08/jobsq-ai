@@ -1,33 +1,448 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
-from groq import Groq
 from supabase import create_client
+from groq import Groq
 from pydantic import BaseModel
-import os, json, io, re
+import PyPDF2, io, os, json, re, unicodedata
 from dotenv import load_dotenv
-import PyPDF2
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.units import mm
 from reportlab.lib import colors
+from reportlab.lib.units import mm
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Table, TableStyle
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+from reportlab.platypus import KeepTogether
 
 load_dotenv()
-
-try:
-    from docx import Document
-    from docx.shared import Pt, RGBColor, Inches
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
-    from docx.oxml.ns import qn
-    from docx.oxml import OxmlElement
-    DOCX_AVAILABLE = True
-except ImportError:
-    DOCX_AVAILABLE = False
-
 router = APIRouter()
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_KEY"))
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+
+# ─────────────────────────────────────────────
+# PDF TEXT + URL EXTRACTION
+# ─────────────────────────────────────────────
+
+def extract_pdf_text(file_bytes: bytes) -> str:
+    """Extract text from PDF using PyPDF2 + grab hyperlink URLs from annotations."""
+    text = ""
+    urls_found = []
+
+    # 1. Extract text with PyPDF2
+    try:
+        reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+        for page in reader.pages:
+            page_text = page.extract_text() or ""
+            text += page_text + "\n"
+
+            # Extract URLs from annotations (hyperlinks embedded in PDF)
+            if "/Annots" in page:
+                for annot in page["/Annots"]:
+                    obj = annot.get_object()
+                    if obj.get("/Subtype") == "/Link":
+                        uri = obj.get("/A", {}).get("/URI", "")
+                        if uri and uri not in urls_found:
+                            urls_found.append(uri)
+    except Exception as e:
+        print(f"PyPDF2 error: {e}")
+
+    # 2. Also try pymupdf for better URL extraction from hyperlinks
+    try:
+        import pymupdf
+        doc = pymupdf.open(stream=file_bytes, filetype="pdf")
+        for page in doc:
+            for link in page.get_links():
+                uri = link.get("uri", "")
+                if uri and uri not in urls_found:
+                    urls_found.append(uri)
+        doc.close()
+    except Exception as e:
+        print(f"pymupdf link extract error: {e}")
+
+    # 3. Append found URLs to the text so AI can pick them up
+    if urls_found:
+        text += "\n\nEXTRACTED_LINKS:\n"
+        for url in urls_found:
+            text += url + "\n"
+            # Label them for the AI
+            if "linkedin" in url.lower():
+                text += f"LinkedIn: {url}\n"
+            elif "github" in url.lower():
+                text += f"GitHub: {url}\n"
+
+    # 4. Also scan text for URLs using regex (catches plain-text URLs)
+    url_pattern = r'(https?://[^\s\)\]>\"]+|linkedin\.com/in/[^\s\)\]>\"]+|github\.com/[^\s\)\]>\"]+)'
+    text_urls = re.findall(url_pattern, text)
+    for u in text_urls:
+        if u not in urls_found:
+            urls_found.append(u)
+            if "linkedin" in u.lower():
+                text += f"\nLinkedIn: {u}"
+            elif "github" in u.lower():
+                text += f"\nGitHub: {u}"
+
+    print(f"Resume text length: {len(text)}")
+    print(f"Resume text preview: {text[:600]}")
+    print(f"URLs found: {urls_found}")
+    return text.strip()
+
+
+# ─────────────────────────────────────────────
+# SKILL FILTERING
+# ─────────────────────────────────────────────
+
+TECH_WHITELIST = {
+    'python','java','javascript','typescript','react','node','nodejs','angular','vue',
+    'html','css','sql','mysql','postgresql','mongodb','redis','docker','kubernetes',
+    'aws','gcp','azure','git','github','gitlab','linux','bash','shell','fastapi',
+    'django','flask','express','spring','springboot','hibernate','rest','graphql',
+    'tensorflow','pytorch','scikit','pandas','numpy','matplotlib','selenium','jest',
+    'junit','postman','swagger','jira','confluence','figma','terraform','ansible',
+    'jenkins','ci/cd','cicd','agile','scrum','microservices','api','oauth','jwt',
+    'firebase','supabase','vercel','netlify','heroku','excel','powerbi','tableau',
+    'hadoop','spark','kafka','elasticsearch','nginx','apache','c++','c#','golang',
+    'rust','kotlin','swift','flutter','dart','r','matlab','scala','perl','php',
+    'ruby','rails','nextjs','nuxt','svelte','tailwind','bootstrap','sass','webpack',
+    'vite','redux','mobx','graphql','prisma','sequelize','typeorm','celery',
+    'rabbitmq','socket.io','websocket','grpc','protobuf','openapi','langchain',
+    'openai','huggingface','llm','nlp','cv','machine learning','deep learning',
+    'data science','data engineering','devops','mlops','cloud','blockchain',
+    'solidity','web3','linux','unix','powershell','autocad','solidworks',
+    'embedded','arduino','raspberry','iot','fpga','verilog','vhdl'
+}
+
+BAD_WORDS = {
+    'developers','developer','f2f','face','period','senior','lead','mandatory',
+    'expertise','overview','preferred','bengaluru','bangalore','mumbai','delhi',
+    'hyderabad','chennai','pune','kolkata','india','remote','hybrid','onsite',
+    'immediate','joiners','joining','experience','years','year','month','months',
+    'interview','hiring','actively','looking','required','must','good','strong',
+    'knowledge','ability','team','work','role','position','job','apply','mode',
+    'location','office','wfh','wfo','notice','important','urgent','opportunity',
+    'opening','vacancy','profile','candidate','candidates','requirement',
+    'requirements','skills','skill','plus','hands','working','ability','communication',
+    'problem','solving','analytical','thinking','management','leadership','english',
+    'verbal','written','interpersonal','client','stakeholder','cross','functional'
+}
+
+def is_valid_skill(s: str) -> bool:
+    if not s or len(s) < 2 or len(s) > 40:
+        return False
+    s_lower = s.lower()
+    if s_lower in TECH_WHITELIST:
+        return True
+    if any(ch in s for ch in ['.', '+', '#', '/', '-']) and len(s) < 20:
+        return True
+    if len(s) <= 4 and s.isupper():
+        return True
+    return False
+
+def filter_skills(skills: list) -> list:
+    if not skills:
+        return []
+    filtered, seen = [], set()
+    for skill in skills:
+        if not skill:
+            continue
+        s = str(skill).strip()
+        s_lower = s.lower()
+        if s_lower in seen or s_lower in BAD_WORDS:
+            continue
+        if is_valid_skill(s):
+            filtered.append(s)
+            seen.add(s_lower)
+    return filtered
+
+
+# ─────────────────────────────────────────────
+# HELPERS
+# ─────────────────────────────────────────────
+
+def clean(text) -> str:
+    """Strip non-ASCII / control chars that cause PDF black squares."""
+    if not text:
+        return ""
+    cleaned = ""
+    for ch in str(text):
+        cat = unicodedata.category(ch)
+        if cat.startswith('C') and ch not in ('\n', '\t', ' '):
+            cleaned += ' '
+        elif ord(ch) > 127:
+            # Replace common unicode chars with ASCII equivalents
+            replacements = {
+                '\u2022': '-', '\u2023': '-', '\u25cf': '-', '\u2013': '-',
+                '\u2014': '-', '\u2018': "'", '\u2019': "'", '\u201c': '"',
+                '\u201d': '"', '\u2026': '...', '\u00e9': 'e', '\u00e0': 'a',
+            }
+            cleaned += replacements.get(ch, '')
+        else:
+            cleaned += ch
+    return cleaned.strip()
+
+def extract_keywords(text: str) -> set:
+    words = re.findall(r'\b[a-zA-Z][a-zA-Z0-9+#./-]{1,20}\b', text.lower())
+    stop = {'the','and','for','with','that','this','from','your','have','will',
+            'our','all','are','can','not','but','job','work','team','role'}
+    return {w for w in words if w not in stop and len(w) > 2}
+
+def parse_ai_response(raw: str) -> dict:
+    """Extract JSON from AI response, handling markdown fences."""
+    raw = raw.strip()
+    # Remove markdown fences
+    if '```' in raw:
+        parts = raw.split('```')
+        for part in parts:
+            part = part.strip().lstrip('json').strip()
+            if part.startswith('{'):
+                raw = part
+                break
+    # Find first { to last }
+    start = raw.find('{')
+    end = raw.rfind('}')
+    if start == -1 or end == -1:
+        return {}
+    try:
+        return json.loads(raw[start:end+1])
+    except:
+        return {}
+
+def clean_contact(contact):
+    """Format contact line, removing duplicates."""
+    if not contact:
+        return ""
+    parts = [p.strip() for p in str(contact).replace('|', ' | ').split('|')]
+    seen, unique = set(), []
+    for p in parts:
+        key = re.sub(r'\s+', '', p.lower())
+        if key and key not in seen:
+            unique.append(p)
+            seen.add(key)
+    return ' | '.join(unique)
+
+
+# ─────────────────────────────────────────────
+# PDF GENERATOR
+# ─────────────────────────────────────────────
+
+def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes:
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+        rightMargin=18*mm, leftMargin=18*mm,
+        topMargin=14*mm, bottomMargin=14*mm)
+    story = []
+
+    # ── Styles ──────────────────────────────
+    name_s    = ParagraphStyle('n', fontSize=18, fontName='Helvetica-Bold',
+                    textColor=colors.HexColor('#1a1a2e'), spaceAfter=3, alignment=TA_CENTER)
+    contact_s = ParagraphStyle('c', fontSize=9, fontName='Helvetica',
+                    textColor=colors.HexColor('#555555'), spaceAfter=4, alignment=TA_CENTER)
+    link_s    = ParagraphStyle('lk', fontSize=9, fontName='Helvetica',
+                    textColor=colors.HexColor('#7c6ff7'), spaceAfter=6, alignment=TA_CENTER)
+    tag_s     = ParagraphStyle('t', fontSize=8.5, fontName='Helvetica',
+                    textColor=colors.HexColor('#7c6ff7'), spaceAfter=8, alignment=TA_CENTER)
+    sec_s     = ParagraphStyle('sec', fontSize=10.5, fontName='Helvetica-Bold',
+                    textColor=colors.HexColor('#1a1a2e'), spaceBefore=8, spaceAfter=2)
+    body_s    = ParagraphStyle('b', fontSize=9.5, fontName='Helvetica',
+                    textColor=colors.HexColor('#333333'), spaceAfter=3, leading=14,
+                    alignment=TA_JUSTIFY)
+    bullet_s  = ParagraphStyle('bl', fontSize=9.5, fontName='Helvetica',
+                    textColor=colors.HexColor('#333333'), leftIndent=10, spaceAfter=2,
+                    leading=13, bulletIndent=0)
+    job_title_s = ParagraphStyle('jt', fontSize=10, fontName='Helvetica-Bold',
+                    textColor=colors.HexColor('#1a1a2e'), spaceAfter=1)
+    job_sub_s = ParagraphStyle('js', fontSize=9, fontName='Helvetica',
+                    textColor=colors.HexColor('#666666'), spaceAfter=3)
+    proj_s    = ParagraphStyle('pr', fontSize=10, fontName='Helvetica-Bold',
+                    textColor=colors.HexColor('#1a1a2e'), spaceAfter=1)
+
+    def section(title):
+        story.append(Paragraph(clean(title), sec_s))
+        story.append(HRFlowable(width="100%", thickness=0.5,
+                                color=colors.HexColor('#7c6ff7'), spaceAfter=4))
+
+    # ── Header ──────────────────────────────
+    name = clean(tailored.get('name', 'Candidate'))
+    story.append(Paragraph(name, name_s))
+
+    contact = clean_contact(clean(tailored.get('contact', '')))
+    if contact:
+        story.append(Paragraph(contact, contact_s))
+
+    # LinkedIn & GitHub on same line
+    linkedin = clean(tailored.get('linkedin', ''))
+    github   = clean(tailored.get('github', ''))
+    links_parts = []
+    if linkedin:
+        links_parts.append(f'LinkedIn: {linkedin}')
+    if github:
+        links_parts.append(f'GitHub: {github}')
+    if links_parts:
+        story.append(Paragraph(' | '.join(links_parts), link_s))
+
+    # Job tag
+    story.append(Paragraph(f"Tailored for: {clean(job_title)} @ {clean(company)}", tag_s))
+    story.append(HRFlowable(width="100%", thickness=1.2,
+                            color=colors.HexColor('#7c6ff7'), spaceAfter=6))
+
+    # ── Summary ─────────────────────────────
+    summary = clean(tailored.get('summary', ''))
+    if summary:
+        section("PROFESSIONAL SUMMARY")
+        story.append(Paragraph(summary, body_s))
+
+    # ── Skills ──────────────────────────────
+    skills = filter_skills(tailored.get('skills', []))
+    if skills:
+        section("TECHNICAL SKILLS")
+        # 3-column table
+        cols = 3
+        rows = [skills[i:i+cols] for i in range(0, len(skills), cols)]
+        # Pad last row
+        while len(rows[-1]) < cols:
+            rows[-1].append('')
+        skill_style = ParagraphStyle('sk', fontSize=9, fontName='Helvetica',
+            textColor=colors.HexColor('#333333'))
+        table_data = [[Paragraph(f'• {clean(c)}', skill_style) for c in row] for row in rows]
+        col_w = (A4[0] - 36*mm) / cols
+        t = Table(table_data, colWidths=[col_w]*cols)
+        t.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('LEFTPADDING', (0,0), (-1,-1), 2),
+            ('RIGHTPADDING', (0,0), (-1,-1), 2),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+        ]))
+        story.append(t)
+
+    # ── Experience ──────────────────────────
+    experience = tailored.get('experience', [])
+    if experience:
+        section("WORK EXPERIENCE")
+        for exp in experience:
+            if isinstance(exp, dict):
+                title_text = clean(exp.get('title', exp.get('role', '')))
+                comp_text  = clean(exp.get('company', exp.get('organization', '')))
+                period     = clean(exp.get('period', exp.get('duration', exp.get('dates', ''))))
+                loc        = clean(exp.get('location', ''))
+                sub_parts  = [p for p in [comp_text, period, loc] if p]
+
+                block = []
+                if title_text:
+                    block.append(Paragraph(title_text, job_title_s))
+                if sub_parts:
+                    block.append(Paragraph(' | '.join(sub_parts), job_sub_s))
+
+                bullets = exp.get('bullets', exp.get('responsibilities', exp.get('achievements', [])))
+                if isinstance(bullets, str):
+                    bullets = [bullets]
+                for b in bullets:
+                    b_clean = clean(str(b)).lstrip('-•* ').strip()
+                    if b_clean:
+                        block.append(Paragraph(f'• {b_clean}', bullet_s))
+
+                description = clean(exp.get('description', ''))
+                if description and not bullets:
+                    block.append(Paragraph(f'• {description}', bullet_s))
+
+                story.append(KeepTogether(block))
+                story.append(Spacer(1, 3))
+            elif isinstance(exp, str):
+                story.append(Paragraph(f'• {clean(exp)}', bullet_s))
+
+    # ── Projects ────────────────────────────
+    projects = tailored.get('projects', [])
+    if projects:
+        section("PROJECTS")
+        for proj in projects:
+            if isinstance(proj, dict):
+                proj_name  = clean(proj.get('name', proj.get('title', '')))
+                proj_tech  = clean(proj.get('tech', proj.get('technologies', proj.get('stack', ''))))
+                proj_desc  = clean(proj.get('description', proj.get('details', '')))
+                proj_link  = clean(proj.get('link', proj.get('url', proj.get('github', ''))))
+
+                block = []
+                if proj_name:
+                    tech_suffix = f' — {proj_tech}' if proj_tech else ''
+                    block.append(Paragraph(f'{proj_name}{tech_suffix}', proj_s))
+                if proj_desc:
+                    block.append(Paragraph(f'• {proj_desc}', bullet_s))
+
+                bullets = proj.get('bullets', proj.get('highlights', []))
+                if isinstance(bullets, str):
+                    bullets = [bullets]
+                for b in bullets:
+                    b_clean = clean(str(b)).lstrip('-•* ').strip()
+                    if b_clean:
+                        block.append(Paragraph(f'• {b_clean}', bullet_s))
+
+                if proj_link:
+                    block.append(Paragraph(f'Link: {proj_link}', job_sub_s))
+
+                story.append(KeepTogether(block))
+                story.append(Spacer(1, 3))
+            elif isinstance(proj, str):
+                story.append(Paragraph(f'• {clean(proj)}', bullet_s))
+
+    # ── Education ───────────────────────────
+    education = tailored.get('education', [])
+    if education:
+        section("EDUCATION")
+        for edu in education:
+            if isinstance(edu, dict):
+                deg   = clean(edu.get('degree', edu.get('qualification', '')))
+                inst  = clean(edu.get('institution', edu.get('university', edu.get('college', ''))))
+                yr    = clean(edu.get('year', edu.get('period', edu.get('graduation', ''))))
+                grade = clean(edu.get('grade', edu.get('gpa', edu.get('cgpa', edu.get('percentage', '')))))
+                parts = [p for p in [inst, yr, grade] if p]
+                if deg:
+                    story.append(Paragraph(deg, job_title_s))
+                if parts:
+                    story.append(Paragraph(' | '.join(parts), job_sub_s))
+            elif isinstance(edu, str):
+                story.append(Paragraph(f'• {clean(edu)}', bullet_s))
+
+    # ── Certifications ──────────────────────
+    certs = tailored.get('certifications', tailored.get('certificates', []))
+    if certs:
+        section("CERTIFICATIONS")
+        for cert in certs:
+            cert_text = clean(cert if isinstance(cert, str) else cert.get('name', str(cert)))
+            if cert_text:
+                story.append(Paragraph(f'• {cert_text}', bullet_s))
+
+    # ── Languages ───────────────────────────
+    languages = tailored.get('languages', [])
+    if languages:
+        section("LANGUAGES")
+        if isinstance(languages, list):
+            lang_text = ' | '.join([clean(l) if isinstance(l, str) else clean(l.get('language', str(l))) for l in languages])
+        else:
+            lang_text = clean(str(languages))
+        if lang_text:
+            story.append(Paragraph(lang_text, body_s))
+
+    # ── Declaration ─────────────────────────
+    declaration = clean(tailored.get('declaration', ''))
+    if declaration:
+        section("DECLARATION")
+        story.append(Paragraph(declaration, body_s))
+        story.append(Spacer(1, 10))
+        story.append(Paragraph(f'{name}', body_s))
+
+    doc.build(story)
+    return buffer.getvalue()
+
+
+# ─────────────────────────────────────────────
+# PYDANTIC MODELS
+# ─────────────────────────────────────────────
+
+class TailorRequest(BaseModel):
+    user_id: str
+    job_title: str
+    job_description: str
+    company: str = "Company"
+    resume_text: str = ""
 
 class TailorSavedRequest(BaseModel):
     user_id: str
@@ -36,456 +451,72 @@ class TailorSavedRequest(BaseModel):
     company: str = "Company"
     resume_text: str = ""
 
-def extract_pdf_text(file_bytes: bytes) -> str:
-    text = ""
-    try:
-        reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
-        for page in reader.pages:
-            t = page.extract_text()
-            if t:
-                text += t + "\n"
-        if text.strip():
-            return text.strip()
-    except Exception as e:
-        print(f"PyPDF2 error: {e}")
-    try:
-        decoded = file_bytes.decode("utf-8", errors="ignore")
-        if len(decoded.strip()) > 50:
-            return decoded.strip()
-    except:
-        pass
-    return text.strip()
 
-def clean(text):
-    if not text:
-        return ""
-    result = ""
-    for ch in str(text):
-        if ord(ch) < 128:
-            result += ch
-        elif ch in ('\u2013', '\u2014'): result += '-'
-        elif ch in ('\u2018', '\u2019'): result += "'"
-        elif ch in ('\u201c', '\u201d'): result += '"'
-        elif ch in ('\u2022', '\u00b7'): result += '-'
-        else: result += ' '
-    return ' '.join(result.split())
+# ─────────────────────────────────────────────
+# AI PROMPT HELPER
+# ─────────────────────────────────────────────
 
-def clean_contact(contact):
-    if not contact:
-        return ""
-    if isinstance(contact, dict):
-        parts = []
-        if contact.get('email'): parts.append(contact['email'])
-        if contact.get('phone'): parts.append(contact['phone'])
-        if contact.get('location'): parts.append(contact['location'])
-        if contact.get('linkedin'): parts.append(contact['linkedin'])
-        if contact.get('github'): parts.append(contact['github'])
-        return '  |  '.join(parts)
-    return clean(str(contact))
+def build_tailor_prompt(resume_text: str, job_title: str, job_description: str, missing_kws: str) -> str:
+    return f"""You are an expert resume writer. Extract ALL sections from the resume and return as JSON.
 
-def parse_ai_response(raw: str) -> dict:
-    if '<think>' in raw:
-        raw = raw.split('</think>')[-1].strip()
-    raw = raw.replace('```json', '').replace('```', '').strip()
-    depth = 0
-    start_pos = -1
-    end_pos = -1
-    in_string = False
-    i = 0
-    while i < len(raw):
-        ch = raw[i]
-        if ch == '\\' and in_string:
-            i += 2
-            continue
-        if ch == '"':
-            in_string = not in_string
-        elif not in_string:
-            if ch == '{':
-                if depth == 0:
-                    start_pos = i
-                depth += 1
-            elif ch == '}':
-                depth -= 1
-                if depth == 0:
-                    end_pos = i + 1
-                    break
-        i += 1
-    if start_pos == -1 or end_pos == -1:
-        raise ValueError(f"No JSON in response: {raw[:200]}")
-    json_str = raw[start_pos:end_pos]
-    json_str = re.sub(r',\s*}', '}', json_str)
-    json_str = re.sub(r',\s*]', ']', json_str)
-    return json.loads(json_str)
+RESUME TEXT:
+{resume_text[:3500]}
 
-def filter_skills(skills: list) -> list:
-    """Remove non-technical words from skills list"""
-    if not skills:
-        return []
-    
-    # Definite blacklist - never allow these
-    blacklist = {
-        'developers','developer','f2f','face','period','senior','lead','mandatory',
-        'expertise','overview','preferred','preffered','bengaluru','bangalore','mumbai',
-        'delhi','hyderabad','chennai','pune','kolkata','india','remote','hybrid','onsite',
-        'immediate','joiners','joining','experience','years','year','month','months',
-        'interview','hiring','actively','looking','required','must','good','strong',
-        'knowledge','ability','team','work','role','position','job','apply','mode',
-        'location','office','wfh','wfo','notice','important','urgent','opportunity',
-        'opening','vacancy','profile','candidate','candidates','requirement','requirements',
-        'epertise','overview','f2f','face to face','indore','goinstacare','care','united',
-        'states','families','providers','specifically','industry','wil','non','focuses',
-        'growing','mode','required','oppor','before','interview','joiners','interview',
-        'actively','period','senior','lead','mandatory','overview','preferred','face',
-        'developers','f2f','bengaluru','languages','english','hindi','kannada','tamil',
-        'malayalam','telugu','marathi','punjabi','gujarati','bengali','odia','assamese',
-        'declaration','i','hereby','certify','true','best'
-    }
-    
-    # Real tech skills - if ANY of these appear in the skill string, it passes
-    tech_whitelist = [
-        'python','java','javascript','typescript','kotlin','swift','dart','rust','go',
-        'php','ruby','scala','c++','c#','react','angular','vue','next','nuxt','html',
-        'css','sass','scss','tailwind','bootstrap','redux','webpack','vite','jquery',
-        'node','django','flask','fastapi','spring','express','laravel','rails','fiber',
-        'graphql','rest','grpc','websocket','oauth','jwt','api','sdk',
-        'mysql','postgresql','mongodb','redis','sqlite','oracle','sql','nosql',
-        'elasticsearch','cassandra','dynamodb','firebase','supabase','prisma',
-        'aws','azure','gcp','docker','kubernetes','jenkins','terraform','ansible',
-        'git','github','gitlab','bitbucket','linux','nginx','apache','ci/cd',
-        'tensorflow','pytorch','pandas','numpy','opencv','nlp','machine learning',
-        'deep learning','langchain','openai','scikit','keras',
-        'flutter','android','ios','xcode','expo','react native',
-        'microservices','devops','agile','scrum','figma','photoshop','jira',
-        'selenium','jest','pytest','junit','postman','cypress','playwright',
-        '.net','golang','kafka','rabbitmq','celery','nginx','redis','graphql',
-        'wordpress','shopify','woocommerce','magento','drupal','strapi',
-        'solidity','blockchain','web3','smart contract',
-        'power bi','tableau','excel','pandas','matplotlib','seaborn',
-        'full stack','fullstack','frontend','backend','mobile','web development',
-        'object oriented','oop','mvc','mvvm','microservice','restful',
-        'data structures','algorithms','design patterns','system design',
-        'testing','automation','debugging','deployment','cloud','serverless'
-    ]
-    
-    result = []
-    seen = set()
-    
-    for skill in skills:
-        if not skill:
-            continue
-        s = str(skill).strip()
-        sl = s.lower().strip()
-        
-        # Skip empty or too short
-        if len(s) < 2:
-            continue
-        
-        # Skip if in blacklist
-        if sl in blacklist:
-            continue
-        
-        # Skip if already added
-        if sl in seen:
-            continue
-        
-        # Check if it contains a known tech term
-        is_tech = any(tech in sl for tech in tech_whitelist)
-        
-        # Allow special char skills (C++, C#, .NET, Node.js)
-        has_special = any(c in s for c in ['+', '#', '.', '/'])
-        
-        # Allow short uppercase acronyms (AWS, GCP, SQL, API)
-        is_acronym = len(s) <= 5 and s.replace('.','').replace('#','').replace('+','').isupper()
-        
-        if is_tech or has_special or is_acronym:
-            result.append(s)
-            seen.add(sl)
-    
-    return result if result else []
+JOB: {job_title}
+JD KEYWORDS TO ADD: {missing_kws}
 
-def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes:
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4,
-        rightMargin=15*mm, leftMargin=15*mm,
-        topMargin=12*mm, bottomMargin=12*mm)
-    story = []
+CRITICAL INSTRUCTIONS:
+1. Extract linkedin URL - look for linkedin.com/in/ in the text or EXTRACTED_LINKS section
+2. Extract github URL - look for github.com/ in the text or EXTRACTED_LINKS section
+3. Extract ALL projects with name, tech stack, description
+4. Keep ALL experience bullets (do not shorten)
+5. summary: Write 2-3 sentences tailored for {job_title}
+6. skills: existing skills + real tech keywords from JD only (never add non-tech words)
+7. Return ONLY valid JSON, no markdown, no extra text
 
-    # Styles
-    name_s = ParagraphStyle('n', fontSize=20, fontName='Helvetica-Bold',
-                textColor=colors.HexColor('#1a1a2e'), spaceAfter=3,
-                alignment=TA_CENTER, leading=24)
-    contact_s = ParagraphStyle('c', fontSize=9, fontName='Helvetica',
-                textColor=colors.HexColor('#444444'), spaceAfter=2, alignment=TA_CENTER)
-    sec_s = ParagraphStyle('s', fontSize=10.5, fontName='Helvetica-Bold',
-                textColor=colors.HexColor('#1a1a2e'), spaceBefore=8, spaceAfter=3)
-    body_s = ParagraphStyle('b', fontSize=9.5, fontName='Helvetica',
-                textColor=colors.HexColor('#222222'), spaceAfter=3, leading=14)
-    bullet_s = ParagraphStyle('bl', fontSize=9, fontName='Helvetica',
-                textColor=colors.HexColor('#333333'), spaceAfter=2,
-                leftIndent=10, leading=13)
-    jobt_s = ParagraphStyle('jt', fontSize=10, fontName='Helvetica-Bold',
-                textColor=colors.HexColor('#1a1a2e'), spaceAfter=0)
-    jobs_s = ParagraphStyle('js', fontSize=8.5, fontName='Helvetica',
-                textColor=colors.HexColor('#555555'), spaceAfter=3)
-    kw_s = ParagraphStyle('kw', fontSize=9, fontName='Helvetica',
-                textColor=colors.HexColor('#2c3e50'), spaceAfter=2, leading=13)
-
-    def hr():
-        return HRFlowable(width="100%", thickness=1,
-                    color=colors.HexColor('#1a1a2e'), spaceAfter=4)
-
-    def section(title):
-        story.append(Paragraph(title, sec_s))
-        story.append(hr())
-
-    # ── NAME & CONTACT ──
-    story.append(Paragraph(clean(tailored.get('name', 'Candidate Name')), name_s))
-    
-    contact_line = clean_contact(tailored.get('contact', ''))
-    if contact_line:
-        story.append(Paragraph(contact_line, contact_s))
-    
-    linkedin = clean(tailored.get('linkedin', ''))
-    github = clean(tailored.get('github', ''))
-    links = []
-    if linkedin: links.append(f"LinkedIn: {linkedin}")
-    if github: links.append(f"GitHub: {github}")
-    if links:
-        story.append(Paragraph('  |  '.join(links), contact_s))
-    
-    story.append(Spacer(1, 4))
-
-    # ── PROFESSIONAL SUMMARY ──
-    if tailored.get('summary'):
-        section('PROFESSIONAL SUMMARY')
-        story.append(Paragraph(clean(tailored['summary']), body_s))
-
-    # ── TECHNICAL SKILLS ──
-    skills = filter_skills(tailored.get('skills', []))
-    if skills:
-        section('TECHNICAL SKILLS')
-        rows = [skills[i:i+5] for i in range(0, len(skills), 5)]
-        for row in rows:
-            story.append(Paragraph('   |   '.join([clean(s) for s in row if s]), kw_s))
-
-    # ── WORK EXPERIENCE ──
-    experience = tailored.get('experience', [])
-    if experience:
-        section('WORK EXPERIENCE')
-        for exp in experience:
-            # Title and duration on same line
-            title = clean(exp.get('title', ''))
-            duration = clean(exp.get('duration', ''))
-            company_name = clean(exp.get('company', ''))
-            
-            story.append(Paragraph(f"<b>{title}</b>", jobt_s))
-            story.append(Paragraph(f"{company_name}  |  {duration}", jobs_s))
-            
-            for bullet in exp.get('bullets', []):
-                b = clean(bullet).strip('- ').strip()
-                if b:
-                    story.append(Paragraph(f"\u2022  {b}", bullet_s))
-            story.append(Spacer(1, 4))
-
-    # ── PROJECTS ──
-    projects = tailored.get('projects', [])
-    if projects:
-        section('PROJECTS')
-        for proj in projects:
-            name = clean(proj.get('name', ''))
-            desc = clean(proj.get('description', ''))
-            tech = clean(proj.get('tech', ''))
-            if name:
-                story.append(Paragraph(f"<b>{name}</b>", jobt_s))
-            if tech:
-                story.append(Paragraph(f"Tech: {tech}", jobs_s))
-            if desc:
-                story.append(Paragraph(f"\u2022  {desc}", bullet_s))
-            story.append(Spacer(1, 3))
-
-    # ── EDUCATION ──
-    education = tailored.get('education', [])
-    if education:
-        section('EDUCATION')
-        for edu in education:
-            degree = clean(edu.get('degree', ''))
-            institution = clean(edu.get('institution', ''))
-            year = clean(edu.get('year', ''))
-            story.append(Paragraph(f"<b>{degree}</b>", jobt_s))
-            story.append(Paragraph(f"{institution}  |  {year}", jobs_s))
-
-    # ── CERTIFICATIONS ──
-    certs = tailored.get('certifications', [])
-    if certs:
-        section('CERTIFICATIONS')
-        for cert in certs:
-            story.append(Paragraph(f"\u2022  {clean(str(cert))}", bullet_s))
-
-    # ── LANGUAGES ──
-    languages = tailored.get('languages', [])
-    if languages:
-        section('LANGUAGES')
-        story.append(Paragraph('  |  '.join([clean(l) for l in languages if l]), kw_s))
-
-    # ── DECLARATION ──
-    declaration = clean(tailored.get('declaration', ''))
-    if declaration:
-        section('DECLARATION')
-        story.append(Paragraph(declaration, body_s))
-
-    doc.build(story)
-    return buffer.getvalue()
+Return this exact JSON structure:
+{{
+  "name": "full name",
+  "contact": "phone | email | city",
+  "linkedin": "full linkedin URL or empty string",
+  "github": "full github URL or empty string",
+  "summary": "tailored professional summary for {job_title}",
+  "skills": ["Skill1", "Skill2"],
+  "experience": [
+    {{
+      "title": "Job Title",
+      "company": "Company Name",
+      "period": "Month Year - Month Year",
+      "location": "City",
+      "bullets": ["bullet 1", "bullet 2"]
+    }}
+  ],
+  "projects": [
+    {{
+      "name": "Project Name",
+      "tech": "React, Python, etc",
+      "description": "What it does",
+      "link": "github/project URL or empty string"
+    }}
+  ],
+  "education": [
+    {{
+      "degree": "Degree Name",
+      "institution": "University Name",
+      "year": "Year",
+      "grade": "Grade/GPA"
+    }}
+  ],
+  "certifications": ["Cert 1", "Cert 2"],
+  "languages": ["English", "etc"],
+  "declaration": "I hereby declare that the above information is true and correct.",
+  "keywords_added": ["kw1", "kw2"]
+}}"""
 
 
-def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> bytes:
-    if not DOCX_AVAILABLE:
-        raise ImportError('python-docx not installed')
-
-    doc = Document()
-    for section in doc.sections:
-        section.top_margin = section.bottom_margin = Pt(30)
-        section.left_margin = section.right_margin = Pt(45)
-
-    def clean_text(text):
-        if not text: return ""
-        return str(text).encode('ascii', 'ignore').decode().strip()
-
-    def add_section_heading(title):
-        p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(8)
-        p.paragraph_format.space_after = Pt(2)
-        run = p.add_run(title)
-        run.bold = True
-        run.font.size = Pt(10.5)
-        run.font.color.rgb = RGBColor(26, 26, 46)
-        pPr = p._p.get_or_add_pPr()
-        pBdr = OxmlElement('w:pBdr')
-        bottom = OxmlElement('w:bottom')
-        bottom.set(qn('w:val'), 'single')
-        bottom.set(qn('w:sz'), '6')
-        bottom.set(qn('w:space'), '1')
-        bottom.set(qn('w:color'), '1a1a2e')
-        pBdr.append(bottom)
-        pPr.append(pBdr)
-
-    # Name
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run(clean_text(tailored.get('name', '')))
-    r.bold = True
-    r.font.size = Pt(20)
-
-    # Contact
-    contact_val = clean_contact(tailored.get('contact', ''))
-    if contact_val:
-        p = doc.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r = p.add_run(clean_text(contact_val))
-        r.font.size = Pt(9)
-
-    linkedin = clean_text(tailored.get('linkedin', ''))
-    github = clean_text(tailored.get('github', ''))
-    links = []
-    if linkedin: links.append(f"LinkedIn: {linkedin}")
-    if github: links.append(f"GitHub: {github}")
-    if links:
-        p = doc.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r = p.add_run('  |  '.join(links))
-        r.font.size = Pt(9)
-
-    # Summary
-    if tailored.get('summary'):
-        add_section_heading('PROFESSIONAL SUMMARY')
-        p = doc.add_paragraph(clean_text(tailored['summary']))
-        p.runs[0].font.size = Pt(9.5)
-
-    # Skills
-    skills = filter_skills(tailored.get('skills', []))
-    if skills:
-        add_section_heading('TECHNICAL SKILLS')
-        rows = [skills[i:i+5] for i in range(0, len(skills), 5)]
-        for row in rows:
-            p = doc.add_paragraph('   |   '.join([clean_text(s) for s in row if s]))
-            p.runs[0].font.size = Pt(9)
-
-    # Experience
-    experience = tailored.get('experience', [])
-    if experience:
-        add_section_heading('WORK EXPERIENCE')
-        for exp in experience:
-            p = doc.add_paragraph()
-            r = p.add_run(clean_text(exp.get('title', '')))
-            r.bold = True
-            r.font.size = Pt(10)
-            p2 = doc.add_paragraph()
-            r2 = p2.add_run(f"{clean_text(exp.get('company',''))}  |  {clean_text(exp.get('duration',''))}")
-            r2.font.size = Pt(8.5)
-            r2.font.color.rgb = RGBColor(85, 85, 85)
-            for bullet in exp.get('bullets', []):
-                b = clean_text(bullet).strip('- ').strip()
-                if b:
-                    bp = doc.add_paragraph(style='List Bullet')
-                    br = bp.add_run(b)
-                    br.font.size = Pt(9)
-
-    # Projects
-    projects = tailored.get('projects', [])
-    if projects:
-        add_section_heading('PROJECTS')
-        for proj in projects:
-            if proj.get('name'):
-                p = doc.add_paragraph()
-                r = p.add_run(clean_text(proj.get('name', '')))
-                r.bold = True
-                r.font.size = Pt(10)
-            if proj.get('tech'):
-                p = doc.add_paragraph(f"Tech: {clean_text(proj.get('tech',''))}")
-                p.runs[0].font.size = Pt(8.5)
-            if proj.get('description'):
-                bp = doc.add_paragraph(style='List Bullet')
-                br = bp.add_run(clean_text(proj.get('description', '')))
-                br.font.size = Pt(9)
-
-    # Education
-    education = tailored.get('education', [])
-    if education:
-        add_section_heading('EDUCATION')
-        for edu in education:
-            p = doc.add_paragraph()
-            r = p.add_run(clean_text(edu.get('degree', '')))
-            r.bold = True
-            r.font.size = Pt(10)
-            p2 = doc.add_paragraph(f"{clean_text(edu.get('institution',''))}  |  {clean_text(edu.get('year',''))}")
-            p2.runs[0].font.size = Pt(8.5)
-
-    # Certifications
-    certs = tailored.get('certifications', [])
-    if certs:
-        add_section_heading('CERTIFICATIONS')
-        for cert in certs:
-            bp = doc.add_paragraph(style='List Bullet')
-            br = bp.add_run(clean_text(str(cert)))
-            br.font.size = Pt(9)
-
-    # Languages
-    languages = tailored.get('languages', [])
-    if languages:
-        add_section_heading('LANGUAGES')
-        p = doc.add_paragraph('  |  '.join([clean_text(l) for l in languages if l]))
-        p.runs[0].font.size = Pt(9)
-
-    # Declaration
-    declaration = tailored.get('declaration', '')
-    if declaration:
-        add_section_heading('DECLARATION')
-        p = doc.add_paragraph(clean_text(declaration))
-        p.runs[0].font.size = Pt(9)
-
-    buffer = io.BytesIO()
-    doc.save(buffer)
-    return buffer.getvalue()
-
+# ─────────────────────────────────────────────
+# ENDPOINTS
+# ─────────────────────────────────────────────
 
 @router.post("/tailor")
 async def tailor_resume(
@@ -498,77 +529,22 @@ async def tailor_resume(
     try:
         resume_bytes = await resume_file.read()
         resume_text = extract_pdf_text(resume_bytes)
-        print(f"Resume text length: {len(resume_text)}")
-        print(f"Resume text preview: {resume_text[:500]}")
+
         if not resume_text or len(resume_text) < 30:
-            resume_text = f"Candidate applying for {job_title}."
+            raise HTTPException(status_code=400, detail="Could not read PDF content.")
 
-        # Basic score
-        resume_words = set(re.findall(r'\b\w+\b', resume_text.lower()))
-        jd_words = set(re.findall(r'\b\w+\b', job_description.lower()))
-        common = resume_words & jd_words
-        original_score = min(80, max(20, int(len(common) / max(len(jd_words), 1) * 200)))
+        resume_kws = extract_keywords(resume_text)
+        jd_kws = extract_keywords(job_description + " " + job_title)
+        missing = jd_kws - resume_kws
+        original_score = min(95, int((len(resume_kws & jd_kws) / max(len(jd_kws), 1)) * 100))
+        missing_kws_str = ', '.join(list(missing)[:15])
 
-        prompt = f"""You are an expert ATS resume writer. Extract the complete resume and tailor it for the job.
-
-RESUME TEXT (extract EVERYTHING exactly):
-{resume_text[:3000]}
-
-JOB TITLE: {job_title}
-JOB DESCRIPTION:
-{job_description[:1200]}
-
-TASK:
-1. Extract name, phone, email, city, LinkedIn URL, GitHub URL exactly from resume
-2. Extract ALL work experience - every job, every bullet point word for word
-3. Extract ALL projects with name, tech stack, description
-4. Extract ALL education details
-5. Extract ALL certifications
-6. Extract languages spoken (like English, Hindi etc)
-7. Extract declaration if present
-8. Take existing skills from resume, add ONLY real missing technical skills from JD (programming languages, frameworks, tools like Docker, AWS, etc - NOT words like 'remote', 'senior', 'immediate', 'f2f', 'bengaluru')
-9. Write a powerful 3-sentence professional summary targeting {job_title}
-
-Return complete JSON:
-{{
-  "name": "full name",
-  "contact": "email | phone | city",
-  "linkedin": "linkedin url or empty string",
-  "github": "github url or empty string",
-  "summary": "3 sentence professional summary for {job_title}",
-  "skills": ["ALL technical skills from resume", "ONLY real tech skills missing from JD"],
-  "experience": [
-    {{
-      "title": "exact job title",
-      "company": "exact company",
-      "duration": "exact dates",
-      "bullets": ["exact bullet 1", "exact bullet 2", "every single bullet"]
-    }}
-  ],
-  "projects": [
-    {{
-      "name": "project name",
-      "tech": "tech stack used",
-      "description": "exact description"
-    }}
-  ],
-  "education": [
-    {{
-      "degree": "exact degree",
-      "institution": "exact institution",
-      "year": "exact year"
-    }}
-  ],
-  "certifications": ["cert 1", "cert 2"],
-  "languages": ["English", "Hindi"],
-  "declaration": "I hereby declare that the above information is true to the best of my knowledge.",
-  "keywords_added": ["only real tech skills added"]
-}}"""
+        prompt = build_tailor_prompt(resume_text, job_title, job_description, missing_kws_str)
 
         response = groq_client.chat.completions.create(
             model="openai/gpt-oss-120b",
             messages=[
-                {"role": "system", "content": "You are a JSON API. Return only valid JSON. Never add non-technical words to skills array."},
+                {"role": "system", "content": "You are a JSON API. Return only valid JSON. Never add non-technical words to skills."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.1,
@@ -576,13 +552,20 @@ Return complete JSON:
         )
 
         raw = response.choices[0].message.content.strip()
-        print(f"RAW AI: {raw[:200]}")
+        print(f"RAW AI (tailor): {raw[:300]}")
         tailored = parse_ai_response(raw)
 
-        # Filter skills
+        if not tailored:
+            raise HTTPException(status_code=500, detail="AI response parsing failed.")
+
         tailored['skills'] = filter_skills(tailored.get('skills', []))
-        keywords_added = tailored.get('keywords_added', [])
-        tailored_score = min(97, original_score + len(filter_skills(keywords_added)) * 3)
+        keywords_added = filter_skills(tailored.get('keywords_added', []))
+
+        tailored_kws = extract_keywords(json.dumps(tailored))
+        new_matched = tailored_kws & jd_kws
+        tailored_score = min(97, int((len(new_matched) / max(len(jd_kws), 1)) * 100))
+        if tailored_score <= original_score:
+            tailored_score = min(97, original_score + len(keywords_added) * 2)
 
         pdf_bytes = generate_tailored_pdf(tailored, job_title, company)
         filename = f"tailored_{job_title.replace(' ', '_')}.pdf"
@@ -592,70 +575,17 @@ Return complete JSON:
             media_type="application/pdf",
             headers={
                 "Content-Disposition": f"attachment; filename={filename}",
-                "x-keywords-added": json.dumps(filter_skills(keywords_added)),
+                "x-keywords-added": json.dumps(keywords_added),
                 "x-original-score": str(original_score),
                 "x-tailored-score": str(tailored_score),
                 "Access-Control-Expose-Headers": "x-keywords-added,x-original-score,x-tailored-score"
             }
         )
-
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         print(f"TAILOR ERROR: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/tailor-docx")
-async def tailor_resume_docx(
-    resume_file: UploadFile = File(...),
-    job_title: str = Form(...),
-    job_description: str = Form(...),
-    company: str = Form(default="Company"),
-    user_id: str = Form(...)
-):
-    try:
-        resume_bytes = await resume_file.read()
-        resume_text = extract_pdf_text(resume_bytes)
-        if not resume_text or len(resume_text) < 30:
-            resume_text = f"Candidate applying for {job_title}."
-
-        prompt = f"""Extract complete resume and tailor for job. Return JSON only.
-
-RESUME: {resume_text[:3000]}
-JOB: {job_title}
-JD: {job_description[:800]}
-
-Extract everything: name, contact, linkedin, github, summary (3 sentences for {job_title}), skills (existing + real technical skills from JD only), experience (all bullets), projects (name/tech/description), education, certifications, languages, declaration.
-
-Skill rules: Only add real tech like Python/React/Docker/AWS. Never add words like remote/senior/f2f/bengaluru."""
-
-        response = groq_client.chat.completions.create(
-            model="openai/gpt-oss-120b",
-            messages=[
-                {"role": "system", "content": "Return only valid JSON."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.1,
-            max_tokens=4000
-        )
-
-        tailored = parse_ai_response(response.choices[0].message.content.strip())
-        tailored['skills'] = filter_skills(tailored.get('skills', []))
-
-        docx_bytes = generate_tailored_docx(tailored, job_title, company)
-        filename = f"tailored_{job_title.replace(' ', '_')}.docx"
-
-        return StreamingResponse(
-            io.BytesIO(docx_bytes),
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={
-                "Content-Disposition": f"attachment; filename={filename}",
-                "Access-Control-Expose-Headers": "Content-Disposition"
-            }
-        )
-    except Exception as e:
-        import traceback
-        print(f"DOCX ERROR: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -706,32 +636,51 @@ async def get_resume_text(user_id: str):
 async def tailor_saved_resume(data: TailorSavedRequest):
     try:
         resume_text = data.resume_text
+
         if not resume_text:
             try:
-                file_bytes = supabase.storage.from_("resumes").download(f"{data.user_id}/resume.pdf")
+                storage_path = f"{data.user_id}/resume.pdf"
+                file_bytes = supabase.storage.from_("resumes").download(storage_path)
                 resume_text = extract_pdf_text(file_bytes)
-            except:
-                pass
-        if not resume_text:
-            raise HTTPException(status_code=400, detail="No resume found.")
+            except Exception as e:
+                print(f"Storage download error: {e}")
 
-        prompt = f"""Extract complete resume and tailor for job. Return JSON only.
-Resume: {resume_text[:2500]}
-Job: {data.job_title}
-Only add real technical skills from JD. Never add non-tech words."""
+        if not resume_text:
+            raise HTTPException(status_code=400, detail="No resume found. Please upload your resume first.")
+
+        resume_kws = extract_keywords(resume_text)
+        jd_kws = extract_keywords(data.job_description + " " + data.job_title)
+        missing = jd_kws - resume_kws
+        original_score = min(95, int((len(resume_kws & jd_kws) / max(len(jd_kws), 1)) * 100))
+        missing_kws_str = ', '.join(list(missing)[:15])
+
+        prompt = build_tailor_prompt(resume_text, data.job_title, data.job_description, missing_kws_str)
 
         response = groq_client.chat.completions.create(
             model="openai/gpt-oss-120b",
             messages=[
-                {"role": "system", "content": "Return only valid JSON with all resume sections."},
+                {"role": "system", "content": "You are a JSON API. Return only valid JSON. Never add non-technical words to skills."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.1,
             max_tokens=4000
         )
 
-        tailored = parse_ai_response(response.choices[0].message.content.strip())
+        raw = response.choices[0].message.content.strip()
+        print(f"RAW AI (tailor-saved): {raw[:300]}")
+        tailored = parse_ai_response(raw)
+
+        if not tailored:
+            raise HTTPException(status_code=500, detail="AI response parsing failed.")
+
         tailored['skills'] = filter_skills(tailored.get('skills', []))
+        keywords_added = filter_skills(tailored.get('keywords_added', []))
+
+        tailored_kws = extract_keywords(json.dumps(tailored))
+        new_matched = tailored_kws & jd_kws
+        tailored_score = min(97, int((len(new_matched) / max(len(jd_kws), 1)) * 100))
+        if tailored_score <= original_score:
+            tailored_score = min(97, original_score + len(keywords_added) * 2)
 
         pdf_bytes = generate_tailored_pdf(tailored, data.job_title, data.company)
         filename = f"tailored_{data.job_title.replace(' ', '_')}.pdf"
@@ -741,9 +690,9 @@ Only add real technical skills from JD. Never add non-tech words."""
             media_type="application/pdf",
             headers={
                 "Content-Disposition": f"attachment; filename={filename}",
-                "x-keywords-added": json.dumps([]),
-                "x-original-score": "50",
-                "x-tailored-score": "75",
+                "x-keywords-added": json.dumps(keywords_added),
+                "x-original-score": str(original_score),
+                "x-tailored-score": str(tailored_score),
                 "Access-Control-Expose-Headers": "x-keywords-added,x-original-score,x-tailored-score"
             }
         )
@@ -751,5 +700,186 @@ Only add real technical skills from JD. Never add non-tech words."""
         raise
     except Exception as e:
         import traceback
-        print(f"ERROR: {traceback.format_exc()}")
+        print(f"TAILOR-SAVED ERROR: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/tailor-docx")
+async def tailor_resume_docx(
+    resume_file: UploadFile = File(...),
+    job_title: str = Form(...),
+    job_description: str = Form(...),
+    company: str = Form(default="Company"),
+    user_id: str = Form(...)
+):
+    """DOCX generation — returns same tailored data as DOCX via python-docx."""
+    try:
+        from docx import Document
+        from docx.shared import Pt, RGBColor, Inches
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+        resume_bytes = await resume_file.read()
+        resume_text = extract_pdf_text(resume_bytes)
+
+        if not resume_text or len(resume_text) < 30:
+            raise HTTPException(status_code=400, detail="Could not read PDF.")
+
+        resume_kws = extract_keywords(resume_text)
+        jd_kws = extract_keywords(job_description + " " + job_title)
+        missing = jd_kws - resume_kws
+        original_score = min(95, int((len(resume_kws & jd_kws) / max(len(jd_kws), 1)) * 100))
+        missing_kws_str = ', '.join(list(missing)[:15])
+
+        prompt = build_tailor_prompt(resume_text, job_title, job_description, missing_kws_str)
+
+        response = groq_client.chat.completions.create(
+            model="openai/gpt-oss-120b",
+            messages=[
+                {"role": "system", "content": "You are a JSON API. Return only valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.1,
+            max_tokens=4000
+        )
+
+        raw = response.choices[0].message.content.strip()
+        tailored = parse_ai_response(raw)
+        tailored['skills'] = filter_skills(tailored.get('skills', []))
+        keywords_added = filter_skills(tailored.get('keywords_added', []))
+
+        # Build DOCX
+        doc = Document()
+        # Margins
+        for section in doc.sections:
+            section.top_margin = Inches(0.6)
+            section.bottom_margin = Inches(0.6)
+            section.left_margin = Inches(0.8)
+            section.right_margin = Inches(0.8)
+
+        def add_heading(text, size=14, bold=True, center=True, color=None):
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER if center else WD_ALIGN_PARAGRAPH.LEFT
+            run = p.add_run(clean(text))
+            run.bold = bold
+            run.font.size = Pt(size)
+            if color:
+                run.font.color.rgb = RGBColor(*color)
+            return p
+
+        def add_section(title):
+            p = doc.add_paragraph()
+            run = p.add_run(title)
+            run.bold = True
+            run.font.size = Pt(11)
+            run.font.color.rgb = RGBColor(26, 26, 46)
+            p.paragraph_format.space_before = Pt(8)
+            # Underline via border would need XML manipulation, skip for now
+
+        # Name
+        add_heading(tailored.get('name', 'Candidate'), size=18, color=(26, 26, 46))
+        # Contact
+        contact = clean_contact(clean(tailored.get('contact', '')))
+        if contact:
+            p = doc.add_paragraph(contact)
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        # Links
+        linkedin = clean(tailored.get('linkedin', ''))
+        github = clean(tailored.get('github', ''))
+        links = ' | '.join(filter(None, [
+            f'LinkedIn: {linkedin}' if linkedin else '',
+            f'GitHub: {github}' if github else ''
+        ]))
+        if links:
+            p = doc.add_paragraph(links)
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        # Summary
+        summary = clean(tailored.get('summary', ''))
+        if summary:
+            add_section('PROFESSIONAL SUMMARY')
+            doc.add_paragraph(summary)
+
+        # Skills
+        skills = tailored.get('skills', [])
+        if skills:
+            add_section('TECHNICAL SKILLS')
+            doc.add_paragraph(' | '.join(skills))
+
+        # Experience
+        experience = tailored.get('experience', [])
+        if experience:
+            add_section('WORK EXPERIENCE')
+            for exp in experience:
+                if isinstance(exp, dict):
+                    p = doc.add_paragraph()
+                    run = p.add_run(clean(exp.get('title', exp.get('role', ''))))
+                    run.bold = True
+                    doc.add_paragraph(clean(f"{exp.get('company','')} | {exp.get('period','')} | {exp.get('location','')}"))
+                    for b in exp.get('bullets', exp.get('responsibilities', [])):
+                        doc.add_paragraph(f'• {clean(str(b))}')
+
+        # Projects
+        projects = tailored.get('projects', [])
+        if projects:
+            add_section('PROJECTS')
+            for proj in projects:
+                if isinstance(proj, dict):
+                    name_tech = f"{proj.get('name','')} — {proj.get('tech','')}" if proj.get('tech') else proj.get('name','')
+                    p = doc.add_paragraph()
+                    run = p.add_run(clean(name_tech))
+                    run.bold = True
+                    if proj.get('description'):
+                        doc.add_paragraph(f'• {clean(proj["description"])}')
+                    for b in proj.get('bullets', []):
+                        doc.add_paragraph(f'• {clean(str(b))}')
+                    if proj.get('link'):
+                        doc.add_paragraph(f'Link: {clean(proj["link"])}')
+
+        # Education
+        education = tailored.get('education', [])
+        if education:
+            add_section('EDUCATION')
+            for edu in education:
+                if isinstance(edu, dict):
+                    p = doc.add_paragraph()
+                    run = p.add_run(clean(edu.get('degree', '')))
+                    run.bold = True
+                    doc.add_paragraph(clean(f"{edu.get('institution','')} | {edu.get('year','')} | {edu.get('grade','')}"))
+
+        # Certifications
+        certs = tailored.get('certifications', [])
+        if certs:
+            add_section('CERTIFICATIONS')
+            for c in certs:
+                doc.add_paragraph(f'• {clean(c if isinstance(c, str) else c.get("name", str(c)))}')
+
+        # Languages
+        langs = tailored.get('languages', [])
+        if langs:
+            add_section('LANGUAGES')
+            doc.add_paragraph(' | '.join([clean(l) if isinstance(l, str) else clean(l.get('language', str(l))) for l in langs]))
+
+        buf = io.BytesIO()
+        doc.save(buf)
+        buf.seek(0)
+        filename = f"tailored_{job_title.replace(' ', '_')}.docx"
+
+        tailored_score = min(97, original_score + len(keywords_added) * 2)
+
+        return StreamingResponse(
+            buf,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "x-keywords-added": json.dumps(keywords_added),
+                "x-original-score": str(original_score),
+                "x-tailored-score": str(tailored_score),
+                "Access-Control-Expose-Headers": "x-keywords-added,x-original-score,x-tailored-score"
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"TAILOR-DOCX ERROR: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
