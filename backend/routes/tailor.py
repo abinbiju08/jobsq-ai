@@ -447,11 +447,8 @@ Return complete JSON:
         print(f"RAW AI: {raw[:200]}")
         tailored = parse_ai_response(raw)
 
-        tailored_kws = extract_keywords(json.dumps(tailored))
-        new_matched = tailored_kws & jd_kws
-        tailored_score = min(97, int((len(new_matched) / max(len(jd_kws), 1)) * 100))
-        if tailored_score <= original_score:
-            tailored_score = min(97, original_score + len(tailored.get('keywords_added', [])) * 2)
+        keywords_added = tailored.get('keywords_added', [])
+        tailored_score = min(97, original_score + len(keywords_added) * 3)
 
         pdf_bytes = generate_tailored_pdf(tailored, job_title, company)
         filename = f"tailored_{job_title.replace(' ', '_')}.pdf"
@@ -611,11 +608,8 @@ Return: {{"name":"","contact":"","summary":"2 sentences for {data.job_title}","s
         )
 
         tailored = parse_ai_response(response.choices[0].message.content.strip())
-        tailored_kws = extract_keywords(json.dumps(tailored))
-        new_matched = tailored_kws & jd_kws
-        tailored_score = min(97, int((len(new_matched) / max(len(jd_kws), 1)) * 100))
-        if tailored_score <= original_score:
-            tailored_score = min(97, original_score + len(tailored.get('keywords_added', [])) * 2)
+        keywords_added = tailored.get('keywords_added', [])
+        tailored_score = min(97, original_score + len(keywords_added) * 3)
 
         pdf_bytes = generate_tailored_pdf(tailored, data.job_title, data.company)
         filename = f"tailored_{data.job_title.replace(' ', '_')}.pdf"
@@ -637,4 +631,3 @@ Return: {{"name":"","contact":"","summary":"2 sentences for {data.job_title}","s
         import traceback
         print(f"ERROR: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
-        
