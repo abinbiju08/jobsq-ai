@@ -508,7 +508,8 @@ Return this exact JSON structure:
   "certifications": ["Cert 1", "Cert 2"],
   "languages": ["English", "etc"],
   "declaration": "I hereby declare that the above information is true and correct.",
-  "keywords_added": ["kw1", "kw2"]
+  "keywords_added": ["kw1", "kw2"],
+  "interview_keywords": ["top tech/skill keyword from JD the candidate must mention in interview", "keyword2", "keyword3", "keyword4", "keyword5"]
 }}"""
 
 
@@ -568,15 +569,21 @@ async def tailor_resume(
         pdf_bytes = generate_tailored_pdf(tailored, job_title, company)
         filename = f"tailored_{job_title.replace(' ', '_')}.pdf"
 
+        interview_kws = tailored.get('interview_keywords', [])
+        if not interview_kws:
+            # Fallback: top missing JD keywords as interview keywords
+            interview_kws = list(missing)[:8]
+
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
             headers={
                 "Content-Disposition": f"attachment; filename={filename}",
                 "x-keywords-added": json.dumps(keywords_added),
+                "x-interview-keywords": json.dumps(interview_kws[:8]),
                 "x-original-score": str(original_score),
                 "x-tailored-score": str(tailored_score),
-                "Access-Control-Expose-Headers": "x-keywords-added,x-original-score,x-tailored-score"
+                "Access-Control-Expose-Headers": "x-keywords-added,x-interview-keywords,x-original-score,x-tailored-score"
             }
         )
     except HTTPException:
@@ -683,15 +690,20 @@ async def tailor_saved_resume(data: TailorSavedRequest):
         pdf_bytes = generate_tailored_pdf(tailored, data.job_title, data.company)
         filename = f"tailored_{data.job_title.replace(' ', '_')}.pdf"
 
+        interview_kws = tailored.get('interview_keywords', [])
+        if not interview_kws:
+            interview_kws = list(missing)[:8]
+
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
             headers={
                 "Content-Disposition": f"attachment; filename={filename}",
                 "x-keywords-added": json.dumps(keywords_added),
+                "x-interview-keywords": json.dumps(interview_kws[:8]),
                 "x-original-score": str(original_score),
                 "x-tailored-score": str(tailored_score),
-                "Access-Control-Expose-Headers": "x-keywords-added,x-original-score,x-tailored-score"
+                "Access-Control-Expose-Headers": "x-keywords-added,x-interview-keywords,x-original-score,x-tailored-score"
             }
         )
     except HTTPException:
