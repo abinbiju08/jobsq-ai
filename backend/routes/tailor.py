@@ -499,6 +499,7 @@ async def tailor_resume(
         resume_bytes = await resume_file.read()
         resume_text = extract_pdf_text(resume_bytes)
         print(f"Resume text length: {len(resume_text)}")
+        print(f"Resume text preview: {resume_text[:500]}")
         if not resume_text or len(resume_text) < 30:
             resume_text = f"Candidate applying for {job_title}."
 
