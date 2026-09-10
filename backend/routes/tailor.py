@@ -13,7 +13,56 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 
-load_dotenv()  # v2.1 - strict skill filtering
+load_dotenv()
+
+# Bad words that should never appear in skills
+SKILL_BLACKLIST = {
+    'developers','developer','f2f','face','period','senior','lead','mandatory',
+    'expertise','overview','preferred','bengaluru','bangalore','mumbai','delhi',
+    'hyderabad','chennai','pune','kolkata','india','remote','hybrid','onsite',
+    'immediate','joiners','joining','experience','years','year','month',
+    'interview','hiring','actively','looking','required','must','good',
+    'strong','knowledge','ability','team','work','role','position','job',
+    'apply','mode','location','office','wfh','wfo','notice','important',
+    'urgent','opportunity','opening','vacancy','profile','candidate','candidates',
+    'requirement','requirements','epertise','preffered','face','overview','f2f'
+}
+
+# Real tech skills whitelist - if any of these strings appear, it is valid
+TECH_WHITELIST = [
+    'python','java','javascript','typescript','kotlin','swift','dart','rust',
+    'php','ruby','scala','c++','c#','react','angular','vue','next','html',
+    'css','sass','redux','webpack','node','django','flask','fastapi','spring',
+    'graphql','rest','mysql','postgresql','mongodb','redis','sqlite','sql',
+    'aws','azure','gcp','docker','kubernetes','jenkins','terraform','git',
+    'tensorflow','pytorch','pandas','numpy','flutter','android','ios',
+    'microservices','api','agile','scrum','devops','figma','tailwind',
+    'express','laravel','firebase','supabase','elasticsearch','kafka',
+    'pytest','jest','selenium','postman','jira','linux','nginx','ci/cd',
+    '.net','golang','go ','r ','ai','ml','nlp','opencv','langchain'
+]
+
+def filter_skills(skills):
+    if not skills:
+        return []
+    result = []
+    seen = set()
+    for skill in skills:
+        if not skill:
+            continue
+        s = str(skill).strip()
+        sl = s.lower()
+        if sl in seen or len(s) < 2:
+            continue
+        if sl in SKILL_BLACKLIST:
+            continue
+        is_tech = any(tech in sl for tech in TECH_WHITELIST)
+        has_special = any(c in s for c in ['+','#','.','/','-'])
+        is_acronym = len(s) <= 5 and s.replace('.','').isupper()
+        if is_tech or has_special or is_acronym:
+            result.append(s)
+            seen.add(sl)
+    return result if result else skills[:10]
 
 # Try importing python-docx
 try:
