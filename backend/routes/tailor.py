@@ -505,134 +505,158 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
     from docx.oxml.ns import qn
     from docx.oxml import OxmlElement
 
-    PURPLE_RGB = RGBColor(91, 80, 214)
-    DARK_RGB   = RGBColor(26, 26, 46)
-    GREY_RGB   = RGBColor(68, 68, 68)
-    LGREY_RGB  = RGBColor(102, 102, 102)
+    PURPLE = RGBColor(91, 80, 214)
+    DARK   = RGBColor(26, 26, 46)
+    GREY   = RGBColor(68, 68, 68)
+    LGREY  = RGBColor(102, 102, 102)
 
     doc = Document()
     for sec in doc.sections:
-        sec.top_margin    = Cm(1.5)
-        sec.bottom_margin = Cm(1.5)
-        sec.left_margin   = Cm(2.0)
-        sec.right_margin  = Cm(2.0)
+        sec.top_margin    = Cm(1.4)
+        sec.bottom_margin = Cm(1.4)
+        sec.left_margin   = Cm(1.8)
+        sec.right_margin  = Cm(1.8)
 
-    # Remove default paragraph spacing
-    from docx.styles.style import _ParagraphStyle
-    normal = doc.styles['Normal']
-    normal.paragraph_format.space_before = Pt(0)
-    normal.paragraph_format.space_after  = Pt(0)
+    style = doc.styles['Normal']
+    style.paragraph_format.space_before = Pt(0)
+    style.paragraph_format.space_after  = Pt(0)
+    style.font.name = 'Calibri'
+    style.font.size = Pt(10)
 
-    def para(text='', align=WD_ALIGN_PARAGRAPH.LEFT, space_before=0, space_after=2):
-        p = doc.add_paragraph()
-        p.alignment = align
-        p.paragraph_format.space_before = Pt(space_before)
-        p.paragraph_format.space_after  = Pt(space_after)
-        if text:
-            p.add_run(clean(text))
-        return p
+    def p(align=WD_ALIGN_PARAGRAPH.LEFT, sb=0, sa=2):
+        para = doc.add_paragraph()
+        para.alignment = align
+        para.paragraph_format.space_before = Pt(sb)
+        para.paragraph_format.space_after  = Pt(sa)
+        return para
 
-    def run(p, text, bold=False, italic=False, size=10, color=None):
-        r = p.add_run(clean(str(text)))
-        r.bold   = bold
-        r.italic = italic
-        r.font.size = Pt(size)
+    def r(para, text, bold=False, italic=False, size=10, color=None):
+        run = para.add_run(clean(str(text)))
+        run.bold        = bold
+        run.italic      = italic
+        run.font.size   = Pt(size)
+        run.font.name   = 'Calibri'
         if color:
-            r.font.color.rgb = color
-        return r
+            run.font.color.rgb = color
+        return run
 
     def section_heading(title):
-        p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(10)
-        p.paragraph_format.space_after  = Pt(1)
-        r = p.add_run(title)
-        r.bold = True
-        r.font.size = Pt(11)
-        r.font.color.rgb = DARK_RGB
-        # Purple bottom border
-        pPr = p._p.get_or_add_pPr()
+        para = doc.add_paragraph()
+        para.paragraph_format.space_before = Pt(10)
+        para.paragraph_format.space_after  = Pt(2)
+        run = para.add_run(title)
+        run.bold           = True
+        run.font.size      = Pt(10.5)
+        run.font.name      = 'Calibri'
+        run.font.color.rgb = DARK
+        # Purple bottom border — mirrors PDF section HR
+        pPr  = para._p.get_or_add_pPr()
         pBdr = OxmlElement('w:pBdr')
-        bottom = OxmlElement('w:bottom')
-        bottom.set(qn('w:val'), 'single')
-        bottom.set(qn('w:sz'), '6')
-        bottom.set(qn('w:space'), '1')
-        bottom.set(qn('w:color'), '5b50d6')
-        pBdr.append(bottom)
+        bot  = OxmlElement('w:bottom')
+        bot.set(qn('w:val'),   'single')
+        bot.set(qn('w:sz'),    '6')
+        bot.set(qn('w:space'), '1')
+        bot.set(qn('w:color'), '5b50d6')
+        pBdr.append(bot)
         pPr.append(pBdr)
 
-    def add_bullet(text):
+    def bullet(text, indent=0.4):
         t = clean(str(text)).lstrip('-•* ').strip()
         if not t:
             return
-        p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(0)
-        p.paragraph_format.space_after  = Pt(2)
-        p.paragraph_format.left_indent  = Cm(0.4)
-        r = p.add_run(f'• {t}')
-        r.font.size = Pt(10)
-        r.font.color.rgb = GREY_RGB
+        para = doc.add_paragraph()
+        para.paragraph_format.space_before = Pt(0)
+        para.paragraph_format.space_after  = Pt(2)
+        para.paragraph_format.left_indent  = Cm(indent)
+        run = para.add_run(f'\u2022 {t}')
+        run.font.size      = Pt(9.5)
+        run.font.name      = 'Calibri'
+        run.font.color.rgb = GREY
 
-    def no_borders_table(tbl):
-        tbl_pr = tbl._tbl.get_or_add_tblPr()
-        tbl_borders = OxmlElement('w:tblBorders')
-        for border_name in ['top','left','bottom','right','insideH','insideV']:
-            b = OxmlElement(f'w:{border_name}')
-            b.set(qn('w:val'), 'none')
-            tbl_borders.append(b)
-        tbl_pr.append(tbl_borders)
+    def remove_table_borders(tbl):
+        tbl_pr = tbl._tbl.tblPr
+        if tbl_pr is None:
+            tbl_pr = OxmlElement('w:tblPr')
+            tbl._tbl.insert(0, tbl_pr)
+        existing = tbl_pr.find(qn('w:tblBorders'))
+        if existing is not None:
+            tbl_pr.remove(existing)
+        borders = OxmlElement('w:tblBorders')
+        for side in ['top','left','bottom','right','insideH','insideV']:
+            b = OxmlElement(f'w:{side}')
+            b.set(qn('w:val'),   'none')
+            b.set(qn('w:sz'),    '0')
+            b.set(qn('w:space'), '0')
+            b.set(qn('w:color'), 'auto')
+            borders.append(b)
+        tbl_pr.append(borders)
 
-    # ── NAME ────────────────────────────────────────────────
-    p = para(align=WD_ALIGN_PARAGRAPH.CENTER, space_after=5)
-    run(p, tailored.get('name', ''), bold=True, size=18, color=DARK_RGB)
+    # ── NAME ─────────────────────────────────────────
+    name_p = p(align=WD_ALIGN_PARAGRAPH.CENTER, sb=0, sa=4)
+    r(name_p, tailored.get('name', ''), bold=True, size=18, color=DARK)
 
-    # ── CONTACT ─────────────────────────────────────────────
+    # ── CONTACT ──────────────────────────────────────
     contact = clean_contact(clean(tailored.get('contact', '')))
     if contact:
-        p = para(align=WD_ALIGN_PARAGRAPH.CENTER, space_after=3)
-        run(p, contact, size=9, color=GREY_RGB)
+        cp = p(align=WD_ALIGN_PARAGRAPH.CENTER, sa=3)
+        r(cp, contact, size=9, color=GREY)
 
-    # ── LINKEDIN | GITHUB ───────────────────────────────────
+    # ── LINKEDIN | GITHUB ────────────────────────────
     linkedin = clean(tailored.get('linkedin', ''))
     github   = clean(tailored.get('github', ''))
-    links_parts = []
-    if linkedin:
-        links_parts.append(f'LinkedIn: {linkedin}')
-    if github:
-        links_parts.append(f'GitHub: {github}')
-    if links_parts:
-        p = para(align=WD_ALIGN_PARAGRAPH.CENTER, space_after=8)
-        run(p, ' | '.join(links_parts), size=9, color=PURPLE_RGB)
+    links    = ' | '.join(filter(None, [
+        f'LinkedIn: {linkedin}' if linkedin else '',
+        f'GitHub: {github}'    if github   else '',
+    ]))
+    if links:
+        lp = p(align=WD_ALIGN_PARAGRAPH.CENTER, sa=6)
+        r(lp, links, size=9, color=PURPLE)
 
-    # ── SUMMARY ─────────────────────────────────────────────
+    # Divider line (simulate PDF thick HR)
+    hr_p = doc.add_paragraph()
+    hr_p.paragraph_format.space_before = Pt(2)
+    hr_p.paragraph_format.space_after  = Pt(6)
+    pPr  = hr_p._p.get_or_add_pPr()
+    pBdr = OxmlElement('w:pBdr')
+    bot  = OxmlElement('w:bottom')
+    bot.set(qn('w:val'),   'single')
+    bot.set(qn('w:sz'),    '12')
+    bot.set(qn('w:space'), '1')
+    bot.set(qn('w:color'), '5b50d6')
+    pBdr.append(bot)
+    pPr.append(pBdr)
+
+    # ── SUMMARY ──────────────────────────────────────
     summary = clean(tailored.get('summary', ''))
     if summary:
         section_heading('PROFESSIONAL SUMMARY')
-        p = para(space_after=4)
-        run(p, summary, size=10, color=GREY_RGB)
+        sp = p(sa=4)
+        r(sp, summary, size=9.5, color=GREY)
 
-    # ── SKILLS ──────────────────────────────────────────────
+    # ── SKILLS ───────────────────────────────────────
     skills = filter_skills(tailored.get('skills', []))
     if skills:
         section_heading('TECHNICAL SKILLS')
-        cols = 3
-        rows = [skills[i:i+cols] for i in range(0, len(skills), cols)]
+        cols  = 3
+        rows  = [skills[i:i+cols] for i in range(0, len(skills), cols)]
         while len(rows[-1]) < cols:
             rows[-1].append('')
         tbl = doc.add_table(rows=len(rows), cols=cols)
-        tbl.style = 'Table Grid'
         for ri, row in enumerate(rows):
             for ci, skill in enumerate(row):
                 cell = tbl.rows[ri].cells[ci]
                 cell.text = ''
                 cp = cell.paragraphs[0]
-                cp.paragraph_format.space_after = Pt(2)
                 cp.paragraph_format.space_before = Pt(2)
-                r = cp.add_run(f'• {clean(skill)}' if skill else '')
-                r.font.size = Pt(10)
-                r.font.color.rgb = GREY_RGB
-        no_borders_table(tbl)
+                cp.paragraph_format.space_after  = Pt(2)
+                cp.paragraph_format.left_indent  = Pt(0)
+                rn = cp.add_run(f'\u2022 {clean(skill)}' if skill else '')
+                rn.font.size      = Pt(9.5)
+                rn.font.name      = 'Calibri'
+                rn.font.color.rgb = GREY
+        remove_table_borders(tbl)
 
-    # ── EXPERIENCE ──────────────────────────────────────────
+    # ── EXPERIENCE ───────────────────────────────────
     experience = tailored.get('experience', [])
     if experience:
         section_heading('WORK EXPERIENCE')
@@ -649,51 +673,51 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
                 bullets = [bullets]
 
             if title:
-                p = para(space_before=4, space_after=1)
-                run(p, title, bold=True, size=10, color=DARK_RGB)
+                tp = p(sb=5, sa=1)
+                r(tp, title, bold=True, size=10, color=DARK)
             if sub:
-                p = para(space_after=3)
-                run(p, sub, size=9, color=PURPLE_RGB, italic=True)
+                sp = p(sa=3)
+                r(sp, sub, size=9, italic=True, color=PURPLE)
             for b in bullets:
-                add_bullet(b)
+                bullet(b)
 
-    # ── PROJECTS ────────────────────────────────────────────
+    # ── PROJECTS ─────────────────────────────────────
     projects = tailored.get('projects', [])
     if projects:
         section_heading('PROJECTS')
         for proj in projects:
             if not isinstance(proj, dict):
-                add_bullet(str(proj))
+                bullet(str(proj))
                 continue
-            name_p = clean(proj.get('name', proj.get('title', '')))
-            tech   = clean(proj.get('tech', proj.get('technologies', '')))
-            desc   = clean(proj.get('description', ''))
-            link   = clean(proj.get('link', proj.get('url', '')))
-            pbulls = proj.get('bullets', [])
+            name_proj = clean(proj.get('name', proj.get('title', '')))
+            tech      = clean(proj.get('tech', proj.get('technologies', '')))
+            desc      = clean(proj.get('description', ''))
+            link      = clean(proj.get('link', proj.get('url', '')))
+            pbulls    = proj.get('bullets', [])
             if isinstance(pbulls, str):
                 pbulls = [pbulls]
 
-            if name_p:
-                p = para(space_before=4, space_after=1)
-                run(p, name_p, bold=True, size=10, color=DARK_RGB)
+            if name_proj:
+                np2 = p(sb=5, sa=1)
+                r(np2, name_proj, bold=True, size=10, color=DARK)
             if tech:
-                p = para(space_after=2)
-                run(p, tech, size=9, color=PURPLE_RGB)
+                techp = p(sa=2)
+                r(techp, tech, size=9, color=PURPLE)
             if desc:
-                add_bullet(desc)
+                bullet(desc)
             for b in pbulls:
-                add_bullet(b)
+                bullet(b)
             if link:
-                p = para(space_after=2)
-                run(p, f'Link: {link}', size=9, color=LGREY_RGB)
+                lnkp = p(sa=2)
+                r(lnkp, f'Link: {link}', size=9, color=LGREY)
 
-    # ── EDUCATION ───────────────────────────────────────────
+    # ── EDUCATION ────────────────────────────────────
     education = tailored.get('education', [])
     if education:
         section_heading('EDUCATION')
         for edu in education:
             if not isinstance(edu, dict):
-                add_bullet(str(edu))
+                bullet(str(edu))
                 continue
             deg  = clean(edu.get('degree', ''))
             inst = clean(edu.get('institution', edu.get('university', '')))
@@ -701,20 +725,21 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
             gr   = clean(edu.get('grade', edu.get('cgpa', '')))
             sub  = ' | '.join(filter(None, [inst, yr, gr]))
             if deg:
-                p = para(space_before=4, space_after=1)
-                run(p, deg, bold=True, size=10, color=DARK_RGB)
+                dp = p(sb=4, sa=1)
+                r(dp, deg, bold=True, size=10, color=DARK)
             if sub:
-                p = para(space_after=2)
-                run(p, sub, size=9, color=LGREY_RGB)
+                ep = p(sa=2)
+                r(ep, sub, size=9, color=LGREY)
 
-    # ── CERTIFICATIONS ──────────────────────────────────────
-    certs = tailored.get('certifications', [])
+    # ── CERTIFICATIONS ───────────────────────────────
+    certs = tailored.get('certifications', tailored.get('certificates', []))
     if certs:
         section_heading('CERTIFICATIONS')
-        for c in certs:
-            add_bullet(c if isinstance(c, str) else c.get('name', str(c)))
+        for cert in certs:
+            t = cert if isinstance(cert, str) else cert.get('name', str(cert))
+            bullet(t)
 
-    # ── LANGUAGES ───────────────────────────────────────────
+    # ── LANGUAGES ────────────────────────────────────
     langs = tailored.get('languages', [])
     if langs:
         section_heading('LANGUAGES')
@@ -722,8 +747,8 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
             clean(l) if isinstance(l, str) else clean(l.get('language', str(l)))
             for l in langs
         ])
-        p = para(space_after=4)
-        run(p, lang_text, size=10, color=GREY_RGB)
+        langp = p(sa=4)
+        r(langp, lang_text, size=9.5, color=GREY)
 
     buf = io.BytesIO()
     doc.save(buf)
