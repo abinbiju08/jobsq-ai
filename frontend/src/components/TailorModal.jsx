@@ -8,6 +8,7 @@ export default function TailorModal({ job, user, onClose }) {
   const [error, setError]       = useState('')
   const [resumeInfo, setResumeInfo] = useState(null)
   const [uploadFile, setUploadFile] = useState(null)
+  const [showPreview, setShowPreview] = useState(false)
 
   useEffect(() => {
     const check = async () => {
@@ -307,6 +308,23 @@ export default function TailorModal({ job, user, onClose }) {
                     </div>
                   ))}
                 </div>
+
+                {/* Preview toggle */}
+                <button onClick={() => setShowPreview(p => !p)} style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:'.4rem',padding:'.55rem',background:'rgba(124,111,247,0.1)',border:'0.5px solid rgba(124,111,247,0.3)',borderRadius:'10px',color:'#a89ef7',fontSize:'13px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',marginBottom:'.5rem'}}>
+                  <i className={`ti ${showPreview ? 'ti-eye-off' : 'ti-eye'}`} style={{fontSize:'14px'}}/>
+                  {showPreview ? 'Hide preview' : 'Preview resume'}
+                </button>
+
+                {/* PDF iframe preview */}
+                {showPreview && (
+                  <div style={{marginBottom:'.75rem',borderRadius:'10px',overflow:'hidden',border:'0.5px solid rgba(124,111,247,0.2)',background:'#fff'}}>
+                    <iframe
+                      src={result.downloadUrl}
+                      title="Tailored Resume Preview"
+                      style={{width:'100%',height:'420px',border:'none',display:'block'}}
+                    />
+                  </div>
+                )}
 
                 {/* Download buttons */}
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.5rem',marginBottom:'.5rem'}}>
