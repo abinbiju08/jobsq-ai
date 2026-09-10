@@ -114,28 +114,32 @@ export default function TailorModal({ job, user, onClose }) {
   const downloadDOCX = async () => {
     try {
       setResult(r => ({ ...r, docxLoading: true }))
-      const form = new FormData()
-      // Re-upload the original file for DOCX (use uploadFile if present, else fetch from storage)
-      if (uploadFile) {
-        form.append('resume_file', uploadFile)
-      } else {
-        // Fetch resume bytes from storage via backend
+      // Use tailor-saved with output_format=docx — same AI call, no re-upload needed
+      let resumeText = ''
+      try {
         const rtRes = await fetch(`${API}/builder/resume-text/${user.id}`)
         const rtData = await rtRes.json()
-        const blob = new Blob([rtData.text || ''], { type: 'application/pdf' })
-        form.append('resume_file', blob, 'resume.pdf')
-      }
-      form.append('job_title', job.title)
-      form.append('job_description', job.description || job.title)
-      form.append('company', job.company || 'Company')
-      form.append('user_id', user.id)
-      const res = await fetch(`${API}/builder/tailor-docx`, { method: 'POST', body: form })
+        resumeText = rtData.text || ''
+      } catch {}
+
+      const res = await fetch(`${API}/builder/tailor-saved`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: user.id,
+          job_title: job.title,
+          job_description: job.description || job.title,
+          company: job.company || 'Company',
+          resume_text: resumeText,
+          output_format: 'docx'
+        })
+      })
       if (!res.ok) throw new Error('DOCX generation failed')
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = result.fileName.replace('.pdf', '.docx')
+      a.download = `tailored_${job.title.replace(/\s+/g,'_')}.docx`
       a.click()
     } catch(e) {
       alert('DOCX download failed: ' + e.message)
