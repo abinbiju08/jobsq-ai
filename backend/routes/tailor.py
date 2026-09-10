@@ -194,13 +194,13 @@ JOB DESCRIPTION:
 {job_description[:1500]}
 
 STRICT RULES:
-1. LINKEDIN: Search for linkedin.com/in/ anywhere in resume text or EXTRACTED_LINKS section. Copy the FULL URL exactly.
-2. GITHUB: Search for github.com/ anywhere in resume text or EXTRACTED_LINKS section. Copy the FULL URL exactly.
+1. LINKEDIN: Search for linkedin.com/in/ anywhere in resume text or EXTRACTED_LINKS section. Copy the FULL URL exactly. Never leave empty if found.
+2. GITHUB: Search for github.com/ anywhere in resume text or EXTRACTED_LINKS section. Copy the FULL URL exactly. Never leave empty if found.
 3. SKILLS: Start with ALL skills from the candidate's resume. Then REMOVE skills irrelevant to this job. Then ADD relevant tech skills from JD that are missing. Keep only technical skills (frameworks, languages, tools, databases). No soft skills, no generic words.
 4. EXPERIENCE: Keep ALL jobs. Keep ALL bullet points. Only rephrase bullets where it naturally adds JD keywords.
-5. PROJECTS: Extract ALL projects. Keep them all.
-6. EDUCATION: Copy exactly as in resume.
-7. CERTIFICATIONS: Copy exactly as in resume.
+5. PROJECTS: Look for any section called Projects, Personal Projects, Academic Projects, Portfolio, or Work. Also look for any named apps, tools, websites, or systems the candidate built — even if mentioned inside experience bullets (e.g. "Built a dashboard using React" = a project). Extract every one with name, tech stack, and description. If truly none exist, return [].
+6. EDUCATION: Copy exactly as in resume. Include degree, institution, year, grade/CGPA.
+7. CERTIFICATIONS: Copy ALL certifications exactly as in resume.
 8. LANGUAGES: Copy exactly as in resume.
 9. SUMMARY: Write 2-3 sentences tailored specifically for "{job_title}".
 10. interview_keywords: The 6 most critical TECHNICAL terms from the JD (real tool/framework/language names only, no generic words).
@@ -272,20 +272,21 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
 
     # ── Styles ──────────────────────────────────────────────
     name_s = ParagraphStyle('name',
-        fontSize=20, fontName='Helvetica-Bold',
-        textColor=DARK, spaceAfter=4, alignment=TA_CENTER)
+        fontSize=18, fontName='Helvetica-Bold',
+        textColor=DARK, spaceAfter=5, alignment=TA_CENTER,
+        leading=22)
 
     contact_s = ParagraphStyle('contact',
         fontSize=9, fontName='Helvetica',
-        textColor=GREY, spaceAfter=2, alignment=TA_CENTER, leading=13)
+        textColor=GREY, spaceAfter=3, alignment=TA_CENTER, leading=14)
 
     link_s = ParagraphStyle('link',
         fontSize=9, fontName='Helvetica',
-        textColor=PURPLE, spaceAfter=8, alignment=TA_CENTER, leading=13)
+        textColor=PURPLE, spaceAfter=5, alignment=TA_CENTER, leading=14)
 
     sec_title_s = ParagraphStyle('sec',
         fontSize=10, fontName='Helvetica-Bold',
-        textColor=DARK, spaceBefore=10, spaceAfter=0,
+        textColor=DARK, spaceBefore=12, spaceAfter=1,
         leading=14)
 
     body_s = ParagraphStyle('body',
@@ -303,8 +304,8 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
         textColor=DARK, spaceAfter=1, leading=13)
 
     jobsub_s = ParagraphStyle('jobsub',
-        fontSize=9, fontName='Helvetica',
-        textColor=LGREY, spaceAfter=3, leading=12)
+        fontSize=9, fontName='Helvetica-Oblique',
+        textColor=PURPLE, spaceAfter=4, leading=12)
 
     projname_s = ParagraphStyle('projname',
         fontSize=10, fontName='Helvetica-Bold',
@@ -352,7 +353,8 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
     if links_parts:
         story.append(Paragraph(' | '.join(links_parts), link_s))
 
-    hr(thick=1.5, before=2, after=6)
+    story.append(Spacer(1, 4))
+    hr(thick=1.5, before=0, after=8)
 
     # ── SUMMARY ─────────────────────────────────────────────
     summary = clean(tailored.get('summary', ''))
@@ -383,8 +385,9 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
             ('TOPPADDING',    (0, 0), (-1, -1), 2),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
         ]))
+        story.append(Spacer(1, 3))
         story.append(t)
-        story.append(Spacer(1, 4))
+        story.append(Spacer(1, 6))
 
     # ── EXPERIENCE ──────────────────────────────────────────
     experience = tailored.get('experience', [])
@@ -579,13 +582,13 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
         tbl_pr.append(tbl_borders)
 
     # ── NAME ────────────────────────────────────────────────
-    p = para(align=WD_ALIGN_PARAGRAPH.CENTER, space_after=3)
-    run(p, tailored.get('name', ''), bold=True, size=20, color=DARK_RGB)
+    p = para(align=WD_ALIGN_PARAGRAPH.CENTER, space_after=5)
+    run(p, tailored.get('name', ''), bold=True, size=18, color=DARK_RGB)
 
     # ── CONTACT ─────────────────────────────────────────────
     contact = clean_contact(clean(tailored.get('contact', '')))
     if contact:
-        p = para(align=WD_ALIGN_PARAGRAPH.CENTER, space_after=2)
+        p = para(align=WD_ALIGN_PARAGRAPH.CENTER, space_after=3)
         run(p, contact, size=9, color=GREY_RGB)
 
     # ── LINKEDIN | GITHUB ───────────────────────────────────
@@ -597,7 +600,7 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
     if github:
         links_parts.append(f'GitHub: {github}')
     if links_parts:
-        p = para(align=WD_ALIGN_PARAGRAPH.CENTER, space_after=6)
+        p = para(align=WD_ALIGN_PARAGRAPH.CENTER, space_after=8)
         run(p, ' | '.join(links_parts), size=9, color=PURPLE_RGB)
 
     # ── SUMMARY ─────────────────────────────────────────────
@@ -649,8 +652,8 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
                 p = para(space_before=4, space_after=1)
                 run(p, title, bold=True, size=10, color=DARK_RGB)
             if sub:
-                p = para(space_after=2)
-                run(p, sub, size=9, color=LGREY_RGB)
+                p = para(space_after=3)
+                run(p, sub, size=9, color=PURPLE_RGB, italic=True)
             for b in bullets:
                 add_bullet(b)
 
