@@ -110,6 +110,39 @@ export default function TailorModal({ job, user, onClose }) {
     a.click()
   }
 
+  const downloadDOCX = async () => {
+    try {
+      setResult(r => ({ ...r, docxLoading: true }))
+      const form = new FormData()
+      // Re-upload the original file for DOCX (use uploadFile if present, else fetch from storage)
+      if (uploadFile) {
+        form.append('resume_file', uploadFile)
+      } else {
+        // Fetch resume bytes from storage via backend
+        const rtRes = await fetch(`${API}/builder/resume-text/${user.id}`)
+        const rtData = await rtRes.json()
+        const blob = new Blob([rtData.text || ''], { type: 'application/pdf' })
+        form.append('resume_file', blob, 'resume.pdf')
+      }
+      form.append('job_title', job.title)
+      form.append('job_description', job.description || job.title)
+      form.append('company', job.company || 'Company')
+      form.append('user_id', user.id)
+      const res = await fetch(`${API}/builder/tailor-docx`, { method: 'POST', body: form })
+      if (!res.ok) throw new Error('DOCX generation failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = result.fileName.replace('.pdf', '.docx')
+      a.click()
+    } catch(e) {
+      alert('DOCX download failed: ' + e.message)
+    } finally {
+      setResult(r => ({ ...r, docxLoading: false }))
+    }
+  }
+
   return (
     <>
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
@@ -275,13 +308,21 @@ export default function TailorModal({ job, user, onClose }) {
                   ))}
                 </div>
 
-                {/* Download */}
-                <button onClick={downloadPDF} style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:'.5rem',padding:'.65rem',background:'linear-gradient(135deg,#00e5a0,#00c484)',border:'none',borderRadius:'10px',color:'#060d0a',fontSize:'13px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',marginBottom:'.5rem'}}>
-                  <i className="ti ti-download" style={{fontSize:'15px'}}/>
-                  Download tailored resume (PDF)
-                </button>
+                {/* Download buttons */}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.5rem',marginBottom:'.5rem'}}>
+                  <button onClick={downloadPDF} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'.4rem',padding:'.6rem',background:'linear-gradient(135deg,#00e5a0,#00c484)',border:'none',borderRadius:'10px',color:'#060d0a',fontSize:'13px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+                    <i className="ti ti-file-type-pdf" style={{fontSize:'15px'}}/>
+                    Download PDF
+                  </button>
+                  <button onClick={downloadDOCX} disabled={result.docxLoading} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'.4rem',padding:'.6rem',background:'linear-gradient(135deg,#2563eb,#1d4ed8)',border:'none',borderRadius:'10px',color:'white',fontSize:'13px',fontWeight:700,cursor:result.docxLoading?'wait':'pointer',fontFamily:'Inter,sans-serif',opacity:result.docxLoading?0.7:1}}>
+                    {result.docxLoading
+                      ? <><i className="ti ti-loader" style={{fontSize:'14px',animation:'spin .8s linear infinite'}}/> Generating...</>
+                      : <><i className="ti ti-file-type-doc" style={{fontSize:'15px'}}/> Download Word</>
+                    }
+                  </button>
+                </div>
                 <div style={{fontSize:'11px',color:'var(--text3,#4a5168)',textAlign:'center'}}>
-                  Your original resume is unchanged · This is a new tailored version
+                  Your original resume is unchanged · This is a tailored version
                 </div>
               </div>
             )}

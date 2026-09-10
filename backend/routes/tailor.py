@@ -419,14 +419,6 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
         if lang_text:
             story.append(Paragraph(lang_text, body_s))
 
-    # ── Declaration ─────────────────────────
-    declaration = clean(tailored.get('declaration', ''))
-    if declaration:
-        section("DECLARATION")
-        story.append(Paragraph(declaration, body_s))
-        story.append(Spacer(1, 10))
-        story.append(Paragraph(f'{name}', body_s))
-
     doc.build(story)
     return buffer.getvalue()
 
@@ -507,7 +499,6 @@ Return this exact JSON structure:
   ],
   "certifications": ["Cert 1", "Cert 2"],
   "languages": ["English", "etc"],
-  "declaration": "I hereby declare that the above information is true and correct.",
   "keywords_added": ["kw1", "kw2"],
   "interview_keywords": ["top tech/skill keyword from JD the candidate must mention in interview", "keyword2", "keyword3", "keyword4", "keyword5"]
 }}"""
@@ -868,6 +859,9 @@ async def tailor_resume_docx(
         if langs:
             add_section('LANGUAGES')
             doc.add_paragraph(' | '.join([clean(l) if isinstance(l, str) else clean(l.get('language', str(l))) for l in langs]))
+        # No declaration section
+
+        # Declaration intentionally omitted
 
         buf = io.BytesIO()
         doc.save(buf)
@@ -875,6 +869,7 @@ async def tailor_resume_docx(
         filename = f"tailored_{job_title.replace(' ', '_')}.docx"
 
         tailored_score = min(97, original_score + len(keywords_added) * 2)
+        interview_kws = tailored.get('interview_keywords', list(missing)[:8])
 
         return StreamingResponse(
             buf,
@@ -882,9 +877,10 @@ async def tailor_resume_docx(
             headers={
                 "Content-Disposition": f"attachment; filename={filename}",
                 "x-keywords-added": json.dumps(keywords_added),
+                "x-interview-keywords": json.dumps(interview_kws[:8]),
                 "x-original-score": str(original_score),
                 "x-tailored-score": str(tailored_score),
-                "Access-Control-Expose-Headers": "x-keywords-added,x-original-score,x-tailored-score"
+                "Access-Control-Expose-Headers": "x-keywords-added,x-interview-keywords,x-original-score,x-tailored-score"
             }
         )
     except HTTPException:
