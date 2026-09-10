@@ -25,29 +25,24 @@ export default function TailorModal({ job, user, onClose }) {
     setStep('loading')
     try {
       let response
-      if (resumeInfo) {
-        // Fetch resume text first
+
+      if (uploadFile) {
+        // User picked a file — always use upload endpoint directly
+        const form = new FormData()
+        form.append('resume_file', uploadFile)
+        form.append('job_title', job.title)
+        form.append('job_description', job.description || job.title)
+        form.append('company', job.company || 'Company')
+        form.append('user_id', user.id)
+        response = await fetch(`${API}/builder/tailor`, { method: 'POST', body: form })
+      } else if (resumeInfo) {
+        // No file picked — use the saved resume from storage
         let resumeText = ''
         try {
           const rtRes = await fetch(`${API}/builder/resume-text/${user.id}`)
           const rtData = await rtRes.json()
           resumeText = rtData.text || ''
         } catch {}
-
-        const form = new FormData()
-        if (uploadFile) {
-          form.append('resume_file', uploadFile)
-        } else if (resumeText) {
-          // Convert text to blob so /tailor endpoint can read it
-          const blob = new Blob([resumeText], { type: 'application/pdf' })
-          form.append('resume_file', blob, 'resume.pdf')
-        }
-        form.append('job_title', job.title)
-        form.append('job_description', job.description || job.title)
-        form.append('company', job.company || 'Company')
-        form.append('user_id', user.id)
-
-        // Use tailor-saved (JSON) which reads from storage directly
         response = await fetch(`${API}/builder/tailor-saved`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -59,16 +54,8 @@ export default function TailorModal({ job, user, onClose }) {
             resume_text: resumeText
           })
         })
-      } else if (uploadFile) {
-        const form = new FormData()
-        form.append('resume_file', uploadFile)
-        form.append('job_title', job.title)
-        form.append('job_description', job.description || job.title)
-        form.append('company', job.company || 'Company')
-        form.append('user_id', user.id)
-        response = await fetch(`${API}/builder/tailor`, { method: 'POST', body: form })
       } else {
-        setError('No resume found. Upload your resume below or save it in Profile.')
+        setError('Please upload your resume to continue.')
         setStep('error')
         return
       }
@@ -186,30 +173,49 @@ export default function TailorModal({ job, user, onClose }) {
             {/* CHECK step */}
             {step === 'check' && (
               <div style={{animation:'fadeIn .2s ease'}}>
-                {resumeInfo ? (
-                  <div style={{background:'rgba(0,229,160,0.06)',border:'0.5px solid rgba(0,229,160,0.2)',borderRadius:'10px',padding:'.85rem',marginBottom:'1rem'}}>
-                    <div style={{display:'flex',alignItems:'center',gap:'.5rem'}}>
-                      <i className="ti ti-circle-check" style={{fontSize:'18px',color:'#00e5a0'}}/>
-                      <div>
-                        <div style={{fontSize:'13px',fontWeight:600,color:'var(--text,#eef0ff)'}}>Resume ready</div>
-                        <div style={{fontSize:'11px',color:'var(--text2,#8b93b0)'}}>{resumeInfo.file_name} · {resumeInfo.file_size ? Math.round(resumeInfo.file_size/1024)+'KB' : ''}</div>
+                {/* Resume source — always show upload option */}
+                <div style={{background:'rgba(255,255,255,0.03)',border:'0.5px solid var(--border,rgba(255,255,255,0.08))',borderRadius:'10px',padding:'.85rem',marginBottom:'1rem'}}>
+                  
+                  {/* Saved resume row */}
+                  {resumeInfo && !uploadFile && (
+                    <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.65rem'}}>
+                      <i className="ti ti-circle-check" style={{fontSize:'17px',color:'#00e5a0',flexShrink:0}}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:'12px',fontWeight:600,color:'var(--text,#eef0ff)'}}>Using saved resume</div>
+                        <div style={{fontSize:'11px',color:'var(--text2,#8b93b0)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{resumeInfo.file_name} · {resumeInfo.file_size ? Math.round(resumeInfo.file_size/1024)+'KB' : ''}</div>
                       </div>
                     </div>
-                  </div>
-                ) : (
-                  <div style={{background:'rgba(245,166,35,0.06)',border:'0.5px solid rgba(245,166,35,0.2)',borderRadius:'10px',padding:'.85rem',marginBottom:'1rem'}}>
-                    <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.5rem'}}>
-                      <i className="ti ti-alert-circle" style={{fontSize:'16px',color:'#f5a623'}}/>
-                      <div style={{fontSize:'13px',fontWeight:600,color:'var(--text,#eef0ff)'}}>No saved resume</div>
+                  )}
+
+                  {/* Uploaded file row */}
+                  {uploadFile && (
+                    <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.65rem'}}>
+                      <i className="ti ti-file-type-pdf" style={{fontSize:'17px',color:'#7c6ff7',flexShrink:0}}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:'12px',fontWeight:600,color:'var(--text,#eef0ff)'}}>Resume selected</div>
+                        <div style={{fontSize:'11px',color:'var(--text2,#8b93b0)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{uploadFile.name} · {Math.round(uploadFile.size/1024)}KB</div>
+                      </div>
+                      <button onClick={() => setUploadFile(null)} style={{background:'none',border:'none',color:'var(--text3,#4a5168)',cursor:'pointer',padding:'2px',flexShrink:0}}>
+                        <i className="ti ti-x" style={{fontSize:'14px'}}/>
+                      </button>
                     </div>
-                    <div style={{fontSize:'11px',color:'var(--text2,#8b93b0)',marginBottom:'.65rem'}}>Upload your resume below or save it in Profile for future use.</div>
-                    <label style={{display:'flex',alignItems:'center',gap:'.4rem',padding:'.4rem .75rem',background:'rgba(255,255,255,0.04)',border:'0.5px solid var(--border,rgba(255,255,255,0.08))',borderRadius:'8px',cursor:'pointer',fontSize:'12px',color:'var(--text2,#8b93b0)',width:'fit-content'}}>
-                      <i className="ti ti-upload" style={{fontSize:'13px'}}/>
-                      {uploadFile ? uploadFile.name : 'Choose PDF'}
-                      <input type="file" accept=".pdf" onChange={e => setUploadFile(e.target.files[0])} style={{display:'none'}}/>
-                    </label>
-                  </div>
-                )}
+                  )}
+
+                  {/* No saved resume warning */}
+                  {!resumeInfo && !uploadFile && (
+                    <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.65rem'}}>
+                      <i className="ti ti-alert-circle" style={{fontSize:'17px',color:'#f5a623',flexShrink:0}}/>
+                      <div style={{fontSize:'12px',color:'var(--text2,#8b93b0)'}}>No saved resume — upload one below</div>
+                    </div>
+                  )}
+
+                  {/* Upload button — always visible */}
+                  <label style={{display:'flex',alignItems:'center',gap:'.4rem',padding:'.4rem .75rem',background:'rgba(124,111,247,0.08)',border:'0.5px solid rgba(124,111,247,0.25)',borderRadius:'8px',cursor:'pointer',fontSize:'12px',color:'#a89ef7',width:'fit-content'}}>
+                    <i className="ti ti-upload" style={{fontSize:'13px'}}/>
+                    {uploadFile ? 'Change PDF' : resumeInfo ? 'Upload different resume' : 'Choose PDF'}
+                    <input type="file" accept=".pdf" onChange={e => setUploadFile(e.target.files[0])} style={{display:'none'}}/>
+                  </label>
+                </div>
 
                 <div style={{fontSize:'12px',color:'var(--text2,#8b93b0)',marginBottom:'1rem',lineHeight:1.6}}>
                   AI will compare your resume with this job description, rewrite the summary, align skills, and extract the key interview keywords for this role.
