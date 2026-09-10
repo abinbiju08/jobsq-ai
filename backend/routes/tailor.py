@@ -252,7 +252,7 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
     job_title_s = ParagraphStyle('jt', fontSize=10, fontName='Helvetica-Bold',
                     textColor=colors.HexColor('#1a1a2e'), spaceAfter=1)
     job_sub_s = ParagraphStyle('js', fontSize=9, fontName='Helvetica',
-                    textColor=colors.HexColor('#666666'), spaceAfter=3)
+                    textColor=colors.HexColor('#555555'), spaceAfter=3)
     proj_s    = ParagraphStyle('pr', fontSize=10, fontName='Helvetica-Bold',
                     textColor=colors.HexColor('#1a1a2e'), spaceAfter=1)
 
@@ -280,8 +280,6 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
     if links_parts:
         story.append(Paragraph(' | '.join(links_parts), link_s))
 
-    # Job tag
-    story.append(Paragraph(f"Tailored for: {clean(job_title)} @ {clean(company)}", tag_s))
     story.append(HRFlowable(width="100%", thickness=1.2,
                             color=colors.HexColor('#7c6ff7'), spaceAfter=6))
 
@@ -295,24 +293,24 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
     skills = filter_skills(tailored.get('skills', []))
     if skills:
         section("TECHNICAL SKILLS")
-        # 3-column table
         cols = 3
         rows = [skills[i:i+cols] for i in range(0, len(skills), cols)]
-        # Pad last row
         while len(rows[-1]) < cols:
             rows[-1].append('')
-        skill_style = ParagraphStyle('sk', fontSize=9, fontName='Helvetica',
+        skill_style = ParagraphStyle('sk', fontSize=9.5, fontName='Helvetica',
             textColor=colors.HexColor('#333333'))
-        table_data = [[Paragraph(f'• {clean(c)}', skill_style) for c in row] for row in rows]
         col_w = (A4[0] - 36*mm) / cols
+        table_data = [[Paragraph(f'• {clean(c)}' if c else '', skill_style) for c in row] for row in rows]
         t = Table(table_data, colWidths=[col_w]*cols)
         t.setStyle(TableStyle([
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('LEFTPADDING', (0,0), (-1,-1), 2),
-            ('RIGHTPADDING', (0,0), (-1,-1), 2),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+            ('LEFTPADDING', (0,0), (-1,-1), 4),
+            ('RIGHTPADDING', (0,0), (-1,-1), 4),
+            ('TOPPADDING', (0,0), (-1,-1), 3),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
         ]))
         story.append(t)
+        story.append(Spacer(1, 4))
 
     # ── Experience ──────────────────────────
     experience = tailored.get('experience', [])
