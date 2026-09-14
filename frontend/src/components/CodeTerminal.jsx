@@ -76,6 +76,9 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
   const [scores, setScores]       = useState({})
   const [activeTab, setActiveTab] = useState('problem')  // problem | output | hints
   const [xpPopup, setXpPopup]     = useState(null)
+  const [leaderboard, setLeaderboard] = useState([])
+  const [lbLang, setLbLang]       = useState('global')
+  const [lbLoading, setLbLoading] = useState(false)
   const [solved, setSolved]       = useState(false)
   const [prevXP, setPrevXP]       = useState(0)
   const [animXP, setAnimXP]       = useState(false)
@@ -115,6 +118,19 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
     } finally {
       setLoadingProb(false)
     }
+  }
+
+  async function fetchLeaderboard(language) {
+    setLbLoading(true)
+    try {
+      const url = language === 'global'
+        ? `${API}/terminal/global-leaderboard`
+        : `${API}/terminal/leaderboard/${language}`
+      const res  = await fetch(url)
+      const data = await res.json()
+      if (data.success) setLeaderboard(data.leaderboard)
+    } catch {}
+    setLbLoading(false)
   }
 
   function extractErrorLine(stderr, language) {
@@ -332,9 +348,13 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
 
               {/* Tabs */}
               <div style={{ display: 'flex', gap: '.25rem', padding: '0 .75rem' }}>
-                {['problem', 'hints'].map(t => (
-                  <button key={t} className={`ct-tab ${activeTab === t ? 'active' : 'inactive'}`} onClick={() => setActiveTab(t)}>
-                    {t === 'problem' ? '📋 Problem' : '💡 Hints'}
+                {['problem', 'hints', 'leaderboard'].map(t => (
+                  <button key={t} className={`ct-tab ${activeTab === t ? 'active' : 'inactive'}`}
+                    onClick={() => {
+                      setActiveTab(t)
+                      if (t === 'leaderboard') fetchLeaderboard(lbLang)
+                    }}>
+                    {t === 'problem' ? '📋 Problem' : t === 'hints' ? '💡 Hints' : '🏆 Leaderboard'}
                   </button>
                 ))}
               </div>
@@ -373,6 +393,78 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
                         ))
                       : <div style={{ color: '#4a5168', fontSize: '12px' }}>No hints available for this problem.</div>
                     }
+                  </div>
+                )}
+
+                {activeTab === 'leaderboard' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.6rem' }}>
+                    {/* Language filter */}
+                    <div style={{ display: 'flex', gap: '.3rem', flexWrap: 'wrap', marginBottom: '.25rem' }}>
+                      {[
+                        { id: 'global', label: 'All' },
+                        { id: 'python', label: 'Python' },
+                        { id: 'javascript', label: 'JS' },
+                        { id: 'java', label: 'Java' },
+                        { id: 'c++', label: 'C++' },
+                        { id: 'sql', label: 'SQL' },
+                      ].map(l => (
+                        <button key={l.id}
+                          onClick={() => { setLbLang(l.id); fetchLeaderboard(l.id) }}
+                          style={{ padding: '2px 10px', borderRadius: '20px', border: `0.5px solid ${lbLang === l.id ? 'rgba(124,111,247,0.4)' : 'rgba(255,255,255,0.08)'}`, background: lbLang === l.id ? 'rgba(124,111,247,0.12)' : 'transparent', color: lbLang === l.id ? '#a89ef7' : '#4a5168', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter,sans-serif' }}>
+                          {l.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {lbLoading ? (
+                      <div style={{ textAlign: 'center', padding: '1.5rem', color: '#4a5168' }}>
+                        <i className="ti ti-loader" style={{ fontSize: '20px', animation: 'spin .8s linear infinite', display: 'block', marginBottom: '.4rem', color: '#7c6ff7' }}/>
+                        Loading...
+                      </div>
+                    ) : leaderboard.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '1.5rem', color: '#4a5168', fontSize: '12px' }}>
+                        No coders yet — solve a problem to appear here!
+                      </div>
+                    ) : (
+                      <>
+                        {/* Table header */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 1fr 52px', gap: '0', padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', fontSize: '10px', fontWeight: 700, color: '#4a5168', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                          <div>#</div>
+                          <div>User</div>
+                          <div>Email</div>
+                          <div style={{ textAlign: 'right' }}>XP</div>
+                        </div>
+
+                        {/* Table rows */}
+                        {leaderboard.map((entry, i) => {
+                          const isMe = entry.user_id === user?.id
+                          const medals = ['🥇','🥈','🥉']
+                          return (
+                            <div key={entry.user_id}
+                              style={{ display: 'grid', gridTemplateColumns: '32px 1fr 1fr 52px', gap: '0', padding: '8px', borderRadius: '8px', background: isMe ? 'rgba(124,111,247,0.08)' : 'rgba(255,255,255,0.02)', border: `0.5px solid ${isMe ? 'rgba(124,111,247,0.25)' : 'rgba(255,255,255,0.05)'}`, alignItems: 'center' }}>
+                              <div style={{ fontSize: entry.rank <= 3 ? '14px' : '11px', fontWeight: 700, color: '#4a5168' }}>
+                                {entry.rank <= 3 ? medals[entry.rank - 1] : `#${entry.rank}`}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '12px', fontWeight: 600, color: isMe ? '#a89ef7' : '#c8cde0' }}>
+                                  {entry.display_name}{isMe ? ' (you)' : ''}
+                                </div>
+                                <div style={{ fontSize: '10px', color: '#4a5168', marginTop: '1px' }}>
+                                  {entry.badge?.icon} {entry.badge?.name} · {entry.problems_solved} solved
+                                </div>
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#4a5168', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {entry.email || '—'}
+                              </div>
+                              <div style={{ textAlign: 'right' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 700, color: isMe ? '#a89ef7' : '#c8cde0' }}>{entry.xp}</span>
+                                <span style={{ fontSize: '10px', color: '#4a5168', marginLeft: '2px' }}>XP</span>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </>
+                    )}
                   </div>
                 )}
               </div>

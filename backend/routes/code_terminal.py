@@ -278,6 +278,40 @@ async def submit_solution(data: SubmitSolutionRequest):
 
         badge = get_badge(new_xp)
 
+        # Auto-save basic public profile if not exists (so user appears on leaderboard)
+        try:
+            existing_prof = supabase.table("public_profiles")                .select("user_id")                .eq("user_id", data.user_id)                .execute()
+            if not existing_prof.data:
+                # Fetch email from auth
+                auth_user = supabase.auth.admin.get_user_by_id(data.user_id)
+                email = auth_user.user.email if auth_user and auth_user.user else ""
+                display_name = email.split("@")[0] if email else f"Coder#{data.user_id[:6]}"
+                supabase.table("public_profiles").insert({
+                    "user_id":      data.user_id,
+                    "display_name": display_name,
+                    "email":        email,
+                    "open_to_work": False,
+                    "avatar_color": "#7c6ff7",
+                    "bio":          "",
+                }).execute()
+        except Exception as ep:
+            print(f"Profile auto-create skipped: {ep}")
+
+        # Auto-save to public_profiles so user appears on leaderboard
+        try:
+            ep = supabase.table("public_profiles").select("user_id").eq("user_id", data.user_id).execute()
+            if not ep.data:
+                au = supabase.auth.admin.get_user_by_id(data.user_id)
+                em = au.user.email if au and au.user else ""
+                dn = em.split("@")[0] if em else f"Coder#{data.user_id[:6]}"
+                supabase.table("public_profiles").insert({
+                    "user_id": data.user_id, "display_name": dn,
+                    "email": em, "open_to_work": False,
+                    "avatar_color": "#7c6ff7", "bio": "",
+                }).execute()
+        except Exception as ep2:
+            print(f"Profile auto-create: {ep2}")
+
         return {
             "success":        True,
             "xp_earned":      xp_earned,
@@ -330,27 +364,145 @@ async def get_skill_scores(user_id: str):
 
 @router.get("/leaderboard/{language}")
 async def get_leaderboard(language: str):
-    """Top 10 users for a given language."""
+    """Top 20 users for a given language with public profile info."""
     try:
         result = supabase.table("skill_scores")\
-            .select("user_id, xp, problems_solved")\
+            .select("user_id, xp, problems_solved, last_solved_at")\
             .eq("language", language.lower())\
             .order("xp", desc=True)\
-            .limit(10)\
+            .limit(20)\
             .execute()
+
+        user_ids = [row["user_id"] for row in (result.data or [])]
+        profiles = {}
+        if user_ids:
+            prof_result = supabase.table("public_profiles")\
+                .select("user_id, display_name, email, open_to_work, avatar_color, bio")\
+                .in_("user_id", user_ids)\
+                .execute()
+            for p in (prof_result.data or []):
+                profiles[p["user_id"]] = p
 
         leaderboard = []
         for i, row in enumerate(result.data or []):
-            badge = get_badge(row.get("xp", 0))
+            badge   = get_badge(row.get("xp", 0))
+            uid     = row["user_id"]
+            profile = profiles.get(uid, {})
             leaderboard.append({
                 "rank":            i + 1,
-                "user_id":         row["user_id"],
+                "user_id":         uid,
+                "display_name":    profile.get("display_name") or f"Coder#{uid[:6]}",
+                "email":           profile.get("email", ""),
+                "open_to_work":    profile.get("open_to_work", False),
+                "avatar_color":    profile.get("avatar_color", "#7c6ff7"),
+                "bio":             profile.get("bio", ""),
                 "xp":              row.get("xp", 0),
                 "problems_solved": row.get("problems_solved", 0),
+                "last_solved_at":  row.get("last_solved_at"),
                 "badge":           badge,
             })
 
         return {"success": True, "leaderboard": leaderboard}
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/global-leaderboard")
+async def get_global_leaderboard():
+    """Top coders across ALL languages combined."""
+    try:
+        result = supabase.table("skill_scores")\
+            .select("user_id, xp, problems_solved, language")\
+            .execute()
+
+        user_totals = {}
+        for row in (result.data or []):
+            uid = row["user_id"]
+            if uid not in user_totals:
+                user_totals[uid] = {"xp": 0, "problems_solved": 0, "languages": []}
+            user_totals[uid]["xp"] += row.get("xp", 0)
+            user_totals[uid]["problems_solved"] += row.get("problems_solved", 0)
+            if row.get("xp", 0) > 0:
+                user_totals[uid]["languages"].append(row["language"])
+
+        sorted_users = sorted(user_totals.items(), key=lambda x: x[1]["xp"], reverse=True)[:20]
+
+        user_ids = [uid for uid, _ in sorted_users]
+        profiles = {}
+        if user_ids:
+            prof_result = supabase.table("public_profiles")\
+                .select("user_id, display_name, email, open_to_work, avatar_color, bio")\
+                .in_("user_id", user_ids)\
+                .execute()
+            for p in (prof_result.data or []):
+                profiles[p["user_id"]] = p
+
+        leaderboard = []
+        for i, (uid, data) in enumerate(sorted_users):
+            badge   = get_badge(data["xp"])
+            profile = profiles.get(uid, {})
+            leaderboard.append({
+                "rank":            i + 1,
+                "user_id":         uid,
+                "display_name":    profile.get("display_name") or f"Coder#{uid[:6]}",
+                "email":           profile.get("email", ""),
+                "open_to_work":    profile.get("open_to_work", False),
+                "avatar_color":    profile.get("avatar_color", "#7c6ff7"),
+                "bio":             profile.get("bio", ""),
+                "xp":              data["xp"],
+                "problems_solved": data["problems_solved"],
+                "languages":       data["languages"],
+                "badge":           badge,
+            })
+
+        return {"success": True, "leaderboard": leaderboard}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class UpdateProfileRequest(BaseModel):
+    user_id:      str
+    display_name: str = ""
+    open_to_work: bool = False
+    avatar_color: str = "#7c6ff7"
+    bio:          str = ""
+    email:        str = ""
+
+@router.post("/update-profile")
+async def update_profile(data: UpdateProfileRequest):
+    """Update public profile for leaderboard visibility."""
+    try:
+        supabase.table("public_profiles").upsert({
+            "user_id":      data.user_id,
+            "display_name": data.display_name,
+            "open_to_work": data.open_to_work,
+            "avatar_color": data.avatar_color,
+            "bio":          data.bio,
+            "email":        data.email,
+            "updated_at":   "now()",
+        }, on_conflict="user_id").execute()
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/my-rank/{user_id}/{language}")
+async def get_my_rank(user_id: str, language: str):
+    """Get a user's rank position for a language."""
+    try:
+        result = supabase.table("skill_scores")\
+            .select("user_id, xp")\
+            .eq("language", language.lower())\
+            .order("xp", desc=True)\
+            .execute()
+
+        rows  = result.data or []
+        rank  = next((i+1 for i, r in enumerate(rows) if r["user_id"] == user_id), None)
+        total = len(rows)
+        pct   = round((1 - (rank or total) / max(total, 1)) * 100) if rank else 0
+
+        return {"success": True, "rank": rank, "total": total, "percentile": pct}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
