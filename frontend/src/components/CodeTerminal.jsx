@@ -1,0 +1,374 @@
+import { useState, useEffect, useRef } from 'react'
+import Editor from '@monaco-editor/react'
+
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+const LANGUAGES = [
+  { id: 'python',     label: 'Python',     icon: '🐍', color: '#3b82f6' },
+  { id: 'javascript', label: 'JavaScript', icon: '🟨', color: '#f59e0b' },
+  { id: 'java',       label: 'Java',       icon: '☕', color: '#ef4444' },
+  { id: 'c++',        label: 'C++',        icon: '⚙️', color: '#8b5cf6' },
+  { id: 'sql',        label: 'SQL',        icon: '🗄️', color: '#10b981' },
+]
+
+const DIFFICULTIES = [
+  { id: 'beginner',     label: 'Beginner',     color: '#10b981', xp: 10 },
+  { id: 'intermediate', label: 'Intermediate', color: '#f59e0b', xp: 25 },
+  { id: 'advanced',     label: 'Advanced',     color: '#ef4444', xp: 50 },
+]
+
+const BADGES = [
+  { min: 0,    name: 'Beginner',   icon: '🌱' },
+  { min: 50,   name: 'Apprentice', icon: '🔧' },
+  { min: 150,  name: 'Developer',  icon: '💻' },
+  { min: 300,  name: 'Engineer',   icon: '⚙️' },
+  { min: 500,  name: 'Senior',     icon: '🚀' },
+  { min: 800,  name: 'Expert',     icon: '🏆' },
+  { min: 1200, name: 'Master',     icon: '👑' },
+]
+
+function getBadge(xp) {
+  let badge = BADGES[0]
+  for (const b of BADGES) { if (xp >= b.min) badge = b }
+  return badge
+}
+
+function XPBar({ xp }) {
+  const badge    = getBadge(xp)
+  const nextIdx  = BADGES.findIndex(b => b.min > xp)
+  const next     = nextIdx !== -1 ? BADGES[nextIdx] : null
+  const prevMin  = badge.min
+  const nextMin  = next?.min || prevMin + 200
+  const pct      = Math.min(100, ((xp - prevMin) / (nextMin - prevMin)) * 100)
+
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '.65rem .85rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.4rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem' }}>
+          <span style={{ fontSize: '1.1rem' }}>{badge.icon}</span>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: '#eef0ff' }}>{badge.name}</span>
+        </div>
+        <span style={{ fontSize: '11px', color: '#7c6ff7', fontWeight: 700 }}>{xp} XP</span>
+      </div>
+      <div style={{ height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: 'linear-gradient(90deg,#7c6ff7,#00e5a0)', borderRadius: '2px', transition: 'width .6s ease' }} />
+      </div>
+      {next && <div style={{ fontSize: '10px', color: '#4a5168', marginTop: '.25rem' }}>{next.min - xp} XP to {next.icon} {next.name}</div>}
+    </div>
+  )
+}
+
+export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
+  const [lang, setLang]           = useState('python')
+  const [difficulty, setDiff]     = useState('beginner')
+  const [problem, setProblem]     = useState(null)
+  const [code, setCode]           = useState('')
+  const [output, setOutput]       = useState(null)
+  const [loadingProb, setLoadingProb] = useState(false)
+  const [running, setRunning]     = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [scores, setScores]       = useState({})
+  const [activeTab, setActiveTab] = useState('problem')  // problem | output | hints
+  const [xpPopup, setXpPopup]     = useState(null)
+  const [solved, setSolved]       = useState(false)
+
+  const currentLang = LANGUAGES.find(l => l.id === lang)
+  const currentDiff = DIFFICULTIES.find(d => d.id === difficulty)
+  const currentScore = scores[lang] || { xp: 0, problems_solved: 0 }
+
+  useEffect(() => { if (user?.id) fetchScores() }, [user?.id])
+
+  async function fetchScores() {
+    try {
+      const res  = await fetch(`${API}/terminal/skill-scores/${user.id}`)
+      const data = await res.json()
+      if (data.success) setScores(data.scores)
+    } catch {}
+  }
+
+  async function generateProblem() {
+    setLoadingProb(true); setProblem(null); setOutput(null); setSolved(false); setActiveTab('problem')
+    try {
+      const res  = await fetch(`${API}/terminal/generate-problem`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role, language: lang, difficulty, user_id: user.id })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setProblem(data.problem)
+        setCode(data.problem.starter_code?.[lang] || '')
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoadingProb(false)
+    }
+  }
+
+  async function runCode() {
+    if (!code.trim()) return
+    setRunning(true); setOutput(null); setActiveTab('output')
+    try {
+      // Run against first test case stdin if available
+      const stdin = problem?.test_cases?.[0]?.input || ''
+      const res   = await fetch(`${API}/terminal/run-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language: lang, code, stdin })
+      })
+      const data = await res.json()
+      setOutput(data)
+    } catch (e) {
+      setOutput({ success: false, stderr: e.message })
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  async function submitSolution() {
+    if (!problem || !output?.passed) return
+    setSubmitting(true)
+    try {
+      const res  = await fetch(`${API}/terminal/submit-solution`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id:    user.id,
+          language:   lang,
+          difficulty,
+          problem_id: problem.id,
+          code,
+          passed:     true,
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSolved(true)
+        setXpPopup({ xp: data.xp_earned, badge: data.badge, message: data.message })
+        await fetchScores()
+        setTimeout(() => setXpPopup(null), 4000)
+      } else if (data.already_solved) {
+        setSolved(true)
+      }
+    } catch {}
+    finally { setSubmitting(false) }
+  }
+
+  const monacoLang = lang === 'c++' ? 'cpp' : lang === 'sql' ? 'sql' : lang
+
+  return (
+    <>
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+      <style>{`
+        @keyframes xpPop{0%{opacity:0;transform:translateY(20px) scale(.8)}20%{opacity:1;transform:translateY(0) scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-20px)}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .ct-tab{padding:.35rem .75rem;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;font-family:Inter,sans-serif;transition:all .15s;}
+        .ct-tab.active{background:rgba(124,111,247,0.15);color:#a89ef7;border:0.5px solid rgba(124,111,247,0.3);}
+        .ct-tab.inactive{background:none;color:#4a5168;}
+        .ct-tab.inactive:hover{color:#8b93b0;}
+      `}</style>
+
+      {/* XP Popup */}
+      {xpPopup && (
+        <div style={{ position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 9999, background: 'linear-gradient(135deg,rgba(124,111,247,0.9),rgba(0,229,160,0.9))', borderRadius: '16px', padding: '1rem 1.5rem', color: '#fff', animation: 'xpPop 4s ease forwards', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+          <div style={{ fontSize: '1.5rem', textAlign: 'center' }}>{xpPopup.badge?.icon} {xpPopup.message}</div>
+          <div style={{ fontSize: '12px', textAlign: 'center', opacity: .8, marginTop: '.25rem' }}>{xpPopup.badge?.name} · {xpPopup.badge?.xp} XP total</div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%' }}>
+
+        {/* ── HEADER ROW ── */}
+        <div style={{ display: 'flex', gap: '.75rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+
+          {/* Language selector */}
+          <div style={{ display: 'flex', gap: '.3rem', background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '.3rem' }}>
+            {LANGUAGES.map(l => (
+              <button key={l.id} onClick={() => { setLang(l.id); setProblem(null); setOutput(null) }}
+                style={{ padding: '.3rem .6rem', borderRadius: '7px', border: 'none', cursor: 'pointer', fontFamily: 'Inter,sans-serif', fontSize: '12px', fontWeight: 600, background: lang === l.id ? `${l.color}22` : 'transparent', color: lang === l.id ? l.color : '#4a5168', transition: 'all .15s' }}>
+                {l.icon} {l.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Difficulty selector */}
+          <div style={{ display: 'flex', gap: '.3rem', background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '.3rem' }}>
+            {DIFFICULTIES.map(d => (
+              <button key={d.id} onClick={() => setDiff(d.id)}
+                style={{ padding: '.3rem .7rem', borderRadius: '7px', border: 'none', cursor: 'pointer', fontFamily: 'Inter,sans-serif', fontSize: '12px', fontWeight: 600, background: difficulty === d.id ? `${d.color}22` : 'transparent', color: difficulty === d.id ? d.color : '#4a5168', transition: 'all .15s' }}>
+                {d.label} <span style={{ fontSize: '10px', opacity: .7 }}>+{d.xp}xp</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Generate button */}
+          <button onClick={generateProblem} disabled={loadingProb}
+            style={{ display: 'flex', alignItems: 'center', gap: '.4rem', padding: '.4rem 1rem', background: 'linear-gradient(135deg,#7c6ff7,#5a52d5)', border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: loadingProb ? 'wait' : 'pointer', fontFamily: 'Inter,sans-serif', opacity: loadingProb ? .7 : 1, marginLeft: 'auto' }}>
+            {loadingProb
+              ? <><i className="ti ti-loader" style={{ fontSize: '14px', animation: 'spin .8s linear infinite' }}/> Generating...</>
+              : <><i className="ti ti-sparkles" style={{ fontSize: '14px' }}/> New Problem</>
+            }
+          </button>
+        </div>
+
+        {/* ── SCORE BAR ── */}
+        <XPBar xp={currentScore.xp} />
+
+        {!problem && !loadingProb && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1rem', gap: '1rem', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '12px' }}>
+            <div style={{ fontSize: '3rem' }}>⌨️</div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#eef0ff' }}>Ready to code?</div>
+            <div style={{ fontSize: '12px', color: '#4a5168', textAlign: 'center' }}>Select a language and difficulty, then click <strong style={{ color: '#7c6ff7' }}>New Problem</strong> to start</div>
+          </div>
+        )}
+
+        {loadingProb && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem', gap: '.75rem' }}>
+            <i className="ti ti-loader" style={{ fontSize: '24px', color: '#7c6ff7', animation: 'spin .8s linear infinite' }}/>
+            <span style={{ fontSize: '14px', color: '#8b93b0' }}>AI is generating a {difficulty} {lang} problem for {role}...</span>
+          </div>
+        )}
+
+        {problem && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', flex: 1, minHeight: 0 }}>
+
+            {/* ── LEFT: PROBLEM PANEL ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '12px', overflow: 'hidden' }}>
+
+              {/* Problem header */}
+              <div style={{ padding: '.75rem 1rem', borderBottom: '0.5px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: `${currentDiff.color}22`, color: currentDiff.color }}>{difficulty}</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#eef0ff' }}>{problem.title}</span>
+                {solved && <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#00e5a0', fontWeight: 700 }}>✅ Solved</span>}
+              </div>
+
+              {/* Tabs */}
+              <div style={{ display: 'flex', gap: '.25rem', padding: '0 .75rem' }}>
+                {['problem', 'hints'].map(t => (
+                  <button key={t} className={`ct-tab ${activeTab === t ? 'active' : 'inactive'}`} onClick={() => setActiveTab(t)}>
+                    {t === 'problem' ? '📋 Problem' : '💡 Hints'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tab content */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '.75rem 1rem', fontSize: '12.5px', color: '#8b93b0', lineHeight: 1.7 }}>
+                {activeTab === 'problem' && (
+                  <div>
+                    <p style={{ color: '#c8cde0', marginBottom: '.75rem', whiteSpace: 'pre-wrap' }}>{problem.description}</p>
+                    {problem.examples?.map((ex, i) => (
+                      <div key={i} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '.6rem .8rem', marginBottom: '.5rem', fontFamily: 'monospace', fontSize: '12px' }}>
+                        <div style={{ color: '#4a5168', fontSize: '10px', marginBottom: '.2rem' }}>EXAMPLE {i + 1}</div>
+                        <div><span style={{ color: '#7c6ff7' }}>Input:</span> <span style={{ color: '#eef0ff' }}>{ex.input}</span></div>
+                        <div><span style={{ color: '#00e5a0' }}>Output:</span> <span style={{ color: '#eef0ff' }}>{ex.output}</span></div>
+                        {ex.explanation && <div style={{ color: '#4a5168', marginTop: '.2rem' }}>{ex.explanation}</div>}
+                      </div>
+                    ))}
+                    {problem.constraints?.length > 0 && (
+                      <div style={{ marginTop: '.75rem' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#4a5168', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.3rem' }}>Constraints</div>
+                        {problem.constraints.map((c, i) => (
+                          <div key={i} style={{ fontSize: '12px', color: '#8b93b0' }}>• {c}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {activeTab === 'hints' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
+                    {problem.hints?.length > 0
+                      ? problem.hints.map((h, i) => (
+                          <div key={i} style={{ background: 'rgba(124,111,247,0.06)', border: '0.5px solid rgba(124,111,247,0.2)', borderRadius: '8px', padding: '.6rem .8rem' }}>
+                            <div style={{ fontSize: '10px', color: '#7c6ff7', fontWeight: 700, marginBottom: '.2rem' }}>HINT {i + 1}</div>
+                            <div style={{ fontSize: '12px', color: '#8b93b0' }}>{h}</div>
+                          </div>
+                        ))
+                      : <div style={{ color: '#4a5168', fontSize: '12px' }}>No hints available for this problem.</div>
+                    }
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── RIGHT: EDITOR + OUTPUT ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
+
+              {/* Editor */}
+              <div style={{ flex: 1, minHeight: 0, border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '12px', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '.5rem .75rem', background: 'rgba(255,255,255,0.03)', borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
+                  <span style={{ fontSize: '12px', color: '#4a5168', fontFamily: 'monospace' }}>{currentLang.icon} {problem.title?.toLowerCase().replace(/ /g, '_')}.{lang === 'javascript' ? 'js' : lang === 'c++' ? 'cpp' : lang}</span>
+                  <div style={{ display: 'flex', gap: '.4rem' }}>
+                    <button onClick={runCode} disabled={running || !code.trim()}
+                      style={{ display: 'flex', alignItems: 'center', gap: '.3rem', padding: '.3rem .7rem', background: 'rgba(0,229,160,0.1)', border: '0.5px solid rgba(0,229,160,0.3)', borderRadius: '7px', color: '#00e5a0', fontSize: '12px', fontWeight: 700, cursor: running ? 'wait' : 'pointer', fontFamily: 'Inter,sans-serif' }}>
+                      {running
+                        ? <><i className="ti ti-loader" style={{ fontSize: '12px', animation: 'spin .8s linear infinite' }}/> Running...</>
+                        : <><i className="ti ti-player-play" style={{ fontSize: '12px' }}/> Run</>
+                      }
+                    </button>
+                    {output?.passed && !solved && (
+                      <button onClick={submitSolution} disabled={submitting}
+                        style={{ display: 'flex', alignItems: 'center', gap: '.3rem', padding: '.3rem .7rem', background: 'linear-gradient(135deg,#7c6ff7,#5a52d5)', border: 'none', borderRadius: '7px', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', fontFamily: 'Inter,sans-serif' }}>
+                        {submitting
+                          ? <><i className="ti ti-loader" style={{ fontSize: '12px', animation: 'spin .8s linear infinite' }}/> Submitting...</>
+                          : <><i className="ti ti-trophy" style={{ fontSize: '12px' }}/> Submit (+{currentDiff.xp}xp)</>
+                        }
+                      </button>
+                    )}
+                    {solved && (
+                      <span style={{ padding: '.3rem .7rem', background: 'rgba(0,229,160,0.1)', border: '0.5px solid rgba(0,229,160,0.2)', borderRadius: '7px', color: '#00e5a0', fontSize: '12px', fontWeight: 700 }}>✅ Submitted</span>
+                    )}
+                  </div>
+                </div>
+                <Editor
+                  height="340px"
+                  language={monacoLang}
+                  value={code}
+                  onChange={v => setCode(v || '')}
+                  theme="vs-dark"
+                  options={{
+                    fontSize: 13,
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false,
+                    lineNumbers: 'on',
+                    wordWrap: 'on',
+                    padding: { top: 12 },
+                    fontFamily: "'Fira Code', 'Cascadia Code', monospace",
+                    fontLigatures: true,
+                  }}
+                />
+              </div>
+
+              {/* Output panel */}
+              <div style={{ background: 'rgba(0,0,0,0.3)', border: `0.5px solid ${output ? (output.passed ? 'rgba(0,229,160,0.3)' : 'rgba(255,107,107,0.3)') : 'rgba(255,255,255,0.06)'}`, borderRadius: '10px', padding: '.65rem .85rem', minHeight: '80px', maxHeight: '140px', overflowY: 'auto', fontFamily: 'monospace', fontSize: '12px' }}>
+                {!output && !running && (
+                  <div style={{ color: '#4a5168', display: 'flex', alignItems: 'center', gap: '.4rem' }}>
+                    <i className="ti ti-terminal" style={{ fontSize: '14px' }}/> Output will appear here after running...
+                  </div>
+                )}
+                {running && (
+                  <div style={{ color: '#8b93b0', display: 'flex', alignItems: 'center', gap: '.4rem' }}>
+                    <i className="ti ti-loader" style={{ fontSize: '14px', animation: 'spin .8s linear infinite' }}/> Executing...
+                  </div>
+                )}
+                {output && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', marginBottom: '.3rem' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: output.passed ? '#00e5a0' : '#ff6b6b' }}>
+                        {output.passed ? '✅ Accepted' : '❌ ' + (output.status || 'Failed')}
+                      </span>
+                      {output.time && <span style={{ fontSize: '10px', color: '#4a5168' }}>· {output.time}s</span>}
+                      {output.memory && <span style={{ fontSize: '10px', color: '#4a5168' }}>· {output.memory}KB</span>}
+                    </div>
+                    {output.stdout && <pre style={{ color: '#c8cde0', margin: 0, whiteSpace: 'pre-wrap' }}>{output.stdout}</pre>}
+                    {output.stderr && <pre style={{ color: '#ff6b6b', margin: 0, whiteSpace: 'pre-wrap' }}>{output.stderr}</pre>}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  )
+}

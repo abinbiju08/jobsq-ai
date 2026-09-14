@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
+import CodeTerminal from '../components/CodeTerminal'
+import SkillBadges from '../components/SkillBadges'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -45,8 +47,8 @@ function RiskMeter({ pct, color }) {
 }
 
 // ── MAIN COMPONENT ────────────────────────────────────────────────
-export default function InterviewPrep() {
-  const [tab, setTab]           = useState('prep')   // prep | intelligence
+export default function InterviewPrep({ user }) {
+  const [tab, setTab]           = useState('prep')   // prep | intelligence | technical
   const [step, setStep]         = useState('setup')  // setup | session | report
   const [role, setRole]         = useState('')
   const [company, setCompany]   = useState('')
@@ -117,26 +119,22 @@ export default function InterviewPrep() {
       alert('Speech recognition requires Chrome. Please use Chrome browser.')
       return
     }
-    // Cancel any ongoing speech
     window.speechSynthesis.cancel()
     setSpeaking(false)
-
-    // Stop existing recognition if any
     try { recRef.current?.stop() } catch(e) {}
 
     const rec = new SR()
     rec.lang = 'en-US'
     rec.interimResults = true
     rec.maxAlternatives = 1
-    rec.continuous = true   // ← KEY: keeps listening until user stops manually
+    rec.continuous = true
 
-    let accumulated = ''   // builds full answer across pauses
+    let accumulated = ''
 
     rec.onstart = () => setListening(true)
 
     rec.onresult = (e) => {
       let interimChunk = ''
-      // Only process new results from resultIndex onward
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const transcript = e.results[i][0].transcript
         if (e.results[i].isFinal) {
@@ -145,7 +143,6 @@ export default function InterviewPrep() {
           interimChunk += transcript
         }
       }
-      // Show accumulated final + current interim chunk live
       setCurrentAnswer((accumulated + interimChunk).trim())
     }
 
@@ -154,18 +151,15 @@ export default function InterviewPrep() {
         alert('Microphone blocked. Click the lock icon in Chrome address bar and allow mic.')
         setListening(false)
       } else if (e.error === 'aborted') {
-        // user manually stopped — normal
         setListening(false)
       } else if (e.error === 'no-speech') {
-        // silence detected — keep going, don't stop
+        // silence detected — keep going
       } else {
         console.warn('Speech error:', e.error)
       }
     }
 
     rec.onend = () => {
-      // If still supposed to be listening (e.g. browser auto-stopped after silence),
-      // restart automatically to keep it continuous
       if (recRef.current === rec && listeningRef.current) {
         try { rec.start() } catch(e) {}
       } else {
@@ -209,7 +203,6 @@ export default function InterviewPrep() {
       else speak(qs[0])
     } catch(err) {
       console.error('Questions error:', err)
-      // Fallback questions based on mode
       const fallback = {
         'HR Round': ['Tell me about yourself.','Why do you want this role?','What is your greatest strength?','Describe a challenge you overcame.','Where do you see yourself in 5 years?'],
         'Technical': [`Explain a technical project you built as a ${role}.`,'What is your approach to debugging?','Describe your experience with version control.','How do you stay updated with new technologies?','What is your greatest technical achievement?'],
@@ -268,8 +261,7 @@ export default function InterviewPrep() {
   const finishSession = async () => {
     setSessionDone(true); setLoading(true); setStep('report')
     try {
-      // Get scores from feedback — use answers length as proxy
-      const scores = answers.map(() => 70) // placeholder, real scores tracked in feedback
+      const scores = answers.map(() => 70)
       const res = await fetch(`${API}/interview/report`, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ role, mode: mode.label, company: company||'General', level, answers, scores })
@@ -343,6 +335,7 @@ export default function InterviewPrep() {
           {[
             {id:'prep',         icon:'ti-microphone',  label:'Mock interview'},
             {id:'intelligence', icon:'ti-brain',        label:'Career intelligence'},
+            {id:'technical',    icon:'ti-code',         label:'Code Terminal'},
           ].map(t=>(
             <button key={t.id} onClick={()=>{setTab(t.id);if(t.id==='prep'){setStep('setup')}}}
               style={{display:'flex',alignItems:'center',gap:'.4rem',padding:'.45rem 1rem',borderRadius:'20px',border:`1px solid ${tab===t.id?'rgba(0,229,160,0.4)':'rgba(255,255,255,0.1)'}`,background:tab===t.id?'rgba(0,229,160,0.1)':'transparent',color:tab===t.id?'#00e5a0':'#8b93b0',fontSize:'13px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
@@ -444,7 +437,6 @@ export default function InterviewPrep() {
             {/* SESSION STEP */}
             {step==='session' && (
               <div className="fade-in">
-                {/* Session header */}
                 <div style={{display:'flex',alignItems:'center',gap:'1rem',padding:'.85rem 1.25rem',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'14px',marginBottom:'1.25rem',flexWrap:'wrap'}}>
                   <div style={{width:'36px',height:'36px',borderRadius:'9px',background:mode?.color+'14',border:`1px solid ${mode?.color}25`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                     <i className={`ti ${mode?.icon}`} style={{fontSize:'18px',color:mode?.color}} aria-hidden="true"/>
@@ -453,7 +445,6 @@ export default function InterviewPrep() {
                     <div style={{fontSize:'13px',fontWeight:700,color:'var(--text)'}}>{mode?.label} — {role}{company?` @ ${company}`:''}</div>
                     <div style={{fontSize:'11px',color:'var(--text2)'}}>{level} · Question {Math.min(currentQ+1,questions.length)} of {questions.length}</div>
                   </div>
-                  {/* Progress */}
                   <div style={{display:'flex',gap:'4px'}}>
                     {questions.map((_,i)=>(
                       <div key={i} style={{width:'24px',height:'4px',borderRadius:'2px',background:i<currentQ?'#00e5a0':i===currentQ?mode?.color:'rgba(255,255,255,0.1)',transition:'background .3s'}}/>
@@ -471,7 +462,6 @@ export default function InterviewPrep() {
                   </div>
                 ) : (
                   <>
-                    {/* Current question */}
                     <div style={{background:'var(--bg3)',border:`1px solid ${mode?.color}30`,borderRadius:'14px',padding:'1.25rem',marginBottom:'1rem'}}>
                       <div style={{display:'flex',alignItems:'flex-start',gap:'.75rem'}}>
                         <div style={{width:'36px',height:'36px',borderRadius:'50%',background:mode?.color+'18',border:`1px solid ${mode?.color}30`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:'12px',fontWeight:800,color:mode?.color}}>AI</div>
@@ -491,7 +481,6 @@ export default function InterviewPrep() {
                       </div>
                     </div>
 
-                    {/* Answer area */}
                     {!feedback && (
                       <div style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'14px',padding:'1.25rem',marginBottom:'1rem'}}>
                         <div style={{fontSize:'12px',color:'var(--text3)',marginBottom:'.65rem',display:'flex',alignItems:'center',gap:'.4rem'}}>
@@ -521,17 +510,14 @@ export default function InterviewPrep() {
                       </div>
                     )}
 
-                    {/* Feedback */}
                     {feedback && (
                       <div className="fade-in" style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'14px',padding:'1.25rem',marginBottom:'1rem'}}>
-                        {/* Score */}
                         <div style={{display:'flex',alignItems:'center',gap:'1rem',marginBottom:'1rem',padding:'.75rem',background:'var(--bg3)',borderRadius:'10px'}}>
                           <div style={{width:'60px',height:'60px',borderRadius:'50%',border:`3px solid ${scoreColor(feedback.score)}`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                             <div style={{fontSize:'18px',fontWeight:900,color:scoreColor(feedback.score)}}>{feedback.score}</div>
                             <div style={{fontSize:'8px',color:'var(--text3)',textTransform:'uppercase'}}>score</div>
                           </div>
                           <div style={{flex:1}}>
-                            {/* STAR breakdown */}
                             <div style={{display:'flex',gap:'.4rem',marginBottom:'.4rem'}}>
                               {[['S','Situation',feedback.star_s],['T','Task',feedback.star_t],['A','Action',feedback.star_a],['R','Result',feedback.star_r]].map(([l,full,ok])=>(
                                 <div key={l} title={full} style={{display:'flex',alignItems:'center',gap:'.2rem',fontSize:'10px',fontWeight:700,padding:'2px 7px',borderRadius:'6px',background:ok?'rgba(0,229,160,0.1)':'rgba(255,77,109,0.08)',color:ok?'#00e5a0':'#ff4d6d',border:`0.5px solid ${ok?'rgba(0,229,160,0.25)':'rgba(255,77,109,0.2)'}`}}>
@@ -589,7 +575,6 @@ export default function InterviewPrep() {
                   <div style={{fontSize:'22px',fontWeight:800,color:'var(--text)',marginBottom:'.35rem'}}>Your performance report</div>
                 </div>
 
-                {/* Overall score */}
                 <div style={{display:'flex',alignItems:'center',gap:'1.5rem',padding:'1.25rem',background:'var(--bg3)',border:`1px solid ${scoreColor(report.overall_score)}30`,borderRadius:'16px',marginBottom:'1rem',flexWrap:'wrap'}}>
                   <div style={{textAlign:'center',flexShrink:0}}>
                     <div style={{width:'80px',height:'80px',borderRadius:'50%',border:`4px solid ${scoreColor(report.overall_score)}`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',margin:'0 auto'}}>
@@ -674,7 +659,6 @@ export default function InterviewPrep() {
                 </div>
               </div>
 
-              {/* Search */}
               <div style={{display:'flex',gap:'.5rem',marginBottom:'1.5rem'}}>
                 <input value={ciRole} onChange={e=>setCiRole(e.target.value)} onKeyDown={e=>e.key==='Enter'&&fetchCareerIntelligence()}
                   placeholder='Enter any job role e.g. Data Scientist, CA, Doctor, Mechanical Engineer...'
@@ -685,7 +669,6 @@ export default function InterviewPrep() {
                 </button>
               </div>
 
-              {/* Quick role buttons */}
               {!ciData && !ciLoading && (
                 <div style={{marginBottom:'1.5rem'}}>
                   <div style={{fontSize:'11px',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.5rem'}}>Popular searches</div>
@@ -714,7 +697,6 @@ export default function InterviewPrep() {
 
               {ciData && !ciLoading && (
                 <div className="fade-in">
-                  {/* ── SECTION 1: AI Replacement Risk ── */}
                   <div style={{background:'var(--bg3)',border:`1px solid ${ciData.risk_color}30`,borderRadius:'16px',padding:'1.25rem',marginBottom:'1rem'}}>
                     <div style={{display:'flex',alignItems:'center',gap:'.4rem',fontSize:'11px',fontWeight:700,color:ciData.risk_color,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'1rem'}}>
                       <i className="ti ti-robot" style={{fontSize:'13px'}} aria-hidden="true"/> AI replacement risk
@@ -750,12 +732,10 @@ export default function InterviewPrep() {
                     )}
                   </div>
 
-                  {/* ── SECTION 2: Future Outlook ── */}
                   <div style={{background:'var(--bg3)',border:'0.5px solid rgba(59,130,246,0.2)',borderRadius:'16px',padding:'1.25rem',marginBottom:'1rem'}}>
                     <div style={{display:'flex',alignItems:'center',gap:'.4rem',fontSize:'11px',fontWeight:700,color:'#3b82f6',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'1rem'}}>
                       <i className="ti ti-rocket" style={{fontSize:'13px'}} aria-hidden="true"/> Future outlook — {ciData.role}
                     </div>
-                    {/* Demand timeline */}
                     <div style={{display:'flex',gap:'.5rem',marginBottom:'1rem'}}>
                       {[['2025',ciData.future_outlook?.demand_2025],['2027',ciData.future_outlook?.demand_2027],['2030',ciData.future_outlook?.demand_2030]].map(([yr,val])=>{
                         const c = val==='High'?'#00e5a0':val==='Medium'?'#f5a623':val==='Low'?'#ff4d6d':'#7c6ff7'
@@ -791,7 +771,6 @@ export default function InterviewPrep() {
                     )}
                   </div>
 
-                  {/* ── SECTION 3: AI Tools to Master ── */}
                   <div style={{background:'var(--bg3)',border:'0.5px solid rgba(245,166,35,0.2)',borderRadius:'16px',padding:'1.25rem',marginBottom:'1rem'}}>
                     <div style={{display:'flex',alignItems:'center',gap:'.4rem',fontSize:'11px',fontWeight:700,color:'#f5a623',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'1rem'}}>
                       <i className="ti ti-tools" style={{fontSize:'13px'}} aria-hidden="true"/> AI tools to master
@@ -826,7 +805,6 @@ export default function InterviewPrep() {
                     </div>
                   </div>
 
-                  {/* Verdict + survival tips */}
                   <div style={{background:'var(--bg3)',border:'0.5px solid rgba(255,255,255,0.07)',borderRadius:'16px',padding:'1.25rem',marginBottom:'1.25rem'}}>
                     <div style={{display:'flex',alignItems:'flex-start',gap:'.5rem',marginBottom:'.85rem',padding:'.75rem',background:'rgba(124,111,247,0.06)',border:'0.5px solid rgba(124,111,247,0.2)',borderRadius:'10px'}}>
                       <i className="ti ti-bulb" style={{fontSize:'16px',color:'#7c6ff7',flexShrink:0,marginTop:'1px'}} aria-hidden="true"/>
@@ -855,6 +833,17 @@ export default function InterviewPrep() {
             </div>
           </div>
         )}
+
+        {/* ══ CODE TERMINAL TAB ═══════════════════════════════════ */}
+        {tab==='technical' && (
+          <div style={{maxWidth:'1100px',margin:'0 auto',padding:'1.5rem 1rem'}}>
+            <div style={{marginBottom:'1rem'}}>
+              <SkillBadges userId={user?.id} compact />
+            </div>
+            <CodeTerminal user={user} role={role || 'Full Stack Developer'} />
+          </div>
+        )}
+
       </div>
     </>
   )
