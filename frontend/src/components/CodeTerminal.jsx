@@ -433,7 +433,7 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
 
               {/* Tabs */}
               <div style={{ display: 'flex', gap: '.25rem', padding: '0 .75rem' }}>
-                {['problem', 'hints', 'leaderboard'].map(t => (
+                {['problem', 'hints'].map(t => (
                   <button key={t} className={`ct-tab ${activeTab === t ? 'active' : 'inactive'}`}
                     onClick={() => {
                       setActiveTab(t)
