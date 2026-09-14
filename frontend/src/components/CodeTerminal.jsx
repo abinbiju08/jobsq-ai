@@ -33,7 +33,7 @@ function getBadge(xp) {
   return badge
 }
 
-function XPBar({ xp }) {
+function XPBar({ xp, animating }) {
   const badge    = getBadge(xp)
   const nextIdx  = BADGES.findIndex(b => b.min > xp)
   const next     = nextIdx !== -1 ? BADGES[nextIdx] : null
@@ -42,18 +42,24 @@ function XPBar({ xp }) {
   const pct      = Math.min(100, ((xp - prevMin) / (nextMin - prevMin)) * 100)
 
   return (
-    <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '.65rem .85rem' }}>
+    <div style={{ background: animating ? 'rgba(0,229,160,0.06)' : 'rgba(255,255,255,0.03)', border: `0.5px solid ${animating ? 'rgba(0,229,160,0.3)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '10px', padding: '.65rem .85rem', transition: 'all .4s ease' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.4rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem' }}>
           <span style={{ fontSize: '1.1rem' }}>{badge.icon}</span>
           <span style={{ fontSize: '12px', fontWeight: 700, color: '#eef0ff' }}>{badge.name}</span>
         </div>
-        <span style={{ fontSize: '11px', color: '#7c6ff7', fontWeight: 700 }}>{xp} XP</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+          {animating && <span style={{ fontSize: '11px', color: '#00e5a0', fontWeight: 700, animation: 'pulse 1s ease infinite' }}>+XP ↑</span>}
+          <span style={{ fontSize: '11px', color: animating ? '#00e5a0' : '#7c6ff7', fontWeight: 700 }}>{xp} XP</span>
+        </div>
       </div>
       <div style={{ height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: 'linear-gradient(90deg,#7c6ff7,#00e5a0)', borderRadius: '2px', transition: 'width .6s ease' }} />
+        <div style={{ height: '100%', width: `${pct}%`, background: animating ? 'linear-gradient(90deg,#00e5a0,#7c6ff7)' : 'linear-gradient(90deg,#7c6ff7,#00e5a0)', borderRadius: '2px', transition: 'width .8s ease' }} />
       </div>
-      {next && <div style={{ fontSize: '10px', color: '#4a5168', marginTop: '.25rem' }}>{next.min - xp} XP to {next.icon} {next.name}</div>}
+      {next
+        ? <div style={{ fontSize: '10px', color: animating ? '#00e5a0' : '#4a5168', marginTop: '.25rem', transition: 'color .4s' }}>{next.min - xp} XP to {next.icon} {next.name}</div>
+        : <div style={{ fontSize: '10px', color: '#fbbf24', marginTop: '.25rem' }}>👑 Max rank achieved!</div>
+      }
     </div>
   )
 }
@@ -71,6 +77,8 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
   const [activeTab, setActiveTab] = useState('problem')  // problem | output | hints
   const [xpPopup, setXpPopup]     = useState(null)
   const [solved, setSolved]       = useState(false)
+  const [prevXP, setPrevXP]       = useState(0)
+  const [animXP, setAnimXP]       = useState(false)
   const [errorLine, setErrorLine] = useState(null)
   const editorRef = useRef(null)
   const monacoRef = useRef(null)
@@ -203,11 +211,18 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
       const data = await res.json()
       if (data.success) {
         setSolved(true)
-        setXpPopup({ xp: data.xp_earned, badge: data.badge, message: data.message })
+        // Save old XP for animation
+        const oldXP = scores[lang]?.xp || 0
+        setPrevXP(oldXP)
+        // Refresh scores first
         await fetchScores()
-        setTimeout(() => setXpPopup(null), 4000)
+        // Then show popup and animate
+        setXpPopup({ xp: data.xp_earned, badge: data.badge, message: data.message, total: data.total_xp })
+        setAnimXP(true)
+        setTimeout(() => { setXpPopup(null); setAnimXP(false) }, 5000)
       } else if (data.already_solved) {
         setSolved(true)
+        alert('Already solved! No duplicate XP.')
       }
     } catch {}
     finally { setSubmitting(false) }
@@ -229,9 +244,23 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
 
       {/* XP Popup */}
       {xpPopup && (
-        <div style={{ position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 9999, background: 'linear-gradient(135deg,rgba(124,111,247,0.9),rgba(0,229,160,0.9))', borderRadius: '16px', padding: '1rem 1.5rem', color: '#fff', animation: 'xpPop 4s ease forwards', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
-          <div style={{ fontSize: '1.5rem', textAlign: 'center' }}>{xpPopup.badge?.icon} {xpPopup.message}</div>
-          <div style={{ fontSize: '12px', textAlign: 'center', opacity: .8, marginTop: '.25rem' }}>{xpPopup.badge?.name} · {xpPopup.badge?.xp} XP total</div>
+        <div style={{ position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 9999, minWidth: '260px', background: 'linear-gradient(135deg,#1a1a2e,#16213e)', border: '1px solid rgba(0,229,160,0.4)', borderRadius: '16px', padding: '1.25rem 1.5rem', color: '#fff', animation: 'xpPop 5s ease forwards', boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', marginBottom: '.75rem' }}>
+            <div style={{ fontSize: '2rem' }}>{xpPopup.badge?.icon}</div>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 800, color: '#00e5a0' }}>🎉 {xpPopup.message}</div>
+              <div style={{ fontSize: '11px', color: '#8b93b0', marginTop: '2px' }}>{xpPopup.badge?.name} rank</div>
+            </div>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '10px', padding: '.6rem .85rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '.35rem' }}>
+              <span style={{ fontSize: '11px', color: '#4a5168' }}>{currentLang?.label} XP</span>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#00e5a0' }}>{xpPopup.total} XP total</span>
+            </div>
+            <div style={{ height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${Math.min(100,(xpPopup.total / 1200) * 100)}%`, background: 'linear-gradient(90deg,#7c6ff7,#00e5a0)', borderRadius: '3px', transition: 'width 1s ease' }}/>
+            </div>
+          </div>
         </div>
       )}
 
@@ -271,7 +300,7 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
         </div>
 
         {/* ── SCORE BAR ── */}
-        <XPBar xp={currentScore.xp} />
+        <XPBar xp={currentScore.xp} key={currentScore.xp} animating={animXP} />
 
         {!problem && !loadingProb && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1rem', gap: '1rem', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '12px' }}>
