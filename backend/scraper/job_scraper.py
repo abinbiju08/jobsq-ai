@@ -534,3 +534,22 @@ def start_scheduler():
     scheduler.start()
     print("✅ Scheduler started — scraping every 15 minutes")
     return scheduler
+
+
+# ── MANUAL TRIGGER ENDPOINT ─────────────────────────────────────────
+from fastapi import APIRouter as _APIRouter
+trigger_router = _APIRouter()
+
+@trigger_router.post("/scrape/trigger")
+async def trigger_scrape():
+    """Manually trigger a scrape cycle — use this to force immediate update."""
+    import asyncio
+    asyncio.create_task(scrape_and_save())
+    return {"success": True, "message": "Scrape started in background"}
+
+@trigger_router.get("/scrape/trigger")
+async def trigger_scrape_get():
+    """GET version — visit in browser to trigger scrape."""
+    import asyncio
+    asyncio.create_task(scrape_and_save())
+    return {"success": True, "message": "Scrape started — check Render logs for progress"}
