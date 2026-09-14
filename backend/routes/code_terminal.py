@@ -41,9 +41,10 @@ class GenerateProblemRequest(BaseModel):
     user_id:    str
 
 class RunCodeRequest(BaseModel):
-    language:   str
-    code:       str
-    stdin:      str = ""
+    language:        str
+    code:            str
+    stdin:           str = ""
+    expected_output: str = ""  # for strict comparison
 
 class SubmitSolutionRequest(BaseModel):
     user_id:    str
@@ -133,46 +134,43 @@ starter_code should have boilerplate for all 5 languages."""
 async def run_code(data: RunCodeRequest):
     """
     AI-simulated code execution using Groq.
-    Accurately simulates stdout, stderr, runtime errors, and logic errors
-    without needing any external execution API or card details.
+    Strictly compares actual stdout against expected output.
+    Wrong output = Wrong Answer, not Accepted.
     """
     try:
-        prompt = f"""You are a {data.language} code interpreter. Execute the following code mentally and return the exact output.
+        prompt = f"""You are a strict {data.language} code interpreter and judge.
 
 LANGUAGE: {data.language}
-STDIN: {data.stdin or "(none)"}
+STDIN:
+{data.stdin or "(none)"}
 
 CODE:
 {data.code}
 
-Rules:
-- Trace through the code step by step
-- Return the EXACT stdout output the code would produce
-- If there is a syntax error, runtime error, or exception — return the error message exactly as the language runtime would show it
-- If the code reads from stdin, use the provided STDIN value
-- Do not explain anything
-- Return ONLY valid JSON, nothing else
+TASK:
+1. Trace through the code exactly, step by step
+2. Determine the EXACT stdout the code would produce given the stdin
+3. If there is a syntax error, runtime error or exception — report it accurately
+4. Be STRICT — if the code has logic errors or produces wrong output, report it honestly
 
-JSON format:
+Return ONLY valid JSON, no markdown:
 {{
-  "stdout": "exact output here or empty string",
-  "stderr": "error message if any or empty string",
-  "status": "Accepted",
-  "passed": true,
+  "stdout": "exact output the code produces, empty string if error",
+  "stderr": "exact error message if any, empty string if no error",
+  "status": "Accepted or Runtime Error or Compilation Error or Wrong Answer",
   "time": "0.05",
   "memory": "9216",
-  "error_type": ""
+  "error_type": "SyntaxError or TypeError or NameError etc, empty if no error"
 }}
 
-status must be one of: "Accepted", "Runtime Error", "Compilation Error", "Time Limit Exceeded", "Wrong Answer"
-passed must be true only if stdout matches expected and no errors occurred
-error_type: "SyntaxError", "TypeError", "NameError", "IndexError", etc. or empty string"""
+Be ACCURATE and HONEST. If the code is incomplete, has bugs, or produces wrong output — say so.
+Never return "Accepted" if the code has errors or produces incorrect output."""
 
         response = groq_client.chat.completions.create(
             model="openai/gpt-oss-120b",
             messages=[
-                {"role": "system", "content": "You are a precise code interpreter. Return only valid JSON. Never add markdown or explanation."},
-                {"role": "user",   "content": prompt}
+                {"role": "system", "content": "You are a strict code execution judge. Return only valid JSON. Never be lenient — report errors and wrong output accurately."},
+                {"role": "user", "content": prompt}
             ],
             temperature=0.0,
             max_tokens=500
@@ -190,22 +188,44 @@ error_type: "SyntaxError", "TypeError", "NameError", "IndexError", etc. or empty
         end   = raw.rfind("}")
         result = json.loads(raw[start:end+1]) if start != -1 else {}
 
+        stdout   = result.get("stdout", "").strip()
+        stderr   = result.get("stderr", "").strip()
+        status   = result.get("status", "Runtime Error")
+        has_err  = bool(stderr) or status not in ("Accepted", "Wrong Answer")
+
+        # Strict output comparison against expected output
+        passed = False
+        if not has_err and stdout:
+            if data.expected_output:
+                # Normalize both outputs for comparison (strip trailing whitespace/newlines)
+                actual   = stdout.strip().replace("\r\n", "\n").replace("\r", "\n")
+                expected = data.expected_output.strip().replace("\r\n", "\n").replace("\r", "\n")
+                passed = (actual == expected)
+                if not passed:
+                    status = "Wrong Answer"
+            else:
+                # No expected output provided — trust AI status but never auto-accept incomplete code
+                passed = (status == "Accepted") and not has_err and len(stdout) > 0
+        elif has_err:
+            passed = False
+            status = result.get("status", "Runtime Error")
+
         return {
-            "success": True,
-            "status":  result.get("status", "Accepted"),
-            "stdout":  result.get("stdout", "").strip(),
-            "stderr":  result.get("stderr", "").strip(),
-            "passed":  result.get("passed", not result.get("stderr")),
-            "time":    result.get("time", "0.05"),
-            "memory":  result.get("memory", "9216"),
+            "success":   True,
+            "status":    status,
+            "stdout":    stdout,
+            "stderr":    stderr,
+            "passed":    passed,
+            "time":      result.get("time", "0.05"),
+            "memory":    result.get("memory", "9216"),
             "simulated": True,
+            "expected":  data.expected_output.strip() if data.expected_output else "",
         }
 
     except Exception as e:
         import traceback
         print(f"RUN CODE ERROR: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @router.post("/submit-solution")
 async def submit_solution(data: SubmitSolutionRequest):

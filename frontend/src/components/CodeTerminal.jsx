@@ -110,12 +110,13 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
     if (!code.trim()) return
     setRunning(true); setOutput(null); setActiveTab('output')
     try {
-      // Run against first test case stdin if available
-      const stdin = problem?.test_cases?.[0]?.input || ''
-      const res   = await fetch(`${API}/terminal/run-code`, {
+      const testCase = problem?.test_cases?.[0] || {}
+      const stdin    = testCase.input || ''
+      const expected = testCase.expected_output || ''
+      const res = await fetch(`${API}/terminal/run-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ language: lang, code, stdin })
+        body: JSON.stringify({ language: lang, code, stdin, expected_output: expected })
       })
       const data = await res.json()
       setOutput(data)
@@ -353,14 +354,25 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
                 )}
                 {output && (
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', marginBottom: '.3rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', marginBottom: '.4rem' }}>
                       <span style={{ fontSize: '11px', fontWeight: 700, color: output.passed ? '#00e5a0' : '#ff6b6b' }}>
-                        {output.passed ? '✅ Accepted' : '❌ ' + (output.status || 'Failed')}
+                        {output.passed ? '✅ Accepted' : '❌ ' + (output.status || 'Wrong Answer')}
                       </span>
                       {output.time && <span style={{ fontSize: '10px', color: '#4a5168' }}>· {output.time}s</span>}
                       {output.memory && <span style={{ fontSize: '10px', color: '#4a5168' }}>· {output.memory}KB</span>}
                     </div>
-                    {output.stdout && <pre style={{ color: '#c8cde0', margin: 0, whiteSpace: 'pre-wrap' }}>{output.stdout}</pre>}
+                    {output.stdout && (
+                      <div style={{ marginBottom: '.3rem' }}>
+                        <div style={{ fontSize: '10px', color: '#4a5168', marginBottom: '2px' }}>YOUR OUTPUT</div>
+                        <pre style={{ color: output.passed ? '#00e5a0' : '#ff6b6b', margin: 0, whiteSpace: 'pre-wrap' }}>{output.stdout}</pre>
+                      </div>
+                    )}
+                    {!output.passed && output.expected && (
+                      <div style={{ marginBottom: '.3rem' }}>
+                        <div style={{ fontSize: '10px', color: '#4a5168', marginBottom: '2px' }}>EXPECTED OUTPUT</div>
+                        <pre style={{ color: '#00e5a0', margin: 0, whiteSpace: 'pre-wrap' }}>{output.expected}</pre>
+                      </div>
+                    )}
                     {output.stderr && <pre style={{ color: '#ff6b6b', margin: 0, whiteSpace: 'pre-wrap' }}>{output.stderr}</pre>}
                   </div>
                 )}
