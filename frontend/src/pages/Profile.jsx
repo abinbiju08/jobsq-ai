@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import FaceRegister from '../components/FaceRegister'
+import SkillBadges from '../components/SkillBadges'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -17,11 +18,8 @@ export default function Profile() {
     const { data: { user } } = await supabase.auth.getUser()
     setUser(user)
     if (user) {
-      // Load face profile
       const { data } = await supabase.from('face_profiles').select('id').eq('user_id', user.id).single()
       setHasFace(!!data)
-
-
     }
     setLoading(false)
   }
@@ -140,6 +138,17 @@ export default function Profile() {
               </div>
             </div>
           </div>
+
+          {/* Coding Skills */}
+          {user && (
+            <div className="prof-card">
+              <div className="sec-title">
+                <i className="ti ti-code" aria-hidden="true"/>
+                Coding skills
+              </div>
+              <SkillBadges userId={user.id} />
+            </div>
+          )}
 
           {/* Face ID */}
           <div className="prof-card">

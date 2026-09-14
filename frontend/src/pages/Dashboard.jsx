@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
+import SkillBadges from '../components/SkillBadges'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-// Parse any date format to JS Date
 function parseDate(str) {
   if (!str) return null
   try {
-    // Handles "2024-01-15", "2024-01-15T10:30:00+00:00", "Jan 15", etc.
     const d = new Date(str)
     return isNaN(d.getTime()) ? null : d
   } catch { return null }
@@ -26,7 +25,6 @@ function toDateKey(dateStr) {
   return d.toISOString().slice(0, 10)
 }
 
-// Mini bar chart
 function BarChart({ data, color }) {
   const max = Math.max(...data.map(d => d.count), 1)
   return (
@@ -51,7 +49,6 @@ function BarChart({ data, color }) {
   )
 }
 
-// Radial progress ring
 function RadialProgress({ pct, color, size=72, stroke=7 }) {
   const r = (size - stroke) / 2
   const circ = 2 * Math.PI * r
@@ -90,7 +87,6 @@ export default function Dashboard() {
     setUser(user)
     const errs = {}
 
-    // Load all in parallel, track errors individually
     const results = await Promise.allSettled([
       fetch(`${API}/tracker/stats?user_id=${user.id}`).then(r=>r.json()),
       fetch(`${API}/tracker/?user_id=${user.id}`).then(r=>r.json()),
@@ -98,22 +94,18 @@ export default function Dashboard() {
       fetch(`${API}/alerts/?user_id=${user.id}`).then(r=>r.json()),
     ])
 
-    // Stats
     if (results[0].status === 'fulfilled' && results[0].value) {
       setStats(results[0].value)
     } else { errs.stats = true }
 
-    // Apps
     if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) {
       setApps(results[1].value)
     } else { errs.apps = true }
 
-    // Notifications
     if (results[2].status === 'fulfilled' && Array.isArray(results[2].value)) {
       setNotifs(results[2].value.slice(0, 6))
     } else { errs.notifs = true }
 
-    // Alerts
     if (results[3].status === 'fulfilled' && results[3].value?.roles) {
       setAlerts(results[3].value)
     }
@@ -140,8 +132,6 @@ export default function Dashboard() {
     setTipLoading(false)
   }
 
-  // ── COMPUTED DATA (all from real apps array) ──────────────────
-  // Weekly bar chart — last 7 days using real applied_date or created_at
   const chartData = (() => {
     const days = []
     for (let i = 6; i >= 0; i--) {
@@ -158,28 +148,23 @@ export default function Dashboard() {
     return days
   })()
 
-  // Interviews — real status from tracker
   const interviews = apps.filter(a => a.status === 'Interview')
-
-  // Follow-ups — applied 7+ days ago, still in Applied status, real date calc
-  const followUps = apps.filter(a => {
+  const followUps  = apps.filter(a => {
     if (a.status !== 'Applied') return false
-    const dateStr = a.applied_date || a.created_at
-    const days = daysAgo(dateStr)
+    const days = daysAgo(a.applied_date || a.created_at)
     return days >= 7 && days < 999
   }).slice(0, 3)
 
-  // Real success metrics
-  const total = stats.total || 0
+  const total         = stats.total || 0
   const interviewRate = total > 0 ? Math.round(((stats.Interview || 0) + (stats.Offer || 0)) / total * 100) : 0
   const offerRate     = total > 0 ? Math.round((stats.Offer || 0) / total * 100) : 0
   const weekTotal     = chartData.reduce((a, d) => a + d.count, 0)
 
-  const hour = new Date().getHours()
-  const greeting  = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
-  const greetIcon = hour < 12 ? 'ti-sun-high' : hour < 17 ? 'ti-sun' : 'ti-moon'
-  const greetColor= hour < 12 ? '#f5a623' : hour < 17 ? '#3b82f6' : '#7c6ff7'
-  const name = user?.email?.split('@')[0] || 'there'
+  const hour       = new Date().getHours()
+  const greeting   = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  const greetIcon  = hour < 12 ? 'ti-sun-high' : hour < 17 ? 'ti-sun' : 'ti-moon'
+  const greetColor = hour < 12 ? '#f5a623' : hour < 17 ? '#3b82f6' : '#7c6ff7'
+  const name       = user?.email?.split('@')[0] || 'there'
 
   const S = {
     card: { background:'var(--bg3,#141828)', border:'1px solid var(--border,rgba(255,255,255,0.07))', borderRadius:'14px', padding:'1.1rem 1.25rem' },
@@ -353,7 +338,21 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* ROW 3 — AI Tip + Notifications */}
+              {/* ROW 3 — Coding Skills */}
+              {user && (
+                <div style={S.card}>
+                  <div style={S.secTitle}>
+                    <i className="ti ti-code" aria-hidden="true"/> Coding skills
+                    <button onClick={()=>navigate('/interview')}
+                      style={{marginLeft:'auto',fontSize:'11px',padding:'2px 8px',borderRadius:'8px',background:'rgba(124,111,247,0.1)',border:'0.5px solid rgba(124,111,247,0.25)',color:'#7c6ff7',cursor:'pointer',fontFamily:'Inter,sans-serif',fontWeight:600,display:'flex',alignItems:'center',gap:'.25rem'}}>
+                      <i className="ti ti-code" style={{fontSize:'11px'}} aria-hidden="true"/> Practice
+                    </button>
+                  </div>
+                  <SkillBadges userId={user.id} compact />
+                </div>
+              )}
+
+              {/* ROW 4 — AI Tip + Notifications */}
               <div className="grid2">
                 <div style={{...S.card,background:'linear-gradient(135deg,rgba(0,229,160,0.06),rgba(124,111,247,0.03))',border:'1px solid rgba(0,229,160,0.18)'}}>
                   <div style={{...S.secTitle,color:'#00e5a0'}}>
@@ -415,7 +414,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* ROW 4 — Alert banner */}
+              {/* ROW 5 — Alert banner */}
               {alerts ? (
                 <div style={{...S.card,display:'flex',alignItems:'center',gap:'1rem',flexWrap:'wrap'}}>
                   <div style={{width:'36px',height:'36px',borderRadius:'10px',background:'rgba(0,229,160,0.08)',border:'0.5px solid rgba(0,229,160,0.2)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
@@ -447,7 +446,7 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* ROW 5 — Quick actions */}
+              {/* ROW 6 — Quick actions */}
               <div style={S.card}>
                 <div style={S.secTitle}><i className="ti ti-rocket" aria-hidden="true"/> Quick actions</div>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(8,1fr)',gap:'.5rem'}}>
