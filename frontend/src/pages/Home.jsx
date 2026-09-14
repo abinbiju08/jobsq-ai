@@ -213,7 +213,7 @@ export default function Home() {
           </div>
 
           <div className={`bottom-cta ${visible?'show':''}`}>
-            <p>Powered by <span>Groq AI</span> · Jobs updated every <span>2 hours</span></p>
+            <p>Powered by <span>Groq AI</span> · Jobs updated every <span>15 minutes</span></p>
           </div>
         </div>
       </div>
