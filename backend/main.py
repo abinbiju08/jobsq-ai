@@ -1,14 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import jobs, resume, auth
-from routes import resume_match
-from routes import chatbot_route
-from routes import resume_builder
-from routes import tracker
-from routes import alerts
-from scraper.job_scraper import start_scheduler, scrape_and_save
 from routes import jobs, resume, auth, resume_match, chatbot_route, resume_builder, tracker, alerts, interview, moderation, tailor, code_terminal
-from routes import interview
+from scraper.job_scraper import start_scheduler, scrape_and_save
 import uvicorn
 import asyncio
 
@@ -27,18 +20,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(jobs.router,          prefix="/jobs",    tags=["jobs"])
-app.include_router(resume.router,        prefix="/resume",  tags=["resume"])
-app.include_router(auth.router,          prefix="/auth",    tags=["auth"])
-app.include_router(resume_match.router,  prefix="/match",   tags=["resume-match"])
-app.include_router(chatbot_route.router, prefix="/ai",      tags=["chatbot"])
-app.include_router(resume_builder.router,prefix="/builder", tags=["resume-builder"])
-app.include_router(tracker.router,       prefix="/tracker", tags=["tracker"])
-app.include_router(alerts.router,        prefix="/alerts",  tags=["alerts"])
-app.include_router(interview.router,     prefix="/interview")
-app.include_router(moderation.router,    prefix="/moderation")
-app.include_router(tailor.router,        prefix="/builder")
-app.include_router(code_terminal.router, prefix="/terminal")
+app.include_router(jobs.router,           prefix="/jobs",      tags=["jobs"])
+app.include_router(resume.router,         prefix="/resume",    tags=["resume"])
+app.include_router(auth.router,           prefix="/auth",      tags=["auth"])
+app.include_router(resume_match.router,   prefix="/match",     tags=["resume-match"])
+app.include_router(chatbot_route.router,  prefix="/ai",        tags=["chatbot"])
+app.include_router(resume_builder.router, prefix="/builder",   tags=["resume-builder"])
+app.include_router(tracker.router,        prefix="/tracker",   tags=["tracker"])
+app.include_router(alerts.router,         prefix="/alerts",    tags=["alerts"])
+app.include_router(interview.router,      prefix="/interview")
+app.include_router(moderation.router,     prefix="/moderation")
+app.include_router(tailor.router,         prefix="/builder")
+app.include_router(code_terminal.router,  prefix="/terminal")
 
 @app.get("/")
 def root():
@@ -47,6 +40,12 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.get("/scrape/trigger")
+async def trigger_scrape():
+    """Visit this URL to manually trigger a job scrape immediately."""
+    asyncio.create_task(scrape_and_save())
+    return {"success": True, "message": "Scrape started in background — check Render logs"}
 
 @app.on_event("startup")
 async def startup_event():
