@@ -44,11 +44,18 @@ async def get_map_counts(
     try:
         query = supabase.table("jobs").select("city, latitude, longitude, title")
 
-        # Filter by role keyword if specific
+        # Filter by role — use full phrase for accurate map counts
         if role and role.strip() and role.lower() not in ["all", ""]:
-            words = [w for w in role.split() if len(w) > 2]
-            if words:
-                query = query.ilike("title", f"%{words[0]}%")
+            role_clean = role.strip()
+            # Try full phrase first, then fall back to most specific word
+            key_words = [w for w in role_clean.split() if len(w) > 3 and w.lower() not in
+                         {"developer","engineer","manager","analyst","senior","junior","lead","india"}]
+            if key_words:
+                # Use the most specific keyword (e.g. "Python", "React", "Flutter")
+                query = query.ilike("title", f"%{key_words[0]}%")
+            else:
+                # Fall back to full phrase
+                query = query.ilike("title", f"%{role_clean}%")
 
         if state and state.strip():
             query = query.ilike("location", f"%{state}%")
