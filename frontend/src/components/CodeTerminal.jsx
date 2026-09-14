@@ -79,6 +79,7 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
   const [leaderboard, setLeaderboard] = useState([])
   const [lbLang, setLbLang]       = useState('global')
   const [lbLoading, setLbLoading] = useState(false)
+  const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [solved, setSolved]       = useState(false)
   const [prevXP, setPrevXP]       = useState(0)
   const [animXP, setAnimXP]       = useState(false)
@@ -310,13 +311,97 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
             style={{ display: 'flex', alignItems: 'center', gap: '.4rem', padding: '.4rem 1rem', background: 'linear-gradient(135deg,#7c6ff7,#5a52d5)', border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: loadingProb ? 'wait' : 'pointer', fontFamily: 'Inter,sans-serif', opacity: loadingProb ? .7 : 1, marginLeft: 'auto' }}>
             {loadingProb
               ? <><i className="ti ti-loader" style={{ fontSize: '14px', animation: 'spin .8s linear infinite' }}/> Generating...</>
-              : <><i className="ti ti-sparkles" style={{ fontSize: '14px' }}/> New Problem</>
+              : <><i className="ti ti-code" style={{ fontSize: '14px' }}/> New Problem</>
             }
+          </button>
+
+          {/* Leaderboard button */}
+          <button
+            onClick={() => { setShowLeaderboard(s => !s); if (!showLeaderboard) fetchLeaderboard(lbLang) }}
+            style={{ display: 'flex', alignItems: 'center', gap: '.4rem', padding: '.4rem 1rem', background: showLeaderboard ? 'rgba(245,166,35,0.15)' : 'rgba(255,255,255,0.04)', border: `0.5px solid ${showLeaderboard ? 'rgba(245,166,35,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '10px', color: showLeaderboard ? '#f5a623' : '#8b93b0', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter,sans-serif' }}>
+            <i className="ti ti-trophy" style={{ fontSize: '14px' }}/>
+            Leaderboard
           </button>
         </div>
 
         {/* ── SCORE BAR ── */}
         <XPBar xp={currentScore.xp} key={currentScore.xp} animating={animXP} />
+
+        {/* ── LEADERBOARD PANEL ── */}
+        {showLeaderboard && (
+          <div style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(245,166,35,0.2)', borderRadius: '12px', overflow: 'hidden' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '.65rem 1rem', borderBottom: '0.5px solid rgba(255,255,255,0.06)', background: 'rgba(245,166,35,0.04)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+                <i className="ti ti-trophy" style={{ fontSize: '14px', color: '#f5a623' }}/>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#eef0ff' }}>Top coders</span>
+              </div>
+              {/* Language filter */}
+              <div style={{ display: 'flex', gap: '.3rem' }}>
+                {[
+                  { id: 'global', label: 'All' },
+                  { id: 'python', label: 'Python' },
+                  { id: 'javascript', label: 'JS' },
+                  { id: 'java', label: 'Java' },
+                  { id: 'c++', label: 'C++' },
+                  { id: 'sql', label: 'SQL' },
+                ].map(l => (
+                  <button key={l.id}
+                    onClick={() => { setLbLang(l.id); fetchLeaderboard(l.id) }}
+                    style={{ padding: '2px 9px', borderRadius: '20px', border: `0.5px solid ${lbLang === l.id ? 'rgba(245,166,35,0.4)' : 'rgba(255,255,255,0.08)'}`, background: lbLang === l.id ? 'rgba(245,166,35,0.12)' : 'transparent', color: lbLang === l.id ? '#f5a623' : '#4a5168', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter,sans-serif' }}>
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {lbLoading ? (
+              <div style={{ textAlign: 'center', padding: '1.5rem', color: '#4a5168' }}>
+                <i className="ti ti-loader" style={{ fontSize: '20px', animation: 'spin .8s linear infinite', display: 'block', marginBottom: '.4rem', color: '#f5a623' }}/>
+                Loading...
+              </div>
+            ) : leaderboard.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '1.5rem', fontSize: '12px', color: '#4a5168' }}>
+                No coders yet — solve a problem to appear here!
+              </div>
+            ) : (
+              <>
+                {/* Table header */}
+                <div style={{ display: 'grid', gridTemplateColumns: '36px 1fr 160px 60px', padding: '6px 12px', background: 'rgba(255,255,255,0.02)', fontSize: '10px', fontWeight: 700, color: '#4a5168', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                  <div>#</div><div>User</div><div>Email</div><div style={{ textAlign: 'right' }}>XP</div>
+                </div>
+                {/* Rows */}
+                {leaderboard.map((entry) => {
+                  const isMe = entry.user_id === user?.id
+                  const medals = ['🥇','🥈','🥉']
+                  return (
+                    <div key={entry.user_id}
+                      style={{ display: 'grid', gridTemplateColumns: '36px 1fr 160px 60px', padding: '8px 12px', borderTop: '0.5px solid rgba(255,255,255,0.04)', background: isMe ? 'rgba(124,111,247,0.06)' : 'transparent', alignItems: 'center' }}>
+                      <div style={{ fontSize: entry.rank <= 3 ? '14px' : '11px', color: '#4a5168', fontWeight: 700 }}>
+                        {entry.rank <= 3 ? medals[entry.rank - 1] : `#${entry.rank}`}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: isMe ? '#a89ef7' : '#c8cde0' }}>
+                          {entry.display_name}{isMe ? ' (you)' : ''}
+                        </div>
+                        <div style={{ fontSize: '10px', color: '#4a5168' }}>
+                          {entry.badge?.icon} {entry.badge?.name} · {entry.problems_solved} solved
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#4a5168', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {entry.email || '—'}
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: isMe ? '#a89ef7' : '#c8cde0' }}>{entry.xp}</span>
+                        <span style={{ fontSize: '10px', color: '#4a5168', marginLeft: '2px' }}>XP</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </>
+            )}
+          </div>
+        )}
 
         {!problem && !loadingProb && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1rem', gap: '1rem', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '12px' }}>
