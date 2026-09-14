@@ -403,7 +403,7 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
           </div>
         )}
 
-        {!problem && !loadingProb && (
+        {!showLeaderboard && !problem && !loadingProb && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1rem', gap: '1rem', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '12px' }}>
             <div style={{ fontSize: '3rem' }}>⌨️</div>
             <div style={{ fontSize: '14px', fontWeight: 700, color: '#eef0ff' }}>Ready to code?</div>
@@ -411,14 +411,14 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
           </div>
         )}
 
-        {loadingProb && (
+        {!showLeaderboard && loadingProb && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem', gap: '.75rem' }}>
             <i className="ti ti-loader" style={{ fontSize: '24px', color: '#7c6ff7', animation: 'spin .8s linear infinite' }}/>
             <span style={{ fontSize: '14px', color: '#8b93b0' }}>AI is generating a {difficulty} {lang} problem for {role}...</span>
           </div>
         )}
 
-        {problem && (
+        {!showLeaderboard && problem && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', flex: 1, minHeight: 0 }}>
 
             {/* ── LEFT: PROBLEM PANEL ── */}
