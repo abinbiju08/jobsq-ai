@@ -121,13 +121,25 @@ function JobMap({ search }) {
         const j = byCityRaw[c.n] || byCityRaw[c.n.split(' ')[0]] || Object.entries(byCityRaw).find(([k])=>k.toLowerCase().includes(c.n.toLowerCase().split(' ')[0])||c.n.toLowerCase().includes(k.toLowerCase()))?.[1] || 0
         return { ...c, j, realData:j>0 }
       })
-      cities = cities.map(c => {
-          if (c.j > 0) { const color=c.j>100?'#00e5a0':c.j>40?'#00c484':c.j>15?'#7c6ff7':'#3b82f6'; return {...c,color} }
-          if (!role?.trim()) {
-            return {...c, j:Math.max(3,Math.round((CITY_IMPORTANCE[c.n]||10)*0.12)), estimated:true, color:'#f5a623'}
-      }
-        return {...c, j:0, estimated:false}
-        })
+      const ROLE_MULTIPLIERS = {
+  'python': 0.18, 'react': 0.20, 'frontend': 0.16, 'fullstack': 0.22,
+  'full stack': 0.22, 'java': 0.19, 'data': 0.15, 'devops': 0.12,
+  'node': 0.14, 'flutter': 0.10, 'android': 0.11, 'machine learning': 0.13,
+  'ui': 0.09, 'ux': 0.09, 'software': 0.25, 'developer': 0.20,
+  'engineer': 0.18, 'manager': 0.10, 'sales': 0.08, 'marketing': 0.07,
+  'nurse': 0.06, 'doctor': 0.05, 'finance': 0.08, 'accounting': 0.07,
+}
+const roleLower = (role || '').toLowerCase()
+const multiplier = Object.entries(ROLE_MULTIPLIERS).find(([k]) => roleLower.includes(k))?.[1] || 0.12
+
+cities = cities.map(c => {
+  if (c.j > 0) {
+    const color = c.j>100?'#00e5a0':c.j>40?'#00c484':c.j>15?'#7c6ff7':'#3b82f6'
+    return {...c, color}
+  }
+  const est = Math.max(2, Math.round((CITY_IMPORTANCE[c.n]||10) * multiplier))
+  return {...c, j: est, estimated: true, color: '#f5a623'}
+})
       const displayCities = (selectedState ? cities.filter(c=>c.state===selectedState) : cities).filter(c => c.j > 0)
         if (selectedState && mapInstanceRef.current && displayCities.length>0) {
         const lats=displayCities.map(c=>c.lat), lngs=displayCities.map(c=>c.lng)
