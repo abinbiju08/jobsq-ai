@@ -33,7 +33,7 @@ function AppContent({ session }) {
         <Route path="/dashboard" element={session ? <Dashboard /> : <Navigate to="/" replace />} />
         <Route path="/tracker" element={session ? <Tracker /> : <Navigate to="/" replace />} />
         <Route path="/profile" element={session ? <Profile /> : <Navigate to="/" replace />} />
-        <Route path="/interview" element={session ? <InterviewPrep /> : <Navigate to="/" replace />} />
+        <Route path="/interview" element={session ? <InterviewPrep user={session.user} /> : <Navigate to="/" replace />} />
         <Route path="/connect" element={session ? <LetsConnect /> : <Navigate to="/" replace />} />
         <Route path="/admin" element={session ? <AdminPanel /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to={session ? "/home" : "/"} replace />} />
