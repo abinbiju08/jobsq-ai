@@ -122,11 +122,14 @@ function JobMap({ search }) {
         return { ...c, j, realData:j>0 }
       })
       cities = cities.map(c => {
-        if (c.j > 0) { const color=c.j>100?'#00e5a0':c.j>40?'#00c484':c.j>15?'#7c6ff7':'#3b82f6'; return {...c,color} }
-        return {...c, j:Math.max(3,Math.round((CITY_IMPORTANCE[c.n]||10)*0.12)), estimated:true, color:'#f5a623'}
-      })
-      const displayCities = selectedState ? cities.filter(c=>c.state===selectedState) : cities
-      if (selectedState && mapInstanceRef.current && displayCities.length>0) {
+          if (c.j > 0) { const color=c.j>100?'#00e5a0':c.j>40?'#00c484':c.j>15?'#7c6ff7':'#3b82f6'; return {...c,color} }
+          if (!role?.trim()) {
+            return {...c, j:Math.max(3,Math.round((CITY_IMPORTANCE[c.n]||10)*0.12)), estimated:true, color:'#f5a623'}
+      }
+        return {...c, j:0, estimated:false}
+        })
+      const displayCities = (selectedState ? cities.filter(c=>c.state===selectedState) : cities).filter(c => c.j > 0)
+        if (selectedState && mapInstanceRef.current && displayCities.length>0) {
         const lats=displayCities.map(c=>c.lat), lngs=displayCities.map(c=>c.lng)
         mapInstanceRef.current.flyToBounds(window.L.latLngBounds([Math.min(...lats)-.5,Math.min(...lngs)-.5],[Math.max(...lats)+.5,Math.max(...lngs)+.5]),{duration:1.2,padding:[30,30]})
       } else if (!selectedState && mapInstanceRef.current) {
