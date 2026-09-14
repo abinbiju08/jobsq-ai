@@ -71,6 +71,9 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
   const [activeTab, setActiveTab] = useState('problem')  // problem | output | hints
   const [xpPopup, setXpPopup]     = useState(null)
   const [solved, setSolved]       = useState(false)
+  const [errorLine, setErrorLine] = useState(null)
+  const editorRef = useRef(null)
+  const monacoRef = useRef(null)
 
   const currentLang = LANGUAGES.find(l => l.id === lang)
   const currentDiff = DIFFICULTIES.find(d => d.id === difficulty)
@@ -106,6 +109,46 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
     }
   }
 
+  function extractErrorLine(stderr, language) {
+    if (!stderr) return null
+    // Python: line 3, in ..., File "x.py", line 3
+    let m = stderr.match(/line (\d+)/i)
+    if (m) return parseInt(m[1])
+    // JavaScript: at line:col or :3:5
+    m = stderr.match(/:(\d+):\d+/)
+    if (m) return parseInt(m[1])
+    // Java: .java:3)
+    m = stderr.match(/\.java:(\d+)/)
+    if (m) return parseInt(m[1])
+    // C++: :3:5: error
+    m = stderr.match(/:(\d+):\d+: error/i)
+    if (m) return parseInt(m[1])
+    return null
+  }
+
+  function highlightErrorLine(lineNum) {
+    if (!editorRef.current || !monacoRef.current || !lineNum) return
+    const monaco = monacoRef.current
+    const editor = editorRef.current
+    // Clear previous decorations
+    editor.deltaDecorations(editor.getModel()?.getAllDecorations()?.map(d => d.id) || [], [])
+    // Add red line highlight
+    editor.deltaDecorations([], [
+      {
+        range: new monaco.Range(lineNum, 1, lineNum, 1),
+        options: {
+          isWholeLine: true,
+          className: 'error-line-highlight',
+          glyphMarginClassName: 'error-glyph',
+          overviewRuler: { color: '#ff6b6b', position: 1 },
+          minimap: { color: '#ff6b6b', position: 1 },
+        }
+      }
+    ])
+    // Scroll to error line
+    editor.revealLineInCenter(lineNum)
+  }
+
   async function runCode() {
     if (!code.trim()) return
     setRunning(true); setOutput(null); setActiveTab('output')
@@ -120,6 +163,20 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
       })
       const data = await res.json()
       setOutput(data)
+      // Extract and highlight error line
+      if (data.stderr && !data.passed) {
+        const errLine = extractErrorLine(data.stderr, lang)
+        setErrorLine(errLine)
+        if (errLine) highlightErrorLine(errLine)
+      } else {
+        setErrorLine(null)
+        // Clear decorations on success
+        if (editorRef.current) {
+          editorRef.current.deltaDecorations(
+            editorRef.current.getModel()?.getAllDecorations()?.map(d => d.id) || [], []
+          )
+        }
+      }
     } catch (e) {
       setOutput({ success: false, stderr: e.message })
     } finally {
@@ -325,8 +382,19 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
                   height="340px"
                   language={monacoLang}
                   value={code}
-                  onChange={v => setCode(v || '')}
+                  onChange={v => { setCode(v || ''); setErrorLine(null) }}
                   theme="vs-dark"
+                  onMount={(editor, monaco) => {
+                    editorRef.current  = editor
+                    monacoRef.current  = monaco
+                    // Inject error line CSS
+                    const style = document.createElement('style')
+                    style.textContent = `
+                      .error-line-highlight { background: rgba(255,107,107,0.15) !important; border-left: 3px solid #ff6b6b !important; }
+                      .error-glyph::before { content: '●'; color: #ff6b6b; font-size: 12px; margin-left: 2px; }
+                    `
+                    document.head.appendChild(style)
+                  }}
                   options={{
                     fontSize: 13,
                     minimap: { enabled: false },
@@ -336,6 +404,7 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
                     padding: { top: 12 },
                     fontFamily: "'Fira Code', 'Cascadia Code', monospace",
                     fontLigatures: true,
+                    glyphMargin: true,
                   }}
                 />
               </div>
@@ -373,7 +442,17 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
                         <pre style={{ color: '#00e5a0', margin: 0, whiteSpace: 'pre-wrap' }}>{output.expected}</pre>
                       </div>
                     )}
-                    {output.stderr && <pre style={{ color: '#ff6b6b', margin: 0, whiteSpace: 'pre-wrap' }}>{output.stderr}</pre>}
+                    {output.stderr && (
+                      <div>
+                        {errorLine && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', marginBottom: '.3rem', padding: '3px 8px', background: 'rgba(255,107,107,0.1)', border: '0.5px solid rgba(255,107,107,0.3)', borderRadius: '6px', width: 'fit-content' }}>
+                            <i className="ti ti-map-pin" style={{ fontSize: '11px', color: '#ff6b6b' }}/>
+                            <span style={{ fontSize: '11px', color: '#ff6b6b', fontWeight: 700 }}>Error on line {errorLine}</span>
+                          </div>
+                        )}
+                        <pre style={{ color: '#ff6b6b', margin: 0, whiteSpace: 'pre-wrap', fontSize: '11px' }}>{output.stderr}</pre>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
