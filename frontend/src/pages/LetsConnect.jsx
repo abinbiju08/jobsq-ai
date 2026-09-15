@@ -26,6 +26,22 @@ const TAG_COLORS = {
   'Off topic':       { bg:'rgba(148,163,184,0.1)', color:'#94a3b8',  border:'rgba(148,163,184,0.25)' },
 }
 
+const BADGES = [
+  { min:0,    name:'Beginner',   icon:'ti-seedling', color:'#6b7280' },
+  { min:50,   name:'Apprentice', icon:'ti-tool',     color:'#10b981' },
+  { min:150,  name:'Developer',  icon:'ti-code',     color:'#3b82f6' },
+  { min:300,  name:'Engineer',   icon:'ti-settings', color:'#8b5cf6' },
+  { min:500,  name:'Senior',     icon:'ti-rocket',   color:'#f59e0b' },
+  { min:800,  name:'Expert',     icon:'ti-trophy',   color:'#ef4444' },
+  { min:1200, name:'Master',     icon:'ti-crown',    color:'#fbbf24' },
+]
+
+function getBadge(xp) {
+  let b = BADGES[0]
+  for (const badge of BADGES) { if (xp >= badge.min) b = badge }
+  return b
+}
+
 function timeAgo(ts) {
   const diff = Date.now() - new Date(ts).getTime()
   const m = Math.floor(diff / 60000)
@@ -45,7 +61,6 @@ function Avatar({ initials, color, size = 32 }) {
   )
 }
 
-// Hash a string to pick a color deterministically
 function colorForUser(name) {
   const colors = ['#00e5a0','#7c6ff7','#3b82f6','#f5a623','#ec4899','#14b8a6','#f97316','#a855f7']
   let h = 0
@@ -53,26 +68,147 @@ function colorForUser(name) {
   return colors[Math.abs(h) % colors.length]
 }
 
+// ── LEADERBOARD PANEL ─────────────────────────────────────────────
+function LeaderboardPanel({ onClose }) {
+  const [leaderboard, setLeaderboard] = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [lbLang, setLbLang]           = useState('global')
+  const MEDAL_ICONS  = ['ti-medal','ti-medal-2','ti-award']
+  const MEDAL_COLORS = ['#fbbf24','#94a3b8','#f59e0b']
+
+  async function fetchLeaderboard(lang) {
+    setLoading(true)
+    try {
+      const url = lang === 'global'
+        ? `${API}/terminal/global-leaderboard`
+        : `${API}/terminal/leaderboard/${lang}`
+      const res  = await fetch(url)
+      const data = await res.json()
+      if (data.success) setLeaderboard(data.leaderboard)
+    } catch {}
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchLeaderboard('global') }, [])
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%',background:'var(--bg)'}}>
+      {/* Header */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.85rem 1.25rem',borderBottom:'1px solid var(--border)',background:'var(--bg2)',flexShrink:0}}>
+        <div style={{display:'flex',alignItems:'center',gap:'.6rem'}}>
+          <i className="ti ti-trophy" style={{fontSize:'18px',color:'#f5a623'}} aria-hidden="true"/>
+          <div>
+            <div style={{fontSize:'14px',fontWeight:700,color:'var(--text)'}}>Top coders</div>
+            <div style={{fontSize:'11px',color:'var(--text2)'}}>Recruiters — click any row to send an interview invite</div>
+          </div>
+        </div>
+        <button onClick={onClose}
+          style={{display:'flex',alignItems:'center',gap:'.35rem',padding:'.35rem .75rem',borderRadius:'20px',background:'rgba(255,255,255,0.04)',border:'0.5px solid rgba(255,255,255,0.1)',color:'var(--text2)',fontSize:'12px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif'}}
+          aria-label="Back to chat">
+          <i className="ti ti-arrow-left" style={{fontSize:'13px'}} aria-hidden="true"/> Back to chat
+        </button>
+      </div>
+
+      {/* Language filter */}
+      <div style={{display:'flex',gap:'.35rem',padding:'.65rem 1.25rem',borderBottom:'1px solid var(--border)',background:'var(--bg2)',flexShrink:0,flexWrap:'wrap'}}>
+        {[{id:'global',label:'All'},{id:'python',label:'Python'},{id:'javascript',label:'JS'},{id:'java',label:'Java'},{id:'c++',label:'C++'},{id:'sql',label:'SQL'}].map(l=>(
+          <button key={l.id} onClick={()=>{setLbLang(l.id);fetchLeaderboard(l.id)}}
+            style={{padding:'3px 12px',borderRadius:'20px',border:`0.5px solid ${lbLang===l.id?'rgba(245,166,35,0.4)':'rgba(255,255,255,0.08)'}`,background:lbLang===l.id?'rgba(245,166,35,0.12)':'transparent',color:lbLang===l.id?'#f5a623':'var(--text3)',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+            {l.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Recruiter banner */}
+      <div style={{margin:'.75rem 1.25rem',padding:'.6rem .85rem',background:'rgba(59,130,246,0.06)',border:'0.5px solid rgba(59,130,246,0.2)',borderRadius:'10px',display:'flex',alignItems:'center',gap:'.6rem',flexShrink:0}}>
+        <i className="ti ti-building" style={{fontSize:'16px',color:'#3b82f6',flexShrink:0}} aria-hidden="true"/>
+        <span style={{fontSize:'12px',color:'var(--text2)'}}>Hiring? Click any coder row to send an interview invitation directly to their email.</span>
+      </div>
+
+      {/* Table header */}
+      <div style={{display:'grid',gridTemplateColumns:'40px 1fr 160px 64px',padding:'5px 1.25rem',fontSize:'10px',fontWeight:700,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.05em',borderBottom:'0.5px solid var(--border)',flexShrink:0}}>
+        <div>#</div><div>Coder</div><div>Email</div><div style={{textAlign:'right'}}>XP</div>
+      </div>
+
+      {/* Rows */}
+      <div style={{flex:1,overflowY:'auto'}}>
+        {loading ? (
+          <div style={{textAlign:'center',padding:'3rem',color:'var(--text3)'}}>
+            <i className="ti ti-loader" style={{fontSize:'24px',display:'block',marginBottom:'.5rem',color:'#f5a623',animation:'spin .8s linear infinite'}} aria-hidden="true"/>
+            Loading leaderboard...
+          </div>
+        ) : leaderboard.length === 0 ? (
+          <div style={{textAlign:'center',padding:'3rem',color:'var(--text3)'}}>
+            <i className="ti ti-trophy" style={{fontSize:'32px',display:'block',marginBottom:'.5rem'}} aria-hidden="true"/>
+            No coders yet — solve a problem to appear here!
+          </div>
+        ) : leaderboard.map((entry) => {
+          const badge = getBadge(entry.xp)
+          const initials = (entry.display_name||'??').slice(0,2).toUpperCase()
+          const avatarColor = colorForUser(entry.display_name||'x')
+          return (
+            <div key={entry.user_id}
+              onClick={() => {
+                if (entry.email) {
+                  const subject = encodeURIComponent('Interview Invitation — JobsQ AI Leaderboard')
+                  const body    = encodeURIComponent(`Hi ${entry.display_name},\n\nI found your profile on JobsQ AI Leaderboard where you rank #${entry.rank} with ${entry.xp} XP and the ${entry.badge?.name} badge.\n\nI'd love to discuss a potential opportunity with you.\n\nBest regards`)
+                  window.open(`mailto:${entry.email}?subject=${subject}&body=${body}`)
+                }
+              }}
+              style={{display:'grid',gridTemplateColumns:'40px 1fr 160px 64px',padding:'.7rem 1.25rem',borderBottom:'0.5px solid var(--border)',alignItems:'center',cursor:entry.email?'pointer':'default',transition:'background .15s'}}
+              onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.03)'}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              <div style={{fontWeight:700}}>
+                {entry.rank <= 3
+                  ? <i className={`ti ${MEDAL_ICONS[entry.rank-1]}`} style={{fontSize:'18px',color:MEDAL_COLORS[entry.rank-1]}} aria-hidden="true"/>
+                  : <span style={{fontSize:'11px',color:'var(--text3)'}}>#{entry.rank}</span>
+                }
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:'.5rem'}}>
+                <Avatar initials={initials} color={avatarColor} size={28}/>
+                <div>
+                  <div style={{fontSize:'12px',fontWeight:600,color:'var(--text)'}}>{entry.display_name}</div>
+                  <div style={{fontSize:'10px',color:'var(--text3)',display:'flex',alignItems:'center',gap:'.25rem',marginTop:'1px'}}>
+                    <i className={`ti ${badge.icon}`} style={{fontSize:'11px',color:badge.color}} aria-hidden="true"/>
+                    {badge.name} · {entry.problems_solved} solved
+                  </div>
+                </div>
+              </div>
+              <div style={{fontSize:'11px',color:'var(--text3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                {entry.email || '—'}
+              </div>
+              <div style={{textAlign:'right'}}>
+                <span style={{fontSize:'13px',fontWeight:700,color:'var(--text)'}}>{entry.xp}</span>
+                <span style={{fontSize:'10px',color:'var(--text3)',marginLeft:'2px'}}>XP</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── CHAT ROOM ─────────────────────────────────────────────────────
 function ChatRoom({ room, user, onBack }) {
-  const [messages, setMessages] = useState([])
-  const [editingId, setEditingId] = useState(null)
-  const [editText, setEditText] = useState('')
-  const [replyTo, setReplyTo] = useState(null)
+  const [messages, setMessages]     = useState([])
+  const [editingId, setEditingId]   = useState(null)
+  const [editText, setEditText]     = useState('')
+  const [replyTo, setReplyTo]       = useState(null)
   const [blockedMsg, setBlockedMsg] = useState('')
-  const [input, setInput]       = useState('')
-  const [tag, setTag]           = useState('')
-  const [sending, setSending]   = useState(false)
+  const [input, setInput]           = useState('')
+  const [tag, setTag]               = useState('')
+  const [sending, setSending]       = useState(false)
   const [onlineCount, setOnlineCount] = useState(1)
-  const bottomRef = useRef(null)
+  const [showLeaderboard, setShowLeaderboard] = useState(false)
+  const bottomRef  = useRef(null)
   const channelRef = useRef(null)
-  const inputRef = useRef(null)
+  const inputRef   = useRef(null)
 
-  const userName = user?.email?.split('@')[0] || 'Anonymous'
+  const userName     = user?.email?.split('@')[0] || 'Anonymous'
   const userInitials = userName.slice(0,2).toUpperCase()
-  const userColor = colorForUser(userName)
+  const userColor    = colorForUser(userName)
 
-  // Load last 60 messages
   const loadMessages = useCallback(async () => {
     const { data } = await supabase
       .from('community_messages')
@@ -86,47 +222,30 @@ function ChatRoom({ room, user, onBack }) {
   useEffect(() => {
     loadMessages()
     inputRef.current?.focus()
-
-    // Simulate online count
     setOnlineCount(Math.floor(Math.random() * 40) + 5)
-
-    // Supabase Realtime subscription
     const channel = supabase
       .channel(`room:${room.id}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'community_messages',
-        filter: `room=eq.${room.id}`
-      }, (payload) => {
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:'community_messages', filter:`room=eq.${room.id}` }, (payload) => {
         setMessages(prev => {
-          // Avoid duplicates
           if (prev.find(m => m.id === payload.new.id)) return prev
           return [...prev, payload.new]
         })
       })
       .subscribe()
-
     channelRef.current = channel
     return () => { supabase.removeChannel(channel) }
   }, [room.id, loadMessages])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    bottomRef.current?.scrollIntoView({ behavior:'smooth' })
   }, [messages])
 
   const send = async () => {
     const text = input.trim()
     if (!text || sending || !user) return
     setSending(true)
-
-    // ── AI Moderation check ──────────────────────────
     try {
-      const modRes = await fetch(`${API}/moderation/check`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, user_id: user.id, room: room.id })
-      })
+      const modRes  = await fetch(`${API}/moderation/check`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ message:text, user_id:user.id, room:room.id }) })
       const modData = await modRes.json()
       if (!modData.allowed) {
         setBlockedMsg(modData.reason || 'Message not allowed.')
@@ -135,9 +254,7 @@ function ChatRoom({ room, user, onBack }) {
         return
       }
     } catch {
-      // If moderation API fails, still do client-side bad word check
-      const badWords = ['fuck','shit','bitch','asshole','bastard','crap','dick',
-        'nigger','nigga','faggot','slut','whore','cunt','retard','kys','porn','sex']
+      const badWords = ['fuck','shit','bitch','asshole','bastard','crap','dick','nigger','nigga','faggot','slut','whore','cunt','retard','kys','porn','sex']
       const lower = text.toLowerCase()
       if (badWords.some(w => lower.includes(w))) {
         setBlockedMsg('Please keep the conversation respectful and professional.')
@@ -146,79 +263,62 @@ function ChatRoom({ room, user, onBack }) {
         return
       }
     }
-
-    // Check if user is banned
     try {
-      const banRes = await fetch(`${API}/moderation/check-ban/${user.id}`)
+      const banRes  = await fetch(`${API}/moderation/check-ban/${user.id}`)
       const banData = await banRes.json()
-      if (banData.banned) {
-        setBlockedMsg('You have been banned from this community.')
-        setSending(false)
-        return
-      }
+      if (banData.banned) { setBlockedMsg('You have been banned from this community.'); setSending(false); return }
     } catch {}
-
     setInput('')
     const full = tag ? `[${tag}] ${text}` : text
-    // Capture replyTo BEFORE clearing state
     const currentReply = replyTo
     setReplyTo(null)
     await supabase.from('community_messages').insert({
-      room: room.id,
-      user_id: user.id,
-      user_name: userName,
+      room:          room.id,
+      user_id:       user.id,
+      user_name:     userName,
       user_initials: userInitials,
-      message: full,
-      reply_to_id:   currentReply ? currentReply.id : null,
+      message:       full,
+      reply_to_id:   currentReply ? currentReply.id   : null,
       reply_to_name: currentReply ? (currentReply.user_id === user.id ? 'You' : currentReply.user_name) : null,
-      reply_to_text: currentReply ? parseMsg(currentReply.message).text.slice(0, 80) : null,
+      reply_to_text: currentReply ? parseMsg(currentReply.message).text.slice(0,80) : null,
     })
     setSending(false)
     inputRef.current?.focus()
   }
 
-  const handleKey = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
-  }
+  const handleKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }
 
-  // Unsend message — only deletes if it belongs to current user
   const unsendMessage = async (msgId) => {
     if (!msgId) return
-    await supabase
-      .from('community_messages')
-      .delete()
-      .eq('id', msgId)
-      .eq('user_id', user.id)
-    // Remove from local state immediately
+    await supabase.from('community_messages').delete().eq('id',msgId).eq('user_id',user.id)
     setMessages(prev => prev.filter(m => m.id !== msgId))
   }
 
-  // Edit message
-  const startEdit = (msg) => {
-    setEditingId(msg.id)
-    const { text } = parseMsg(msg.message)
-    setEditText(text)
-  }
+  const startEdit = (msg) => { setEditingId(msg.id); const { text } = parseMsg(msg.message); setEditText(text) }
 
   const saveEdit = async (msg) => {
     if (!editText.trim()) return
     const tag = parseMsg(msg.message).tag
     const newMsg = tag ? `[${tag}] ${editText.trim()}` : editText.trim()
-    await supabase
-      .from('community_messages')
-      .update({ message: newMsg })
-      .eq('id', msg.id)
-      .eq('user_id', user.id)
-    setMessages(prev => prev.map(m => m.id === msg.id ? {...m, message: newMsg} : m))
-    setEditingId(null)
-    setEditText('')
+    await supabase.from('community_messages').update({ message:newMsg }).eq('id',msg.id).eq('user_id',user.id)
+    setMessages(prev => prev.map(m => m.id === msg.id ? {...m,message:newMsg} : m))
+    setEditingId(null); setEditText('')
   }
 
-  // Parse tag from message
   const parseMsg = (msg) => {
     const match = msg.match(/^\[(.+?)\]\s*(.*)/)
-    if (match) return { tag: match[1], text: match[2] }
-    return { tag: null, text: msg }
+    if (match) return { tag:match[1], text:match[2] }
+    return { tag:null, text:msg }
+  }
+
+  if (showLeaderboard) {
+    return (
+      <>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        <LeaderboardPanel onClose={() => setShowLeaderboard(false)} />
+      </>
+    )
   }
 
   return (
@@ -226,6 +326,7 @@ function ChatRoom({ room, user, onBack }) {
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
       <style>{`
         @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
         .cr-msg{animation:fadeUp .18s ease;}
         .cr-msg:hover .msg-actions{opacity:1!important;}
         .msg-actions button:hover i{color:var(--text)!important;}
@@ -234,6 +335,7 @@ function ChatRoom({ room, user, onBack }) {
         .send-btn:hover{opacity:.85!important;}
         .cr-scroll::-webkit-scrollbar{width:3px;}
         .cr-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:2px;}
+        .lb-btn:hover{border-color:rgba(245,166,35,0.5)!important;color:#f5a623!important;}
       `}</style>
       <div style={{display:'flex',flexDirection:'column',height:'100%',background:'var(--bg)'}}>
 
@@ -251,11 +353,19 @@ function ChatRoom({ room, user, onBack }) {
             <div style={{fontSize:'14px',fontWeight:700,color:'var(--text)'}}>{room.id}</div>
             <div style={{fontSize:'11px',color:'var(--text2)',marginTop:'1px'}}>{room.desc}</div>
           </div>
+
+          {/* Online count */}
           <div style={{display:'flex',alignItems:'center',gap:'.4rem',padding:'.3rem .75rem',borderRadius:'20px',background:'rgba(0,229,160,0.08)',border:'0.5px solid rgba(0,229,160,0.2)'}}>
             <div style={{width:'6px',height:'6px',borderRadius:'50%',background:'#00e5a0',animation:'blink 1.5s infinite'}}/>
             <span style={{fontSize:'11px',color:'#00e5a0',fontWeight:600}}>{onlineCount} online</span>
           </div>
-          <style>{`@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}`}</style>
+
+          {/* Top coders button */}
+          <button className="lb-btn" onClick={() => setShowLeaderboard(true)}
+            style={{display:'flex',alignItems:'center',gap:'.4rem',padding:'.3rem .85rem',borderRadius:'20px',background:'rgba(245,166,35,0.08)',border:'0.5px solid rgba(245,166,35,0.25)',color:'var(--text2)',fontSize:'12px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all .2s'}}>
+            <i className="ti ti-trophy" style={{fontSize:'14px',color:'#f5a623'}} aria-hidden="true"/>
+            Top coders
+          </button>
         </div>
 
         {/* Messages */}
@@ -271,11 +381,11 @@ function ChatRoom({ room, user, onBack }) {
           )}
           {messages.map((msg, i) => {
             const isMine = msg.user_id === user?.id
-            const { tag: msgTag, text: msgText } = parseMsg(msg.message)
+            const { tag:msgTag, text:msgText } = parseMsg(msg.message)
             const tc = TAG_COLORS[msgTag] || null
             const uColor = colorForUser(msg.user_name)
             return (
-              <div key={msg.id || i} className="cr-msg" style={{display:'flex',gap:'.65rem',alignItems:'flex-start',flexDirection:isMine?'row-reverse':'row'}}>
+              <div key={msg.id||i} className="cr-msg" style={{display:'flex',gap:'.65rem',alignItems:'flex-start',flexDirection:isMine?'row-reverse':'row'}}>
                 <Avatar initials={msg.user_initials} color={uColor} size={32}/>
                 <div style={{maxWidth:'72%',display:'flex',flexDirection:'column',alignItems:isMine?'flex-end':'flex-start'}}>
                   <div style={{display:'flex',alignItems:'center',gap:'.4rem',marginBottom:'3px',flexDirection:isMine?'row-reverse':'row'}}>
@@ -285,21 +395,14 @@ function ChatRoom({ room, user, onBack }) {
                   </div>
                   {editingId === msg.id ? (
                     <div style={{display:'flex',gap:'.35rem',alignItems:'center',maxWidth:'260px'}}>
-                      <input
-                        value={editText}
-                        onChange={e=>setEditText(e.target.value)}
+                      <input value={editText} onChange={e=>setEditText(e.target.value)}
                         onKeyDown={e=>{ if(e.key==='Enter') saveEdit(msg); if(e.key==='Escape'){setEditingId(null);setEditText('')} }}
                         autoFocus
-                        style={{flex:1,background:'var(--bg3)',border:`1px solid ${room.color}`,borderRadius:'10px',padding:'.45rem .75rem',fontSize:'13px',color:'var(--text)',fontFamily:'Inter,sans-serif',outline:'none'}}
-                      />
-                      <button onClick={()=>saveEdit(msg)}
-                        style={{background:room.color,border:'none',borderRadius:'8px',padding:'.35rem .6rem',cursor:'pointer',display:'flex',alignItems:'center',flexShrink:0}}
-                        aria-label="Save edit">
+                        style={{flex:1,background:'var(--bg3)',border:`1px solid ${room.color}`,borderRadius:'10px',padding:'.45rem .75rem',fontSize:'13px',color:'var(--text)',fontFamily:'Inter,sans-serif',outline:'none'}}/>
+                      <button onClick={()=>saveEdit(msg)} style={{background:room.color,border:'none',borderRadius:'8px',padding:'.35rem .6rem',cursor:'pointer',display:'flex',alignItems:'center',flexShrink:0}} aria-label="Save edit">
                         <i className="ti ti-send" style={{fontSize:'13px',color:'#060d0a'}} aria-hidden="true"/>
                       </button>
-                      <button onClick={()=>{setEditingId(null);setEditText('')}}
-                        style={{background:'var(--bg3)',border:'0.5px solid var(--border)',borderRadius:'8px',padding:'.35rem .6rem',cursor:'pointer',display:'flex',alignItems:'center',flexShrink:0}}
-                        aria-label="Cancel edit">
+                      <button onClick={()=>{setEditingId(null);setEditText('')}} style={{background:'var(--bg3)',border:'0.5px solid var(--border)',borderRadius:'8px',padding:'.35rem .6rem',cursor:'pointer',display:'flex',alignItems:'center',flexShrink:0}} aria-label="Cancel edit">
                         <i className="ti ti-x" style={{fontSize:'13px',color:'var(--text2)'}} aria-hidden="true"/>
                       </button>
                     </div>
@@ -315,20 +418,14 @@ function ChatRoom({ room, user, onBack }) {
                         {msgText}
                       </div>
                       <div className="msg-actions" style={{display:'flex',gap:'2px',opacity:0,transition:'opacity .15s',flexShrink:0,flexDirection:isMine?'row-reverse':'row'}}>
-                        <button onClick={()=>setReplyTo(msg)} title="Reply"
-                          style={{background:'none',border:'none',cursor:'pointer',padding:'.25rem',color:'var(--text3)',display:'flex',alignItems:'center'}}
-                          aria-label="Reply to message">
+                        <button onClick={()=>setReplyTo(msg)} title="Reply" style={{background:'none',border:'none',cursor:'pointer',padding:'.25rem',color:'var(--text3)',display:'flex',alignItems:'center'}} aria-label="Reply to message">
                           <i className="ti ti-arrow-back-up" style={{fontSize:'13px'}} aria-hidden="true"/>
                         </button>
                         {isMine && <>
-                          <button onClick={()=>startEdit(msg)} title="Edit"
-                            style={{background:'none',border:'none',cursor:'pointer',padding:'.25rem',color:'var(--text3)',display:'flex',alignItems:'center'}}
-                            aria-label="Edit message">
+                          <button onClick={()=>startEdit(msg)} title="Edit" style={{background:'none',border:'none',cursor:'pointer',padding:'.25rem',color:'var(--text3)',display:'flex',alignItems:'center'}} aria-label="Edit message">
                             <i className="ti ti-edit" style={{fontSize:'13px'}} aria-hidden="true"/>
                           </button>
-                          <button onClick={()=>unsendMessage(msg.id)} title="Delete"
-                            style={{background:'none',border:'none',cursor:'pointer',padding:'.25rem',color:'var(--text3)',display:'flex',alignItems:'center'}}
-                            aria-label="Delete message">
+                          <button onClick={()=>unsendMessage(msg.id)} title="Delete" style={{background:'none',border:'none',cursor:'pointer',padding:'.25rem',color:'var(--text3)',display:'flex',alignItems:'center'}} aria-label="Delete message">
                             <i className="ti ti-trash" style={{fontSize:'13px'}} aria-hidden="true"/>
                           </button>
                         </>}
@@ -376,9 +473,7 @@ function ChatRoom({ room, user, onBack }) {
                 {parseMsg(replyTo.message).text.slice(0,60)}
               </div>
             </div>
-            <button onClick={()=>setReplyTo(null)}
-              style={{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',padding:'.2rem',display:'flex',alignItems:'center'}}
-              aria-label="Cancel reply">
+            <button onClick={()=>setReplyTo(null)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',padding:'.2rem',display:'flex',alignItems:'center'}} aria-label="Cancel reply">
               <i className="ti ti-x" style={{fontSize:'14px'}} aria-hidden="true"/>
             </button>
           </div>
@@ -387,16 +482,9 @@ function ChatRoom({ room, user, onBack }) {
         {/* Input */}
         <div style={{padding:'.75rem 1.25rem',borderTop:'1px solid var(--border)',display:'flex',gap:'.5rem',alignItems:'flex-end',flexShrink:0}}>
           <Avatar initials={userInitials} color={userColor} size={30}/>
-          <textarea
-            ref={inputRef}
-            className="cr-input"
-            value={input}
-            onChange={e=>setInput(e.target.value)}
-            onKeyDown={handleKey}
-            placeholder={`Message ${room.id}${tag?' · '+tag:''}...`}
-            rows={1}
-            style={{flex:1,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'10px',padding:'.6rem .85rem',color:'var(--text)',fontSize:'13px',fontFamily:'Inter,sans-serif',outline:'none',resize:'none',maxHeight:'100px',lineHeight:1.5,transition:'border-color .2s'}}
-          />
+          <textarea ref={inputRef} className="cr-input" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={handleKey}
+            placeholder={`Message ${room.id}${tag?' · '+tag:''}...`} rows={1}
+            style={{flex:1,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'10px',padding:'.6rem .85rem',color:'var(--text)',fontSize:'13px',fontFamily:'Inter,sans-serif',outline:'none',resize:'none',maxHeight:'100px',lineHeight:1.5,transition:'border-color .2s'}}/>
           <button className="send-btn" onClick={send} disabled={!input.trim()||sending}
             style={{width:'36px',height:'36px',borderRadius:'9px',background:input.trim()?`linear-gradient(135deg,${room.color},${room.color}cc)`:'var(--border)',border:'none',cursor:input.trim()?'pointer':'default',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all .15s',opacity:sending?.6:1}}>
             <i className="ti ti-send" style={{fontSize:'16px',color:input.trim()?'#060d0a':'var(--text3)'}} aria-hidden="true"/>
@@ -409,23 +497,19 @@ function ChatRoom({ room, user, onBack }) {
 
 // ── ROOM LIST ─────────────────────────────────────────────────────
 export default function LetsConnect() {
-  const [user, setUser]           = useState(null)
+  const [user, setUser]             = useState(null)
   const [activeRoom, setActiveRoom] = useState(null)
-  const [search, setSearch]       = useState('')
+  const [search, setSearch]         = useState('')
   const [roomCounts, setRoomCounts] = useState({})
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
+    supabase.auth.getUser().then(({ data:{ user } }) => setUser(user))
     loadCounts()
   }, [])
 
   const loadCounts = async () => {
-    // Get message counts per room (last 24h for activity indicator)
     const since = new Date(Date.now() - 24*60*60*1000).toISOString()
-    const { data } = await supabase
-      .from('community_messages')
-      .select('room')
-      .gte('created_at', since)
+    const { data } = await supabase.from('community_messages').select('room').gte('created_at', since)
     if (!data) return
     const counts = {}
     data.forEach(r => { counts[r.room] = (counts[r.room]||0) + 1 })
@@ -454,9 +538,7 @@ export default function LetsConnect() {
         .room-card::after{content:'';position:absolute;inset:0;border-radius:16px;opacity:0;transition:opacity .2s;pointer-events:none;}
         .room-card:hover::after{opacity:1;}
       `}</style>
-      <div style={{background:'var(--bg)',minHeight:'calc(100vh - 52px)',background:'var(--bg)',fontFamily:'Inter,sans-serif'}}>
-
-        {/* Hero */}
+      <div style={{background:'var(--bg)',minHeight:'calc(100vh - 52px)',fontFamily:'Inter,sans-serif'}}>
         <div style={{background:'linear-gradient(135deg,rgba(124,111,247,0.08),rgba(0,229,160,0.04))',borderBottom:'1px solid var(--border)',padding:'2rem 1.5rem 1.5rem'}}>
           <div style={{maxWidth:'900px',margin:'0 auto'}}>
             <div style={{display:'flex',alignItems:'center',gap:'.75rem',marginBottom:'.5rem'}}>
@@ -468,14 +550,12 @@ export default function LetsConnect() {
                 <div style={{fontSize:'12px',color:'var(--text2)',marginTop:'2px'}}>India's job seeker community — ask, share, and grow together</div>
               </div>
             </div>
-
-            {/* Stats row */}
             <div style={{display:'flex',gap:'1.5rem',margin:'1rem 0',flexWrap:'wrap'}}>
               {[
-                {icon:'ti-messages',    label:'Community chats',  val:'10 rooms'},
-                {icon:'ti-users',       label:'Active today',     val:`${Object.values(roomCounts).reduce((a,b)=>a+b,0)} msgs`},
-                {icon:'ti-map-pin',     label:'Coverage',         val:'All India'},
-                {icon:'ti-shield-check',label:'Safe space',       val:'Moderated'},
+                {icon:'ti-messages',    label:'Community chats', val:'10 rooms'},
+                {icon:'ti-users',       label:'Active today',    val:`${Object.values(roomCounts).reduce((a,b)=>a+b,0)} msgs`},
+                {icon:'ti-map-pin',     label:'Coverage',        val:'All India'},
+                {icon:'ti-shield-check',label:'Safe space',      val:'Moderated'},
               ].map(s=>(
                 <div key={s.label} style={{display:'flex',alignItems:'center',gap:'.5rem'}}>
                   <i className={`ti ${s.icon}`} style={{fontSize:'15px',color:'#7c6ff7'}} aria-hidden="true"/>
@@ -483,8 +563,6 @@ export default function LetsConnect() {
                 </div>
               ))}
             </div>
-
-            {/* Search */}
             <div style={{position:'relative',maxWidth:'420px'}}>
               <i className="ti ti-search" style={{position:'absolute',left:'.85rem',top:'50%',transform:'translateY(-50%)',fontSize:'14px',color:'var(--text3)'}} aria-hidden="true"/>
               <input value={search} onChange={e=>setSearch(e.target.value)}
@@ -494,15 +572,12 @@ export default function LetsConnect() {
           </div>
         </div>
 
-        {/* Rooms grid */}
         <div style={{maxWidth:'900px',margin:'0 auto',padding:'1.5rem'}}>
-
-          {/* Tips banner */}
           <div style={{display:'flex',gap:'1rem',padding:'.75rem 1rem',background:'rgba(0,229,160,0.05)',border:'0.5px solid rgba(0,229,160,0.15)',borderRadius:'12px',marginBottom:'1.5rem',flexWrap:'wrap'}}>
             {[
-              {icon:'ti-help-circle',  text:'Ask doubts about companies, salary, interviews'},
-              {icon:'ti-robot',        text:'Get AI help or discuss AI tools for your career'},
-              {icon:'ti-star',         text:'Share your experience to help others'},
+              {icon:'ti-help-circle', text:'Ask doubts about companies, salary, interviews'},
+              {icon:'ti-robot',       text:'Get AI help or discuss AI tools for your career'},
+              {icon:'ti-star',        text:'Share your experience to help others'},
             ].map((t,i)=>(
               <div key={i} style={{display:'flex',alignItems:'center',gap:'.4rem',fontSize:'12px',color:'var(--text2)'}}>
                 <i className={`ti ${t.icon}`} style={{fontSize:'14px',color:'#00e5a0',flexShrink:0}} aria-hidden="true"/>
@@ -513,7 +588,7 @@ export default function LetsConnect() {
 
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:'1rem'}}>
             {filteredRooms.map(room=>{
-              const count = roomCounts[room.id] || 0
+              const count    = roomCounts[room.id] || 0
               const isActive = count > 0
               return (
                 <div key={room.id} className="room-card"
@@ -521,10 +596,7 @@ export default function LetsConnect() {
                   onClick={()=>setActiveRoom(room)}
                   onMouseEnter={e=>{e.currentTarget.style.borderColor=room.color+'55';e.currentTarget.style.boxShadow=`0 8px 24px ${room.color}18`}}
                   onMouseLeave={e=>{e.currentTarget.style.borderColor=isActive?`${room.color}25`:'var(--border)';e.currentTarget.style.boxShadow='none'}}>
-
-                  {/* Glow orb */}
                   <div style={{position:'absolute',top:'-20px',right:'-20px',width:'80px',height:'80px',borderRadius:'50%',background:`${room.color}0e`,filter:'blur(20px)',pointerEvents:'none'}}/>
-
                   <div style={{display:'flex',alignItems:'flex-start',gap:'.75rem',marginBottom:'.85rem',position:'relative'}}>
                     <div style={{width:'40px',height:'40px',borderRadius:'11px',background:`${room.color}14`,border:`1px solid ${room.color}25`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                       <i className={`ti ${room.icon}`} style={{fontSize:'20px',color:room.color}} aria-hidden="true"/>
@@ -534,12 +606,11 @@ export default function LetsConnect() {
                       <div style={{fontSize:'11px',color:'var(--text2)',lineHeight:1.4}}>{room.desc}</div>
                     </div>
                   </div>
-
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                     <div style={{display:'flex',alignItems:'center',gap:'.35rem'}}>
                       {isActive ? (
                         <>
-                          <div style={{width:'6px',height:'6px',borderRadius:'50%',background:room.color,animation:'spin 0s, pulse 1.5s infinite',boxShadow:`0 0 5px ${room.color}`}}/>
+                          <div style={{width:'6px',height:'6px',borderRadius:'50%',background:room.color,boxShadow:`0 0 5px ${room.color}`}}/>
                           <span style={{fontSize:'11px',color:room.color,fontWeight:600}}>{count} messages today</span>
                         </>
                       ) : (
@@ -553,7 +624,6 @@ export default function LetsConnect() {
                       Join <i className="ti ti-arrow-right" style={{fontSize:'12px'}} aria-hidden="true"/>
                     </div>
                   </div>
-                  <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
                 </div>
               )
             })}
