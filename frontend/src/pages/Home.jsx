@@ -29,7 +29,7 @@ export default function Home() {
     }
   }
 
-  // Crystal chime sound — two sine waves a fifth apart, quick decay
+   // Soft tick sound — short sine burst, very quick decay
   function playChime(cardColor) {
     try {
       if (!audioCtxRef.current) {
@@ -39,31 +39,27 @@ export default function Home() {
       if (ctx.state === 'suspended') ctx.resume()
       const now = ctx.currentTime
 
-      // Pick base freq from card color so each card sounds slightly different
       const freqMap = {
-        '#00e5a0': 1047, // C6
-        '#7c6ff7': 1175, // D6
-        '#3b82f6': 1319, // E6
-        '#f5a623': 1397, // F6
-        '#14b8a6': 1568, // G6
+        '#00e5a0': 880,
+        '#7c6ff7': 1047,
+        '#3b82f6': 1175,
+        '#f5a623': 1319,
+        '#14b8a6': 1397,
       }
-      const baseFreq = freqMap[cardColor] || 1047
+      const freq = freqMap[cardColor] || 880
 
-      // Two notes — root + perfect fifth
-      const freqs = [baseFreq, baseFreq * 1.5]
-      freqs.forEach((freq, i) => {
-        const osc  = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc.connect(gain)
-        gain.connect(ctx.destination)
-        osc.type = 'sine'
-        osc.frequency.setValueAtTime(freq, now + i * 0.02)
-        gain.gain.setValueAtTime(0, now + i * 0.02)
-        gain.gain.linearRampToValueAtTime(0.06, now + i * 0.02 + 0.01)
-        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.02 + 0.22)
-        osc.start(now + i * 0.02)
-        osc.stop(now + i * 0.02 + 0.25)
-      })
+      const osc  = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, now)
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.04, now + 0.04)
+      gain.gain.setValueAtTime(0, now)
+      gain.gain.linearRampToValueAtTime(0.08, now + 0.008)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1)
+      osc.start(now)
+      osc.stop(now + 0.12)
     } catch (e) {}
   }
 
