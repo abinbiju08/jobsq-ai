@@ -88,6 +88,7 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
   const [prevXP, setPrevXP]           = useState(0)
   const [animXP, setAnimXP]           = useState(false)
   const [errorLine, setErrorLine]     = useState(null)
+  const [displayXP, setDisplayXP]     = useState(0)
   const editorRef = useRef(null)
   const monacoRef = useRef(null)
 
@@ -97,11 +98,21 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
 
   useEffect(() => { if (user?.id) fetchScores() }, [user?.id])
 
+  useEffect(() => {
+    const xp = scores[lang]?.xp || 0
+    setDisplayXP(xp)
+  }, [scores, lang])
+
   async function fetchScores() {
     try {
       const res  = await fetch(`${API}/terminal/skill-scores/${user.id}`)
       const data = await res.json()
-      if (data.success) setScores(data.scores)
+      if (data.success) {
+        setScores(data.scores)
+        // Immediately update displayXP for current language
+        const xp = data.scores[lang]?.xp || 0
+        setDisplayXP(xp)
+      }
     } catch {}
   }
 
@@ -287,7 +298,7 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
         </div>
 
         {/* ── SCORE BAR ── */}
-        <XPBar xp={currentScore.xp} key={currentScore.xp} animating={animXP} />
+        <XPBar xp={displayXP} key={displayXP} animating={animXP} />
 
         {/* ── LEADERBOARD PANEL ── */}
         {showLeaderboard && (
