@@ -167,7 +167,7 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
 
   async function runCode() {
     if (!code.trim()) return
-    setRunning(true); setOutput(null); setActiveTab('output')
+    setRunning(true); setOutput(null)
     try {
       const testCase = problem?.test_cases?.[0] || {}
       const res = await fetch(`${API}/terminal/run-code`, {
