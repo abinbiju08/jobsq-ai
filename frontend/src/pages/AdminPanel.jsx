@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
+import AdminBroadcast from '../components/AdminBroadcast'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 const ADMIN_EMAILS = ['abinbiju08@gmail.com'] // Add admin emails here
@@ -115,11 +116,12 @@ export default function AdminPanel() {
           {/* Tabs */}
           <div style={{display:'flex', gap:'.35rem', marginBottom:'1rem', flexWrap:'wrap'}}>
             {[
-              {id:'overview', icon:'ti-chart-bar', label:'Overview'},
-              {id:'messages', icon:'ti-messages', label:'All messages'},
-              {id:'blocked',  icon:'ti-shield-x',  label:'Blocked'},
-              {id:'banned',   icon:'ti-user-x',    label:'Banned users'},
-            ].map(t => (
+              {id:'overview',   icon:'ti-chart-bar',    label:'Overview'},
+              {id:'messages',   icon:'ti-messages',     label:'All messages'},
+              {id:'blocked',    icon:'ti-shield-x',     label:'Blocked'},
+              {id:'banned',     icon:'ti-user-x',       label:'Banned users'},
+              {id:'broadcast',  icon:'ti-speakerphone', label:'Broadcasts'},
+              ].map(t => (
               <button key={t.id} style={S.tab(tab===t.id)} onClick={()=>setTab(t.id)}>
                 <i className={`ti ${t.icon}`} style={{fontSize:'13px', marginRight:'4px'}} aria-hidden="true"/>
                 {t.label}
@@ -243,6 +245,10 @@ export default function AdminPanel() {
                     </div>
                   ))}
                 </div>
+              )}
+                            {/* BROADCAST TAB */}
+              {tab === 'broadcast' && (
+                <AdminBroadcast />
               )}
             </>
           )}
