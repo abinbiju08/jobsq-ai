@@ -9,6 +9,7 @@ export default function Home() {
   const [statsStarted, setStatsStarted] = useState(false)
   const canvasRef = useRef(null)
   const statsRef = useRef(null)
+  const audioCtxRef = useRef(null)
   const countersRef = useRef([
     { id:'s1', numId:'n1', target:10,  duration:2500, delay:0,   color:'#00e5a0', suffix:'K+' },
     { id:'s2', numId:'n2', target:95,  duration:2500, delay:300, color:'#7c6ff7', suffix:'%'  },
@@ -26,6 +27,44 @@ export default function Home() {
       cardEl.appendChild(p)
       setTimeout(()=>p.remove(),1200)
     }
+  }
+
+  // Crystal chime sound — two sine waves a fifth apart, quick decay
+  function playChime(cardColor) {
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)()
+      }
+      const ctx = audioCtxRef.current
+      if (ctx.state === 'suspended') ctx.resume()
+      const now = ctx.currentTime
+
+      // Pick base freq from card color so each card sounds slightly different
+      const freqMap = {
+        '#00e5a0': 1047, // C6
+        '#7c6ff7': 1175, // D6
+        '#3b82f6': 1319, // E6
+        '#f5a623': 1397, // F6
+        '#14b8a6': 1568, // G6
+      }
+      const baseFreq = freqMap[cardColor] || 1047
+
+      // Two notes — root + perfect fifth
+      const freqs = [baseFreq, baseFreq * 1.5]
+      freqs.forEach((freq, i) => {
+        const osc  = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(freq, now + i * 0.02)
+        gain.gain.setValueAtTime(0, now + i * 0.02)
+        gain.gain.linearRampToValueAtTime(0.06, now + i * 0.02 + 0.01)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.02 + 0.22)
+        osc.start(now + i * 0.02)
+        osc.stop(now + i * 0.02 + 0.25)
+      })
+    } catch (e) {}
   }
 
   const runCounters = useCallback(() => {
@@ -81,8 +120,8 @@ export default function Home() {
     { icon:'ti-search',        title:'Find suitable jobs',            desc:'Upload your resume and discover jobs that match your skills and experience.',              tag:'AI Matched',  tagColor:'#00e5a0', tagBg:'rgba(0,229,160,0.1)',   border:'rgba(0,229,160,0.25)',   glow:'rgba(0,229,160,0.12)',   gradient:'linear-gradient(135deg,rgba(0,229,160,0.1),rgba(0,229,160,0.02))',   btn:'Find jobs',     path:'/jobs' },
     { icon:'ti-file-check',    title:'ATS resume checker',            desc:"Check your resume's ATS compatibility and identify areas that need improvement.",         tag:'ATS Score',   tagColor:'#7c6ff7', tagBg:'rgba(124,111,247,0.12)', border:'rgba(124,111,247,0.25)', glow:'rgba(124,111,247,0.12)', gradient:'linear-gradient(135deg,rgba(124,111,247,0.1),rgba(124,111,247,0.02))', btn:'Check now',     path:'/resume' },
     { icon:'ti-pencil',        title:'Resume & cover letter builder', desc:'Create professional, ATS-friendly resumes and personalized cover letters with AI.',        tag:'AI Builder',  tagColor:'#3b82f6', tagBg:'rgba(59,130,246,0.12)',  border:'rgba(59,130,246,0.25)',  glow:'rgba(59,130,246,0.12)',  gradient:'linear-gradient(135deg,rgba(59,130,246,0.1),rgba(59,130,246,0.02))',  btn:'Build resume',  path:'/resume-builder' },
-    { icon:'ti-microphone',    title:'AI interview prep',             desc:'Practice role-specific interview questions and get AI-powered feedback instantly.',        tag:'AI Powered', tagColor:'#f5a623', tagBg:'rgba(245,166,35,0.12)', border:'rgba(245,166,35,0.25)', glow:'rgba(245,166,35,0.12)', gradient:'linear-gradient(135deg,rgba(245,166,35,0.1),rgba(245,166,35,0.02))', btn:'Start prep', path:'/interview' },
-    { icon:'ti-users',         title:"Let's connect",                 desc:'Chat with job seekers across India — ask about companies, interviews, salary, and AI doubts.', tag:'Community', tagColor:'#7c6ff7', tagBg:'rgba(124,111,247,0.12)', border:'rgba(124,111,247,0.25)', glow:'rgba(124,111,247,0.12)', gradient:'linear-gradient(135deg,rgba(124,111,247,0.1),rgba(124,111,247,0.02))', btn:'Join community', path:'/connect' },
+    { icon:'ti-microphone',    title:'AI interview prep',             desc:'Practice role-specific interview questions and get AI-powered feedback instantly.',        tag:'AI Powered',  tagColor:'#f5a623', tagBg:'rgba(245,166,35,0.12)', border:'rgba(245,166,35,0.25)', glow:'rgba(245,166,35,0.12)', gradient:'linear-gradient(135deg,rgba(245,166,35,0.1),rgba(245,166,35,0.02))', btn:'Start prep',    path:'/interview' },
+    { icon:'ti-users',         title:"Let's connect",               desc:'Chat with job seekers across India — ask about companies, interviews, salary, and AI doubts.', tag:'Community', tagColor:'#7c6ff7', tagBg:'rgba(124,111,247,0.12)', border:'rgba(124,111,247,0.25)', glow:'rgba(124,111,247,0.12)', gradient:'linear-gradient(135deg,rgba(124,111,247,0.1),rgba(124,111,247,0.02))', btn:'Join community', path:'/connect' },
     { icon:'ti-layout-kanban', title:'Application tracker',           desc:'Track your applications, interviews, follow-ups, and progress all in one place.',          tag:'Tracker',     tagColor:'#14b8a6', tagBg:'rgba(20,184,166,0.12)',  border:'rgba(20,184,166,0.25)',  glow:'rgba(20,184,166,0.12)',  gradient:'linear-gradient(135deg,rgba(20,184,166,0.1),rgba(20,184,166,0.02))',  btn:'Track apps',    path:'/tracker' },
   ]
 
@@ -196,6 +235,7 @@ export default function Home() {
             {cards.map((card,i)=>(
               <div key={i} className="feat-card"
                 style={{'--fc-color':card.tagColor,'--fc-border':card.border,'--fc-glow':card.glow,'--fc-tagbg':card.tagBg,'--fc-grad':card.gradient}}
+                onMouseEnter={()=>playChime(card.tagColor)}
                 onClick={()=>navigate(card.path)}>
                 <div className="fc-glow-orb"/>
                 <div className="fc-icon-wrap">
