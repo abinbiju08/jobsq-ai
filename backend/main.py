@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import jobs, resume, auth, resume_match, chatbot_route, resume_builder, tracker, alerts, interview, moderation, tailor, code_terminal
+from routes import jobs, resume, auth, resume_match, chatbot_route, resume_builder, tracker, alerts, interview, moderation, tailor, code_terminal, broadcast
 from scraper.job_scraper import start_scheduler, scrape_and_save
 import uvicorn
 import asyncio
@@ -32,6 +32,7 @@ app.include_router(interview.router,      prefix="/interview")
 app.include_router(moderation.router,     prefix="/moderation")
 app.include_router(tailor.router,         prefix="/builder")
 app.include_router(code_terminal.router,  prefix="/terminal")
+app.include_router(broadcast.router,      prefix="/broadcast")
 
 @app.get("/")
 def root():

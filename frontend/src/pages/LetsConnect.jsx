@@ -1,6 +1,7 @@
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import BroadcastFeed from '../components/BroadcastFeed'
 import { supabase } from '../lib/supabase'
 
 const ROOMS = [
@@ -367,6 +368,9 @@ function ChatRoom({ room, user, onBack }) {
             Top coders
           </button>
         </div>
+
+        {/* Broadcasts */}
+        <BroadcastFeed room={room.id} />
 
         {/* Messages */}
         <div className="cr-scroll" style={{flex:1,overflowY:'auto',padding:'1rem 1.25rem',display:'flex',flexDirection:'column',gap:'.85rem'}}>
