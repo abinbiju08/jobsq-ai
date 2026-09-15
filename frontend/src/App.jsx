@@ -17,6 +17,13 @@ import InterviewPrep from './pages/InterviewPrep'
 import AdminPanel from './pages/AdminPanel'
 import LetsConnect from './pages/LetsConnect'
 
+
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  return null
+}
+
 function AppContent({ session }) {
   const location = useLocation()
   const isResetPage = location.pathname === '/reset-password'
@@ -72,6 +79,7 @@ function App() {
 
   return (
     <BrowserRouter>
+    <ScrollToTop />
       <AppContent session={session} />
     </BrowserRouter>
   )
