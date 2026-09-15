@@ -202,6 +202,8 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
       if (data.success) {
         setSolved(true)
         setPrevXP(scores[lang]?.xp || 0)
+        // Directly set displayXP from API response — don't wait for fetchScores
+        setDisplayXP(data.total_xp || 0)
         await fetchScores()
         setXpPopup({ xp: data.xp_earned, badge: data.badge, message: data.message, total: data.total_xp })
         setAnimXP(true)
