@@ -48,7 +48,7 @@ function RiskMeter({ pct, color }) {
 
 // ── MAIN COMPONENT ────────────────────────────────────────────────
 export default function InterviewPrep({ user }) {
-  const [tab, setTab]           = useState('prep')   // prep | intelligence | technical
+  const [tab, setTab]           = useState(() => sessionStorage.getItem('interviewTab') || 'prep')
   const [step, setStep]         = useState('setup')  // setup | session | report
   const [role, setRole]         = useState('')
   const [company, setCompany]   = useState('')
@@ -337,7 +337,7 @@ export default function InterviewPrep({ user }) {
             {id:'intelligence', icon:'ti-brain',        label:'Career intelligence'},
             {id:'technical',    icon:'ti-code',         label:'Code Terminal'},
           ].map(t=>(
-            <button key={t.id} onClick={()=>{setTab(t.id);if(t.id==='prep'){setStep('setup')}}}
+            <button key={t.id} onClick={()=>{setTab(t.id);sessionStorage.setItem('interviewTab',t.id);if(t.id==='prep'){setStep('setup')}}}
               style={{display:'flex',alignItems:'center',gap:'.4rem',padding:'.45rem 1rem',borderRadius:'20px',border:`1px solid ${tab===t.id?'rgba(0,229,160,0.4)':'rgba(255,255,255,0.1)'}`,background:tab===t.id?'rgba(0,229,160,0.1)':'transparent',color:tab===t.id?'#00e5a0':'#8b93b0',fontSize:'13px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
               <i className={`ti ${t.icon}`} style={{fontSize:'14px'}} aria-hidden="true"/>
               {t.label}
