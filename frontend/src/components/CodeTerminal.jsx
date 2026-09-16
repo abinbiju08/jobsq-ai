@@ -97,32 +97,29 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
   const currentDiff  = DIFFICULTIES.find(d => d.id === difficulty)
   const currentScore = scores[lang] || { xp: 0, problems_solved: 0 }
 
+  // Load scores on mount — always use supabase session directly
   useEffect(() => {
-    if (user?.id) {
-      fetchScores(user.id)
-    } else {
-      // Direct supabase call — no dynamic import
-      supabase.auth.getUser().then(({ data }) => {
-        if (data?.user?.id) fetchScores(data.user.id)
-      })
-    }
-  }, [user?.id, lang])
+    supabase.auth.getUser().then(({ data: { user: u } }) => {
+      if (u?.id) fetchScores(u.id)
+    })
+  }, [])  // only on mount
 
+  // Update displayXP whenever scores or lang changes
   useEffect(() => {
     const xp = scores[lang]?.xp ?? 0
+    console.log('displayXP update — lang:', lang, 'xp:', xp, 'scores:', scores)
     setDisplayXP(xp)
   }, [scores, lang])
 
-  async function fetchScores(userId) {
-    const uid = userId || user?.id
+  async function fetchScores(uid) {
     if (!uid) return
     try {
       const res  = await fetch(`${API}/terminal/skill-scores/${uid}`)
+      if (!res.ok) return
       const data = await res.json()
+      console.log('fetchScores response:', data)
       if (data.success && data.scores) {
         setScores(data.scores)
-        const xp = data.scores[lang]?.xp ?? 0
-        setDisplayXP(xp)
       }
     } catch (e) {
       console.error('fetchScores error:', e)
