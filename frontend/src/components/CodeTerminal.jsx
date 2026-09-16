@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { supabase } from '../lib/supabase'
 import Editor from '@monaco-editor/react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -97,16 +98,13 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
   const currentScore = scores[lang] || { xp: 0, problems_solved: 0 }
 
   useEffect(() => {
-    // Try user prop first, then fall back to supabase session
     if (user?.id) {
       fetchScores(user.id)
     } else {
-      // Fallback: get user from supabase directly
-      import('../lib/supabase').then(({ supabase }) => {
-        supabase.auth.getUser().then(({ data }) => {
-          if (data?.user?.id) fetchScores(data.user.id)
-        })
-      }).catch(() => {})
+      // Direct supabase call — no dynamic import
+      supabase.auth.getUser().then(({ data }) => {
+        if (data?.user?.id) fetchScores(data.user.id)
+      })
     }
   }, [user?.id, lang])
 
