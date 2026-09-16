@@ -96,24 +96,28 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
   const currentDiff  = DIFFICULTIES.find(d => d.id === difficulty)
   const currentScore = scores[lang] || { xp: 0, problems_solved: 0 }
 
-  useEffect(() => { if (user?.id) fetchScores() }, [user?.id])
+  useEffect(() => {
+    if (user?.id) fetchScores()
+  }, [user?.id, lang])  // re-fetch when language changes too
 
   useEffect(() => {
-    const xp = scores[lang]?.xp || 0
+    const xp = scores[lang]?.xp ?? 0
     setDisplayXP(xp)
   }, [scores, lang])
 
   async function fetchScores() {
+    if (!user?.id) return
     try {
       const res  = await fetch(`${API}/terminal/skill-scores/${user.id}`)
       const data = await res.json()
-      if (data.success) {
+      if (data.success && data.scores) {
         setScores(data.scores)
-        // Immediately update displayXP for current language
-        const xp = data.scores[lang]?.xp || 0
+        const xp = data.scores[lang]?.xp ?? 0
         setDisplayXP(xp)
       }
-    } catch {}
+    } catch (e) {
+      console.error('fetchScores error:', e)
+    }
   }
 
   async function generateProblem() {
