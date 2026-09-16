@@ -69,33 +69,37 @@ async def generate_problem(data: GenerateProblemRequest):
 Language: {data.language}
 Difficulty: {data.difficulty}
 
-Return ONLY valid JSON with this exact structure:
+CRITICAL RULES FOR starter_code:
+- starter_code must ONLY contain an EMPTY skeleton/boilerplate — NO solution logic whatsoever
+- Do NOT solve the problem in starter_code
+- Do NOT add any hints or partial solutions in starter_code
+- starter_code is just the function/class structure with pass or empty body
+
+Return ONLY valid JSON:
 {{
   "id": "unique_slug_like_two_sum",
   "title": "Problem Title",
   "difficulty": "{data.difficulty}",
-  "description": "Clear problem description with examples. Use \\n for newlines.",
+  "description": "Clear problem description. Use \\n for newlines.",
   "examples": [
     {{"input": "example input", "output": "expected output", "explanation": "why"}}
   ],
   "constraints": ["constraint 1", "constraint 2"],
   "starter_code": {{
-    "python": "def solution():\\n    pass",
-    "javascript": "function solution() {{\\n    \\n}}",
-    "java": "public class Solution {{\\n    public static void main(String[] args) {{\\n    }}\\n}}",
-    "c++": "#include<iostream>\\nusing namespace std;\\nint main() {{\\n    return 0;\\n}}",
-    "sql": "SELECT "
+    "python": "def solution():\\n    # Write your code here\\n    pass",
+    "javascript": "function solution() {{\\n    // Write your code here\\n}}\\nsolution();",
+    "java": "import java.util.Scanner;\\npublic class Solution {{\\n    public static void main(String[] args) {{\\n        // Write your code here\\n    }}\\n}}",
+    "c++": "#include<iostream>\\nusing namespace std;\\nint main() {{\\n    // Write your code here\\n    return 0;\\n}}",
+    "sql": "-- Write your SQL query here\\nSELECT "
   }},
   "test_cases": [
-    {{"input": "test input via stdin", "expected_output": "expected\\n"}}
+    {{"input": "test input via stdin", "expected_output": "expected output"}}
   ],
   "hints": ["hint 1", "hint 2"]
 }}
 
-Make the problem appropriate for {data.difficulty} level. For beginner: basic loops/arrays. 
-Intermediate: data structures, algorithms. Advanced: optimization, complex logic.
-The test_cases input should be what would be fed via stdin to the program.
-starter_code should have boilerplate for all 5 languages."""
+Make the problem appropriate for {data.difficulty} level.
+REMEMBER: starter_code must be EMPTY skeleton only — no solution code at all."""
 
         response = groq_client.chat.completions.create(
             model="openai/gpt-oss-120b",
