@@ -347,7 +347,7 @@ async def get_skill_scores(user_id: str):
             }
 
         # Fill in zeros for languages not yet attempted
-        for lang in LANGUAGE_IDS:
+        for lang in ['python', 'javascript', 'java', 'c++', 'sql']:
             if lang not in scores:
                 scores[lang] = {
                     "xp":              0,
