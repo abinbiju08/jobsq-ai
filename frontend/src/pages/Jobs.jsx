@@ -11,6 +11,8 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const categories = ['All','IT & Software','Healthcare','Finance','Engineering','Marketing','Education','Sales']
 const types = ['All','Full-time','Part-time','Remote','Contract']
+const experiences = ['All','Fresher','Junior','Mid-level','Senior']
+
 const CITY_DATA = [
   {n:'Bangalore',lat:12.9716,lng:77.5946,state:'Karnataka'},{n:'Mysuru',lat:12.2958,lng:76.6394,state:'Karnataka'},
   {n:'Hubli',lat:15.3647,lng:75.1240,state:'Karnataka'},{n:'Mangalore',lat:12.8698,lng:74.8431,state:'Karnataka'},
@@ -44,6 +46,21 @@ const CITY_IMPORTANCE = {
   'Warangal':20,'Durgapur':15,'Kanpur':30,'Agra':20,'Varanasi':20,
   'Jodhpur':20,'Udaipur':18,'Patna':20,'Ranchi':18,'Bhubaneswar':25,
   'Guwahati':20,'Dehradun':15,'default':10
+}
+
+// Keywords for experience level matching
+const EXP_KEYWORDS = {
+  'Fresher':   ['fresher','freshers','fresh graduate','entry level','entry-level','0-1','0 to 1','no experience','trainee','intern','apprentice','graduate trainee','campus hire'],
+  'Junior':    ['junior','jr.','jr ','1-3 years','1 to 3','associate','1+ year','2+ year','early career'],
+  'Mid-level': ['mid level','mid-level','3-6 years','3 to 6','3+ year','4+ year','5+ year','experienced','professional'],
+  'Senior':    ['senior','sr.','sr ','lead','principal','architect','6+ year','7+ year','8+ year','10+ year','staff engineer','tech lead','manager'],
+}
+
+function matchesExperience(job, expFilter) {
+  if (expFilter === 'All') return true
+  const text = `${job.title || ''} ${job.description || ''}`.toLowerCase()
+  const keywords = EXP_KEYWORDS[expFilter] || []
+  return keywords.some(kw => text.includes(kw))
 }
 
 function JobMap({ search }) {
@@ -122,26 +139,25 @@ function JobMap({ search }) {
         return { ...c, j, realData:j>0 }
       })
       const ROLE_MULTIPLIERS = {
-  'python': 0.18, 'react': 0.20, 'frontend': 0.16, 'fullstack': 0.22,
-  'full stack': 0.22, 'java': 0.19, 'data': 0.15, 'devops': 0.12,
-  'node': 0.14, 'flutter': 0.10, 'android': 0.11, 'machine learning': 0.13,
-  'ui': 0.09, 'ux': 0.09, 'software': 0.25, 'developer': 0.20,
-  'engineer': 0.18, 'manager': 0.10, 'sales': 0.08, 'marketing': 0.07,
-  'nurse': 0.06, 'doctor': 0.05, 'finance': 0.08, 'accounting': 0.07,
-}
-const roleLower = (role || '').toLowerCase()
-const multiplier = Object.entries(ROLE_MULTIPLIERS).find(([k]) => roleLower.includes(k))?.[1] || 0.12
-
-cities = cities.map(c => {
-  if (c.j > 0) {
-    const color = c.j>100?'#00e5a0':c.j>40?'#00c484':c.j>15?'#7c6ff7':'#3b82f6'
-    return {...c, color}
-  }
-  const est = Math.max(2, Math.round((CITY_IMPORTANCE[c.n]||10) * multiplier))
-  return {...c, j: est, estimated: true, color: '#f5a623'}
-})
+        'python': 0.18, 'react': 0.20, 'frontend': 0.16, 'fullstack': 0.22,
+        'full stack': 0.22, 'java': 0.19, 'data': 0.15, 'devops': 0.12,
+        'node': 0.14, 'flutter': 0.10, 'android': 0.11, 'machine learning': 0.13,
+        'ui': 0.09, 'ux': 0.09, 'software': 0.25, 'developer': 0.20,
+        'engineer': 0.18, 'manager': 0.10, 'sales': 0.08, 'marketing': 0.07,
+        'nurse': 0.06, 'doctor': 0.05, 'finance': 0.08, 'accounting': 0.07,
+      }
+      const roleLower = (role || '').toLowerCase()
+      const multiplier = Object.entries(ROLE_MULTIPLIERS).find(([k]) => roleLower.includes(k))?.[1] || 0.12
+      cities = cities.map(c => {
+        if (c.j > 0) {
+          const color = c.j>100?'#00e5a0':c.j>40?'#00c484':c.j>15?'#7c6ff7':'#3b82f6'
+          return {...c, color}
+        }
+        const est = Math.max(2, Math.round((CITY_IMPORTANCE[c.n]||10) * multiplier))
+        return {...c, j: est, estimated: true, color: '#f5a623'}
+      })
       const displayCities = (selectedState ? cities.filter(c=>c.state===selectedState) : cities).filter(c => c.j > 0)
-        if (selectedState && mapInstanceRef.current && displayCities.length>0) {
+      if (selectedState && mapInstanceRef.current && displayCities.length>0) {
         const lats=displayCities.map(c=>c.lat), lngs=displayCities.map(c=>c.lng)
         mapInstanceRef.current.flyToBounds(window.L.latLngBounds([Math.min(...lats)-.5,Math.min(...lngs)-.5],[Math.max(...lats)+.5,Math.max(...lngs)+.5]),{duration:1.2,padding:[30,30]})
       } else if (!selectedState && mapInstanceRef.current) {
@@ -172,7 +188,6 @@ cities = cities.map(c => {
       `}</style>
       <div style={{display:'flex',height:'100%',background:'var(--bg)'}}>
         <div style={{flex:1,position:'relative',overflow:'hidden'}}>
-          {/* Map search bar */}
           <div style={{position:'absolute',top:'1rem',left:'50%',transform:'translateX(-50%)',zIndex:1000,display:'flex',gap:'.5rem',alignItems:'center',background:'var(--card,rgba(6,9,20,0.94))',border:'1px solid var(--border2,rgba(255,255,255,0.12))',borderRadius:'14px',padding:'.55rem .8rem',backdropFilter:'blur(20px)',boxShadow:'0 8px 32px rgba(0,0,0,0.4)',minWidth:'460px'}}>
             <i className="ti ti-search" style={{fontSize:'14px',color:'var(--text3)'}} aria-hidden="true"/>
             <input value={role} onChange={e=>setRole(e.target.value)} onKeyDown={e=>e.key==='Enter'&&runSearch()} style={{background:'none',border:'none',color:'var(--text)',fontSize:'13px',fontFamily:'Inter,sans-serif',outline:'none',width:'150px'}} placeholder="Job role or skill..."/>
@@ -187,8 +202,6 @@ cities = cities.map(c => {
             </button>
             {selectedState && <button onClick={()=>{setSelectedState('');setTimeout(()=>runSearch(true),50)}} style={{display:'flex',alignItems:'center',gap:'.3rem',padding:'.38rem .6rem',background:'rgba(255,77,109,0.1)',border:'1px solid rgba(255,77,109,0.2)',borderRadius:'8px',color:'#ff4d6d',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif'}}><i className="ti ti-x" style={{fontSize:'12px'}} aria-hidden="true"/> All India</button>}
           </div>
-
-          {/* Map stats */}
           <div style={{position:'absolute',bottom:'1.5rem',left:'50%',transform:'translateX(-50%)',zIndex:1000,display:'flex',gap:'.5rem'}}>
             {[
               {icon:'ti-circle-check',l:`${stats.total} Jobs`,c:'#00e5a0',bg:'rgba(0,229,160,0.1)',b:'rgba(0,229,160,0.2)'},
@@ -201,8 +214,6 @@ cities = cities.map(c => {
               </div>
             ))}
           </div>
-
-          {/* Legend */}
           <div style={{position:'absolute',bottom:'1.5rem',left:'1rem',background:'var(--card,rgba(6,9,20,0.9))',border:'1px solid var(--border)',borderRadius:'10px',padding:'.55rem .8rem',zIndex:1000}}>
             <div style={{fontSize:'9px',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.3rem',fontWeight:600}}>Job density</div>
             {[['#00e5a0','100+ Live'],['#7c6ff7','40-100 Live'],['#3b82f6','15-40 Live'],['#f5a623','Estimated']].map(([c,l])=>(
@@ -211,12 +222,9 @@ cities = cities.map(c => {
               </div>
             ))}
           </div>
-
           <div ref={mapRef} style={{width:'100%',height:'100%'}}/>
           {!leafletLoaded && <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)',color:'var(--text2)',fontSize:'14px'}}>Loading map...</div>}
         </div>
-
-        {/* Map sidebar */}
         <div style={{width:'210px',background:'var(--bg2,rgba(8,12,24,0.95))',borderLeft:'1px solid var(--border)',display:'flex',flexDirection:'column',overflow:'hidden',flexShrink:0}}>
           <div style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.7rem 1rem',fontSize:'11px',fontWeight:700,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border,rgba(255,255,255,0.05))'}}>
             <i className="ti ti-trophy" style={{fontSize:'13px',color:'#f5a623'}} aria-hidden="true"/>
@@ -263,6 +271,7 @@ export default function Jobs() {
   const [location, setLocation]       = useState('')
   const [category, setCategory]       = useState('All')
   const [type, setType]               = useState('All')
+  const [experience, setExperience]   = useState('All')
   const [loading, setLoading]         = useState(true)
   const [view, setView]               = useState('list')
   const [showMatch, setShowMatch]     = useState(false)
@@ -280,13 +289,15 @@ export default function Jobs() {
   const [alertActive, setAlertActive] = useState(false)
 
   useEffect(() => { fetchJobs(); loadUserData(); supabase.auth.getUser().then(({ data }) => { if(data?.user) setUser(data.user) }) }, [])
+
   useEffect(() => {
     let result = jobs
     if (search) result = result.filter(j=>j.title?.toLowerCase().includes(search.toLowerCase())||j.company?.toLowerCase().includes(search.toLowerCase()))
     if (category!=='All') result = result.filter(j=>j.category===category)
     if (type!=='All') result = result.filter(j=>j.job_type===type)
+    if (experience!=='All') result = result.filter(j=>matchesExperience(j, experience))
     setFiltered(result)
-  }, [jobs, search, category, type])
+  }, [jobs, search, category, type, experience])
 
   const loadUserData = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -323,16 +334,25 @@ export default function Jobs() {
     setNotifications(prev=>prev.map(n=>({...n,read:true}))); setUnreadCount(0)
   }
 
+  // Experience level icons and colors
+  const expMeta = {
+    'All':       { icon: 'ti-users',        color: '#8b93b0' },
+    'Fresher':   { icon: 'ti-seedling',     color: '#00e5a0' },
+    'Junior':    { icon: 'ti-code',         color: '#3b82f6' },
+    'Mid-level': { icon: 'ti-settings',     color: '#f5a623' },
+    'Senior':    { icon: 'ti-crown',        color: '#7c6ff7' },
+  }
+
   return (
     <>
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
-  .dark-tiles{filter:invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.7);}
+        .dark-tiles{filter:invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.7);}
         .jobs-page{display:flex;height:calc(100vh - 52px);background:var(--bg);}
         .jobs-sidebar{width:200px;background:var(--bg2);border-right:1px solid var(--border);padding:1rem .85rem;overflow-y:auto;flex-shrink:0;}
         .side-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;padding:.25rem .4rem;}
-        .side-item{padding:.45rem .7rem;border-radius:8px;font-size:13px;color:var(--text2);cursor:pointer;margin-bottom:2px;transition:all .15s;}
+        .side-item{padding:.45rem .7rem;border-radius:8px;font-size:13px;color:var(--text2);cursor:pointer;margin-bottom:2px;transition:all .15s;display:flex;align-items:center;gap:.4rem;}
         .side-item:hover{background:rgba(0,229,160,0.08);color:var(--text);}
         .side-item.active{background:rgba(0,229,160,0.1);color:#00e5a0;font-weight:500;}
         .jobs-main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
@@ -377,9 +397,29 @@ export default function Jobs() {
         {view==='list' && (
           <div className="jobs-sidebar">
             <div className="side-label">Department</div>
-            {categories.map(c=><div key={c} className={`side-item ${category===c?'active':''}`} onClick={()=>{setCategory(c);fetchJobs(search,location,c)}}>{c}</div>)}
+            {categories.map(c=><div key={c} className={`side-item ${category===c?'active':''}`} onClick={()=>{setCategory(c);fetchJobs(search,location,c)}}>
+              {c}
+            </div>)}
+
             <div className="side-label" style={{marginTop:'1.25rem'}}>Type</div>
-            {types.map(t=><div key={t} className={`side-item ${type===t?'active':''}`} onClick={()=>setType(t)}>{t}</div>)}
+            {types.map(t=><div key={t} className={`side-item ${type===t?'active':''}`} onClick={()=>setType(t)}>
+              {t}
+            </div>)}
+
+            <div className="side-label" style={{marginTop:'1.25rem'}}>Experience</div>
+            {experiences.map(e => {
+              const meta = expMeta[e]
+              return (
+                <div key={e} className={`side-item ${experience===e?'active':''}`} onClick={()=>setExperience(e)}>
+                  <i className={`ti ${meta.icon}`} style={{fontSize:'13px',color:experience===e?'#00e5a0':meta.color,flexShrink:0}} aria-hidden="true"/>
+                  {e}
+                  {e==='Fresher' && <span style={{marginLeft:'auto',fontSize:'9px',padding:'1px 5px',borderRadius:'8px',background:'rgba(0,229,160,0.1)',color:'#00e5a0',fontWeight:700}}>0-1yr</span>}
+                  {e==='Junior' && <span style={{marginLeft:'auto',fontSize:'9px',padding:'1px 5px',borderRadius:'8px',background:'rgba(59,130,246,0.1)',color:'#3b82f6',fontWeight:700}}>1-3yr</span>}
+                  {e==='Mid-level' && <span style={{marginLeft:'auto',fontSize:'9px',padding:'1px 5px',borderRadius:'8px',background:'rgba(245,166,35,0.1)',color:'#f5a623',fontWeight:700}}>3-6yr</span>}
+                  {e==='Senior' && <span style={{marginLeft:'auto',fontSize:'9px',padding:'1px 5px',borderRadius:'8px',background:'rgba(124,111,247,0.1)',color:'#7c6ff7',fontWeight:700}}>6+yr</span>}
+                </div>
+              )
+            })}
           </div>
         )}
 
@@ -397,15 +437,20 @@ export default function Jobs() {
                   <i className="ti ti-x" style={{fontSize:'13px'}} aria-hidden="true"/> Clear AI match
                 </button>
               )}
+              {experience !== 'All' && (
+                <div style={{display:'flex',alignItems:'center',gap:'.3rem',padding:'3px 10px',borderRadius:'20px',background:`${expMeta[experience].color}15`,border:`0.5px solid ${expMeta[experience].color}40`,fontSize:'11px',fontWeight:700,color:expMeta[experience].color,whiteSpace:'nowrap'}}>
+                  <i className={`ti ${expMeta[experience].icon}`} style={{fontSize:'12px'}} aria-hidden="true"/>
+                  {experience}
+                  <button onClick={()=>setExperience('All')} style={{background:'none',border:'none',cursor:'pointer',color:expMeta[experience].color,display:'flex',alignItems:'center',padding:0,marginLeft:'2px'}}>
+                    <i className="ti ti-x" style={{fontSize:'11px'}} aria-hidden="true"/>
+                  </button>
+                </div>
+              )}
               <div className="jobs-count">{smartJobs?`${smartJobs.length} AI matched`:`${filtered.length} jobs`}</div>
-
-              {/* Alert button */}
               <button className={`icon-btn ${alertActive?'active':''}`} onClick={()=>setShowAlert(true)}>
                 <i className="ti ti-bell" aria-hidden="true"/>
                 {alertActive ? 'Alert on' : 'Set alert'}
               </button>
-
-              {/* Notifications */}
               <div style={{position:'relative'}}>
                 <button className="icon-btn" onClick={()=>setShowNotifs(v=>!v)}>
                   <i className="ti ti-inbox" aria-hidden="true"/>
@@ -429,8 +474,6 @@ export default function Jobs() {
                   </div>
                 )}
               </div>
-
-              {/* Tracker link */}
               <a href="/tracker" style={{display:'flex',alignItems:'center',gap:'.35rem',padding:'.38rem .75rem',borderRadius:'8px',border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.04)',color:'var(--text2)',fontSize:'12px',textDecoration:'none',whiteSpace:'nowrap',fontFamily:'Inter,sans-serif'}}>
                 <i className="ti ti-layout-kanban" style={{fontSize:'14px'}} aria-hidden="true"/>
                 Tracker
@@ -443,7 +486,6 @@ export default function Jobs() {
             </div>
           </div>
 
-          {/* AI Match Banner */}
           {view==='list' && !smartJobs && (
             <div className="ai-banner" onClick={()=>setShowMatch(true)} style={{margin:'0 1rem .5rem',background:'linear-gradient(135deg,rgba(0,229,160,0.06) 0%,rgba(0,196,132,0.04) 50%,rgba(0,229,160,0.06) 100%)',border:'1px solid rgba(0,229,160,0.25)',borderRadius:'16px',padding:'.9rem 1.25rem',cursor:'pointer',display:'flex',alignItems:'center',gap:'1rem',transition:'all .25s ease',position:'relative',overflow:'hidden',flexShrink:0,animation:'bannerGlow 3s ease-in-out infinite'}}>
               <div style={{position:'absolute',top:0,left:0,width:'40%',height:'100%',background:'linear-gradient(90deg,transparent,rgba(0,229,160,0.06),transparent)',animation:'bannerShimmer 3s ease-in-out infinite',pointerEvents:'none'}}/>
@@ -514,18 +556,18 @@ export default function Jobs() {
               ) : filtered.length===0 ? (
                 <div style={{textAlign:'center',color:'var(--text2)',padding:'3rem',fontSize:'14px'}}>
                   <i className="ti ti-search-off" style={{fontSize:'32px',display:'block',marginBottom:'.75rem',color:'var(--text3)'}} aria-hidden="true"/>
-                  No jobs found. Try a different search!
+                  No jobs found. Try a different search or experience level!
                 </div>
               ) : (
                 filtered.map((job,i)=>(
-                   <div key={job.id||i} className="job-card-wrap" onClick={()=>handleJobClick(job)} style={{position:"relative"}}>
-                     <JobCard job={job}/>
-                     <button onClick={e=>{e.stopPropagation();setTailorJob(job)}}
-                       style={{position:"absolute",bottom:".65rem",right:".65rem",display:"inline-flex",alignItems:"center",gap:".25rem",padding:".25rem .6rem",background:"rgba(124,111,247,0.12)",border:"0.5px solid rgba(124,111,247,0.3)",borderRadius:"6px",color:"#7c6ff7",fontSize:"11px",fontWeight:600,cursor:"pointer",fontFamily:"Inter,sans-serif",zIndex:2}}
-                       aria-label="Tailor resume for this job">
-                       <i className="ti ti-file-text" style={{fontSize:"12px"}} aria-hidden="true"/> Tailor
-                     </button>
-                   </div>
+                  <div key={job.id||i} className="job-card-wrap" onClick={()=>handleJobClick(job)} style={{position:"relative"}}>
+                    <JobCard job={job}/>
+                    <button onClick={e=>{e.stopPropagation();setTailorJob(job)}}
+                      style={{position:"absolute",bottom:".65rem",right:".65rem",display:"inline-flex",alignItems:"center",gap:".25rem",padding:".25rem .6rem",background:"rgba(124,111,247,0.12)",border:"0.5px solid rgba(124,111,247,0.3)",borderRadius:"6px",color:"#7c6ff7",fontSize:"11px",fontWeight:600,cursor:"pointer",fontFamily:"Inter,sans-serif",zIndex:2}}
+                      aria-label="Tailor resume for this job">
+                      <i className="ti ti-file-text" style={{fontSize:"12px"}} aria-hidden="true"/> Tailor
+                    </button>
+                  </div>
                 ))
               )}
             </div>
