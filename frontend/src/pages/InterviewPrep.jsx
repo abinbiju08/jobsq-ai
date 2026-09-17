@@ -31,6 +31,64 @@ const INTERVIEW_MODES = [
 
 const LEVELS = ['Fresher (0-1 yr)','Junior (1-3 yrs)','Mid (3-6 yrs)','Senior (6-10 yrs)','Lead / Manager']
 
+// Known tool URLs — matched by tool name
+const TOOL_URLS = {
+  'github copilot':        'https://github.com/features/copilot',
+  'amazon codewhisperer':  'https://aws.amazon.com/codewhisperer',
+  'tabnine':               'https://www.tabnine.com',
+  'sourcegraph cody':      'https://sourcegraph.com/cody',
+  'replit ai':             'https://replit.com',
+  'chatgpt':               'https://chat.openai.com',
+  'claude':                'https://claude.ai',
+  'gemini':                'https://gemini.google.com',
+  'midjourney':            'https://www.midjourney.com',
+  'dall-e':                'https://openai.com/dall-e-3',
+  'stable diffusion':      'https://stability.ai',
+  'cursor':                'https://cursor.sh',
+  'notion ai':             'https://www.notion.so/product/ai',
+  'grammarly':             'https://www.grammarly.com',
+  'jasper':                'https://www.jasper.ai',
+  'copy.ai':               'https://www.copy.ai',
+  'tableau':               'https://www.tableau.com',
+  'power bi':              'https://powerbi.microsoft.com',
+  'julius ai':             'https://julius.ai',
+  'obviously ai':          'https://www.obviously.ai',
+  'otter.ai':              'https://otter.ai',
+  'fireflies':             'https://fireflies.ai',
+  'perplexity':            'https://www.perplexity.ai',
+  'consensus':             'https://consensus.app',
+  'elicit':                'https://elicit.org',
+  'adobe firefly':         'https://firefly.adobe.com',
+  'canva ai':              'https://www.canva.com',
+  'figma ai':              'https://www.figma.com',
+  'runway':                'https://runwayml.com',
+  'synthesia':             'https://www.synthesia.io',
+  'eleven labs':           'https://elevenlabs.io',
+  'elevenlabs':            'https://elevenlabs.io',
+  'hubspot ai':            'https://www.hubspot.com',
+  'salesforce einstein':   'https://www.salesforce.com/artificial-intelligence',
+  'harvey':                'https://www.harvey.ai',
+  'clio':                  'https://www.clio.com',
+  'donotpay':              'https://donotpay.com',
+  'github actions':        'https://github.com/features/actions',
+  'vercel':                'https://vercel.com',
+  'aws':                   'https://aws.amazon.com',
+  'google cloud':          'https://cloud.google.com',
+  'azure':                 'https://azure.microsoft.com',
+}
+
+function getToolUrl(toolName) {
+  const lower = toolName.toLowerCase()
+  // exact match first
+  if (TOOL_URLS[lower]) return TOOL_URLS[lower]
+  // partial match
+  for (const [key, url] of Object.entries(TOOL_URLS)) {
+    if (lower.includes(key) || key.includes(lower)) return url
+  }
+  // fallback — google search
+  return `https://www.google.com/search?q=${encodeURIComponent(toolName + ' AI tool')}`
+}
+
 // ── RISK METER ────────────────────────────────────────────────────
 function RiskMeter({ pct, color }) {
   const r = 54, cx = 64, cy = 64
@@ -779,14 +837,17 @@ export default function InterviewPrep({ user }) {
                       {ciData.ai_tools?.map((tool,i)=>{
                         const priorityColor = tool.priority==='Must learn'?'#ff4d6d':tool.priority==='Good to know'?'#f5a623':'#8b93b0'
                         return (
-                          <div key={i} className="tool-card">
+                          <div key={i} className="tool-card" onClick={()=>window.open(getToolUrl(tool.name),'_blank')} style={{cursor:'pointer'}}>
                             <div style={{display:'flex',alignItems:'flex-start',gap:'.75rem'}}>
                               <div style={{width:'34px',height:'34px',borderRadius:'8px',background:'rgba(245,166,35,0.1)',border:'0.5px solid rgba(245,166,35,0.2)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:'16px',fontWeight:800,color:'#f5a623',fontFamily:'Inter,sans-serif'}}>
                                 {tool.name.charAt(0)}
                               </div>
                               <div style={{flex:1}}>
                                 <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'3px',flexWrap:'wrap'}}>
-                                  <span style={{fontSize:'13px',fontWeight:700,color:'var(--text)'}}>{tool.name}</span>
+                                  <span style={{fontSize:'13px',fontWeight:700,color:'var(--text)',display:'flex',alignItems:'center',gap:'.3rem'}}>
+                                    {tool.name}
+                                    <i className="ti ti-external-link" style={{fontSize:'11px',color:'var(--text3)'}} aria-hidden="true"/>
+                                  </span>
                                   <span style={{fontSize:'9px',padding:'1px 7px',borderRadius:'10px',background:`${priorityColor}14`,border:`0.5px solid ${priorityColor}30`,color:priorityColor,fontWeight:700}}>{tool.priority}</span>
                                   <span style={{fontSize:'10px',color:'var(--text3)',display:'flex',alignItems:'center',gap:'.2rem'}}>
                                     <i className="ti ti-clock" style={{fontSize:'11px'}} aria-hidden="true"/>{tool.time}
