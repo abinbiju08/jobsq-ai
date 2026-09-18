@@ -1,6 +1,4 @@
--- Run this in Supabase SQL Editor
 
--- Jobs table
 CREATE TABLE IF NOT EXISTS jobs (
   id BIGSERIAL PRIMARY KEY,
   title TEXT NOT NULL,
@@ -15,7 +13,6 @@ CREATE TABLE IF NOT EXISTS jobs (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Saved jobs table
 CREATE TABLE IF NOT EXISTS saved_jobs (
   id BIGSERIAL PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -36,11 +33,11 @@ CREATE TABLE IF NOT EXISTS profiles (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Enable Row Level Security
+
 ALTER TABLE saved_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
--- Policies
+
 CREATE POLICY "Users can manage own saved jobs" ON saved_jobs FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can manage own profile" ON profiles FOR ALL USING (auth.uid() = id);
 CREATE POLICY "Jobs are public" ON jobs FOR SELECT USING (true);
