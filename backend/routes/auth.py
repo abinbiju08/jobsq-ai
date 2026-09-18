@@ -17,7 +17,6 @@ async def face_login(req: FaceLoginRequest):
     try:
         async with httpx.AsyncClient() as client:
 
-            # Step 1: Get user email
             user_res = await client.get(
                 f"{SUPABASE_URL}/auth/v1/admin/users/{req.user_id}",
                 headers={
@@ -32,7 +31,6 @@ async def face_login(req: FaceLoginRequest):
             if not email:
                 return {"error": "No email found for user"}
 
-            # Step 2: Generate magic link
             link_res = await client.post(
                 f"{SUPABASE_URL}/auth/v1/admin/generate_link",
                 headers={
@@ -52,25 +50,19 @@ async def face_login(req: FaceLoginRequest):
 
             link_data = link_res.json()
 
-            # Extract token from action_link URL directly
             action_link = link_data.get("action_link", "")
 
-            # Parse token from the URL — it's in the fragment or query
-            # action_link looks like: https://xxx.supabase.co/auth/v1/verify?token=xxx&type=magiclink
             token = None
             if "token=" in action_link:
                 token = action_link.split("token=")[1].split("&")[0]
 
             if not token:
-                # Try hashed_token from properties
                 props = link_data.get("properties", {})
                 token = props.get("hashed_token") or props.get("token")
 
             if not token:
-                # Log full response for debugging
                 return {"error": "Could not extract token", "full_response": link_data}
 
-            # Step 3: Verify token to get session
             verify_res = await client.post(
                 f"{SUPABASE_URL}/auth/v1/verify",
                 headers={
@@ -94,7 +86,6 @@ async def face_login(req: FaceLoginRequest):
                     }
                 return {"error": "No access token", "data": data}
 
-            # Try with token directly (not token_hash)
             verify_res2 = await client.post(
                 f"{SUPABASE_URL}/auth/v1/verify",
                 headers={
