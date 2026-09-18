@@ -92,7 +92,7 @@ export default function FaceRegister({ onBack, onSuccess }) {
       if (!user) { setStep(5); setErrorMsg('Session expired. Please login again.'); return }
 
       const descriptor = Array.from(det.descriptor)
-      // Save face WITH email so we can sign in later
+     
       const { error } = await supabase.from('face_profiles').upsert({
         user_id: user.id,
         email: user.email,
