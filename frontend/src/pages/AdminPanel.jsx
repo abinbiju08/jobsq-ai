@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import AdminBroadcast from '../components/AdminBroadcast'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
-const ADMIN_EMAILS = ['abinbiju08@gmail.com'] // Add admin emails here
+const ADMIN_EMAILS = ['abinbiju08@gmail.com'] 
 
 export default function AdminPanel() {
   const [user, setUser]         = useState(null)
