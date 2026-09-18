@@ -25,17 +25,14 @@ def parse_json_safe(raw: str) -> dict:
     """Try multiple ways to extract JSON from model response"""
     raw = raw.strip()
 
-    # Strip thinking tags
     if '<think>' in raw:
         raw = raw.split('</think>')[-1].strip()
 
-    # Strip markdown code blocks
     if '```json' in raw:
         raw = raw.split('```json')[1].split('```')[0].strip()
     elif '```' in raw:
         raw = raw.split('```')[1].strip()
 
-    # Find JSON object in response
     start = raw.find('{')
     end = raw.rfind('}')
     if start != -1 and end != -1:
@@ -54,7 +51,6 @@ async def match_jobs(file: UploadFile = File(...)):
 
         print(f"Extracted {len(resume_text)} chars from resume")
 
-        # Try primary model
         analysis = None
         models_to_try = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
 
@@ -87,7 +83,6 @@ Resume text:
                 print(f"Model {model} failed: {e}")
                 continue
 
-        # Fallback if all models fail
         if not analysis:
             print("All models failed, using keyword extraction fallback")
             words = resume_text.lower().split()
@@ -101,7 +96,6 @@ Resume text:
                 "search_keywords": found_skills[:5]
             }
 
-        # Fetch jobs from Supabase
         result = supabase.table("jobs").select(
             "id,title,company,location,city,job_type,salary,category,posted_at,url,logo,description"
         ).order("created_at", desc=True).limit(100).execute()
