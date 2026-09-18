@@ -31,7 +31,6 @@ const INTERVIEW_MODES = [
 
 const LEVELS = ['Fresher (0-1 yr)','Junior (1-3 yrs)','Mid (3-6 yrs)','Senior (6-10 yrs)','Lead / Manager']
 
-// Known tool URLs — matched by tool name
 const TOOL_URLS = {
   'github copilot':        'https://github.com/features/copilot',
   'amazon codewhisperer':  'https://aws.amazon.com/codewhisperer',
@@ -79,20 +78,16 @@ const TOOL_URLS = {
 
 function getToolUrl(toolName) {
   const lower = toolName.toLowerCase()
-  // exact match first
   if (TOOL_URLS[lower]) return TOOL_URLS[lower]
-  // partial match
   for (const [key, url] of Object.entries(TOOL_URLS)) {
     if (lower.includes(key) || key.includes(lower)) return url
   }
-  // fallback — google search
   return `https://www.google.com/search?q=${encodeURIComponent(toolName + ' AI tool')}`
 }
 
-// ── RISK METER ────────────────────────────────────────────────────
 function RiskMeter({ pct, color }) {
   const r = 54, cx = 64, cy = 64
-  const circ = Math.PI * r  // half circle
+  const circ = Math.PI * r    
   const dash = (pct / 100) * circ
   return (
     <svg width="128" height="72" viewBox="0 0 128 80">
@@ -104,7 +99,6 @@ function RiskMeter({ pct, color }) {
   )
 }
 
-// ── MAIN COMPONENT ────────────────────────────────────────────────
 export default function InterviewPrep({ user }) {
   const [tab, setTab]           = useState(() => sessionStorage.getItem('interviewTab') || 'prep')
   const [step, setStep]         = useState('setup')  // setup | session | report
@@ -115,7 +109,6 @@ export default function InterviewPrep({ user }) {
   const [roleInput, setRoleInput] = useState('')
   const [showRoleDrop, setShowRoleDrop] = useState(false)
 
-  // Session state
   const [questions, setQuestions]   = useState([])
   const [currentQ, setCurrentQ]     = useState(0)
   const [answers, setAnswers]       = useState([])
@@ -125,13 +118,12 @@ export default function InterviewPrep({ user }) {
   const [sessionDone, setSessionDone] = useState(false)
   const [report, setReport]         = useState(null)
 
-  // Voice
+   
   const [listening, setListening]   = useState(false)
   const [speaking, setSpeaking]     = useState(false)
   const recRef = useRef(null)
   const listeningRef = useRef(false)
 
-  // Career Intelligence state
   const [ciRole, setCiRole]         = useState('')
   const [ciLoading, setCiLoading]   = useState(false)
   const [ciData, setCiData]         = useState(null)
@@ -139,7 +131,6 @@ export default function InterviewPrep({ user }) {
 
   const filteredRoles = ROLES.filter(r => r.toLowerCase().includes(roleInput.toLowerCase()))
 
-  // ── VOICE ─────────────────────────────────────────────────────
   function speak(text, onEnd) {
     if (!text) return
     window.speechSynthesis.cancel()
@@ -211,7 +202,6 @@ export default function InterviewPrep({ user }) {
       } else if (e.error === 'aborted') {
         setListening(false)
       } else if (e.error === 'no-speech') {
-        // silence detected — keep going
       } else {
         console.warn('Speech error:', e.error)
       }
@@ -242,7 +232,6 @@ export default function InterviewPrep({ user }) {
     setListening(false)
   }
 
-  // ── GENERATE QUESTIONS ─────────────────────────────────────────
   const startSession = async () => {
     if (!role || !mode) return
     setLoading(true); setStep('session')
@@ -273,7 +262,6 @@ export default function InterviewPrep({ user }) {
     setLoading(false)
   }
 
-  // ── SUBMIT ANSWER ──────────────────────────────────────────────
   const submitAnswer = async (ans) => {
     const answer = ans || currentAnswer
     if (!answer.trim()) return
@@ -304,7 +292,6 @@ export default function InterviewPrep({ user }) {
     setLoading(false)
   }
 
-  // ── NEXT QUESTION ──────────────────────────────────────────────
   const nextQuestion = () => {
     setFeedback(null)
     if (currentQ + 1 >= questions.length) {
@@ -315,7 +302,6 @@ export default function InterviewPrep({ user }) {
     }
   }
 
-  // ── FINISH & REPORT ────────────────────────────────────────────
   const finishSession = async () => {
     setSessionDone(true); setLoading(true); setStep('report')
     try {
@@ -343,7 +329,6 @@ export default function InterviewPrep({ user }) {
     setLoading(false)
   }
 
-  // ── CAREER INTELLIGENCE ────────────────────────────────────────
   const fetchCareerIntelligence = async (overrideRole) => {
     const searchRole = overrideRole || ciRole
     if (!searchRole.trim()) return
