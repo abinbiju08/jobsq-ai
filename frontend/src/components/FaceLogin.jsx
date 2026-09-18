@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import * as faceapi from 'face-api.js'
 
 const MODELS_URL = '/models'
-// Backend API URL
+
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 export default function FaceLogin({ onBack }) {
@@ -93,7 +93,7 @@ export default function FaceLogin({ onBack }) {
 
   async function matchAndLogin() {
     try {
-      // Get face descriptor
+      
       const det = await faceapi
         .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize:224, scoreThreshold:0.3 }))
         .withFaceLandmarks().withFaceDescriptor()
@@ -105,7 +105,7 @@ export default function FaceLogin({ onBack }) {
 
       setProgress(80)
 
-      // Get all face profiles from Supabase
+      e
       const { data: profiles, error } = await supabase
         .from('face_profiles')
         .select('descriptor, user_id, email')
@@ -118,7 +118,7 @@ export default function FaceLogin({ onBack }) {
 
       setProgress(88)
 
-      // Find best match
+     
       let bestMatch = null
       let bestDist = Infinity
 
@@ -131,7 +131,7 @@ export default function FaceLogin({ onBack }) {
       if (bestDist < 0.5 && bestMatch) {
         setProgress(95)
 
-        // Call our backend to get a session token for this user
+       
         const res = await fetch(`${API}/auth/face-login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -146,7 +146,7 @@ export default function FaceLogin({ onBack }) {
           return
         }
 
-        // Set the session from backend tokens
+        
         const { error: sessionErr } = await supabase.auth.setSession({
           access_token: data.access_token,
           refresh_token: data.refresh_token
@@ -158,7 +158,7 @@ export default function FaceLogin({ onBack }) {
         }
 
         setProgress(100); setStatus('success'); stopCamera()
-        // Redirect to home after brief success screen
+       
          setProgress(100); setStatus('success'); stopCamera()
       } else {
         setStatus('error')
