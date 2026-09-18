@@ -65,14 +65,11 @@ async def get_broadcasts(room: str = "all"):
 
     broadcasts = []
     for b in (result.data or []):
-        # Check not expired
         if b.get("expires_at") and b["expires_at"] < now:
             continue
-        # Check room matches
         rooms = b.get("rooms", ["all"])
         if "all" not in rooms and room not in rooms:
             continue
-        # Add type meta
         meta = TYPE_META.get(b["type"], TYPE_META["Announcement"])
         broadcasts.append({**b, **meta})
 
