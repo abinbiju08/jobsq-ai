@@ -28,7 +28,7 @@ function speak(text, onEnd) {
 
 export default function VoiceAssistant() {
   const [open, setOpen]           = useState(false)
-  const [state, setState]         = useState('idle') // idle | listening | thinking | speaking
+  const [state, setState]         = useState('idle') 
   const [transcript, setTranscript] = useState('')
   const [response, setResponse]   = useState('')
   const [history, setHistory]     = useState([])
