@@ -24,7 +24,6 @@ INDIA_CITIES = [
     "Kannur", "Palakkad", "Malappuram", "Kottayam", "Ernakulam",
 ]
 
-# City coordinate map for accurate map display
 CITY_COORDS = {
     "Bangalore":          (12.9716, 77.5946),
     "Bengaluru":          (12.9716, 77.5946),
@@ -152,11 +151,9 @@ def extract_city(location: str) -> str:
     if not location:
         return ""
     loc = location.lower()
-    # Check all known cities
     for city in INDIA_CITIES:
         if city.lower() in loc:
             return city
-    # Common aliases
     if "bengaluru" in loc: return "Bangalore"
     if "bombay" in loc:    return "Mumbai"
     if "madras" in loc:    return "Chennai"
@@ -165,7 +162,6 @@ def extract_city(location: str) -> str:
     if "ernakulam" in loc: return "Kochi"
     if "calicut" in loc:   return "Kozhikode"
     if "trivandrum" in loc: return "Thiruvananthapuram"
-    # Return empty string — let the map skip these instead of showing "India"
     return ""
 
 def get_coords(city: str):
@@ -185,21 +181,19 @@ def get_posted_at(posted_str: str) -> str:
     except:
         return "Recently"
 
-# ── SOURCE 1: Adzuna India ──────────────────────────────────────────
 async def fetch_adzuna(query: str, category: str) -> list:
     if not ADZUNA_APP_ID or not ADZUNA_APP_KEY:
         return []
     results = []
     try:
         async with httpx.AsyncClient() as client:
-            # Fetch 5 pages × 50 results = up to 250 jobs per query
             for page in range(1, 6):
                 res = await client.get(
                     f"https://api.adzuna.com/v1/api/jobs/in/search/{page}",
                     params={
                         "app_id":           ADZUNA_APP_ID,
                         "app_key":          ADZUNA_APP_KEY,
-                        "results_per_page": 50,   # max allowed by Adzuna
+                        "results_per_page": 50,   
                         "what":             query,
                         "content-type":     "application/json",
                     },
@@ -209,14 +203,14 @@ async def fetch_adzuna(query: str, category: str) -> list:
                     break
                 jobs = res.json().get("results", [])
                 if not jobs:
-                    break  # no more pages
+                    break  
                 for job in jobs:
                     location  = job.get("location", {})
                     area      = location.get("area", [])
                     city_raw  = " ".join(area) if area else ""
                     city      = extract_city(city_raw)
                     if not city:
-                        # Try display_name
+                       
                         city = extract_city(location.get("display_name", ""))
                     title   = job.get("title", "")
                     company = job.get("company", {}).get("display_name", "Company")
@@ -253,7 +247,6 @@ async def fetch_adzuna(query: str, category: str) -> list:
         print(f"    Adzuna error: {e}")
     return results
 
-# ── SOURCE 2: Remotive ──────────────────────────────────────────────
 async def fetch_remotive(query: str, category: str) -> list:
     results = []
     try:
@@ -291,7 +284,6 @@ async def fetch_remotive(query: str, category: str) -> list:
         print(f"    Remotive error: {e}")
     return results
 
-# ── SOURCE 3: Jobicy ────────────────────────────────────────────────
 async def fetch_jobicy(query: str, category: str) -> list:
     results = []
     try:
@@ -329,7 +321,6 @@ async def fetch_jobicy(query: str, category: str) -> list:
         print(f"    Jobicy error: {e}")
     return results
 
-# ── SOURCE 4: Technopark Kerala ─────────────────────────────────────
 async def fetch_technopark() -> list:
     results = []
     urls_to_try = [
@@ -415,7 +406,6 @@ async def fetch_technopark() -> list:
         print(f"    Technopark error: {e}")
     return results
 
-# ── SOURCE 5: Infopark Kerala ───────────────────────────────────────
 async def fetch_infopark() -> list:
     results = []
     coords = CITY_COORDS.get("Kochi")
@@ -462,7 +452,6 @@ async def fetch_infopark() -> list:
         print(f"    Infopark error: {e}")
     return results
 
-# ── MAIN SCRAPER ────────────────────────────────────────────────────
 async def scrape_and_save():
     print(f"\n🔄 Job scrape started at {datetime.now().strftime('%H:%M:%S')}...")
     total_saved = 0
@@ -491,7 +480,6 @@ async def scrape_and_save():
     print(f"    Got {len(infopark)} jobs")
     all_jobs.extend(infopark)
 
-    # Deduplicate by external_id first, then title+company
     seen_ids  = set()
     seen_keys = set()
     unique_jobs = []
@@ -508,7 +496,6 @@ async def scrape_and_save():
 
     print(f"  Total unique jobs: {len(unique_jobs)} (from {len(all_jobs)} raw)")
 
-    # Upsert to Supabase in batches of 50
     batch_size = 50
     for i in range(0, len(unique_jobs), batch_size):
         batch = unique_jobs[i:i+batch_size]
@@ -517,7 +504,6 @@ async def scrape_and_save():
             supabase.table("jobs").upsert(clean_batch, on_conflict="external_id").execute()
             total_saved += len(batch)
         except Exception as e:
-            # Fallback: save one by one
             for job in batch:
                 try:
                     clean = {k: v for k, v in job.items() if v is not None}
@@ -536,7 +522,6 @@ def start_scheduler():
     return scheduler
 
 
-# ── MANUAL TRIGGER ENDPOINT ─────────────────────────────────────────
 from fastapi import APIRouter as _APIRouter
 trigger_router = _APIRouter()
 
