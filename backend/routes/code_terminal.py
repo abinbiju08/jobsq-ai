@@ -10,10 +10,8 @@ router = APIRouter()
 
 supabase    = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_KEY"))
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-# XP per difficulty
 XP_MAP = { "beginner": 10, "intermediate": 25, "advanced": 50 }
 
-# Badge thresholds
 BADGES = [
     (0,   "Beginner",     "🌱"),
     (50,  "Apprentice",   "🔧"),
@@ -32,7 +30,6 @@ def get_badge(xp: int):
     return {"name": badge[1], "icon": badge[2], "xp": xp}
 
 
-# ─── MODELS ────────────────────────────────────────────
 
 class GenerateProblemRequest(BaseModel):
     role:       str
@@ -44,7 +41,7 @@ class RunCodeRequest(BaseModel):
     language:        str
     code:            str
     stdin:           str = ""
-    expected_output: str = ""  # for strict comparison
+    expected_output: str = "" 
 
 class SubmitSolutionRequest(BaseModel):
     user_id:    str
@@ -58,7 +55,6 @@ class GetScoresRequest(BaseModel):
     user_id: str
 
 
-# ─── ENDPOINTS ─────────────────────────────────────────
 
 @router.post("/generate-problem")
 async def generate_problem(data: GenerateProblemRequest):
@@ -112,7 +108,6 @@ REMEMBER: starter_code must be EMPTY skeleton only — no solution code at all."
         )
 
         raw = response.choices[0].message.content.strip()
-        # Strip markdown fences
         if "```" in raw:
             for part in raw.split("```"):
                 part = part.strip().lstrip("json").strip()
@@ -197,18 +192,15 @@ Never return "Accepted" if the code has errors or produces incorrect output."""
         status   = result.get("status", "Runtime Error")
         has_err  = bool(stderr) or status not in ("Accepted", "Wrong Answer")
 
-        # Strict output comparison against expected output
         passed = False
         if not has_err and stdout:
             if data.expected_output:
-                # Normalize both outputs for comparison (strip trailing whitespace/newlines)
                 actual   = stdout.strip().replace("\r\n", "\n").replace("\r", "\n")
                 expected = data.expected_output.strip().replace("\r\n", "\n").replace("\r", "\n")
                 passed = (actual == expected)
                 if not passed:
                     status = "Wrong Answer"
             else:
-                # No expected output provided — trust AI status but never auto-accept incomplete code
                 passed = (status == "Accepted") and not has_err and len(stdout) > 0
         elif has_err:
             passed = False
@@ -241,7 +233,6 @@ async def submit_solution(data: SubmitSolutionRequest):
         lang = data.language.lower()
         xp_earned = XP_MAP.get(data.difficulty.lower(), 10)
 
-        # Check if already submitted this problem
         existing = supabase.table("skill_scores").select("*")\
             .eq("user_id", data.user_id)\
             .eq("language", lang)\
@@ -251,7 +242,6 @@ async def submit_solution(data: SubmitSolutionRequest):
         if existing.data:
             return {"success": False, "message": "Already solved — no duplicate XP", "already_solved": True}
 
-        # Get current score
         current = supabase.table("skill_scores").select("*")\
             .eq("user_id", data.user_id)\
             .eq("language", lang)\
@@ -282,11 +272,9 @@ async def submit_solution(data: SubmitSolutionRequest):
 
         badge = get_badge(new_xp)
 
-        # Auto-save basic public profile if not exists (so user appears on leaderboard)
         try:
             existing_prof = supabase.table("public_profiles")                .select("user_id")                .eq("user_id", data.user_id)                .execute()
             if not existing_prof.data:
-                # Fetch email from auth
                 auth_user = supabase.auth.admin.get_user_by_id(data.user_id)
                 email = auth_user.user.email if auth_user and auth_user.user else ""
                 display_name = email.split("@")[0] if email else f"Coder#{data.user_id[:6]}"
@@ -301,7 +289,6 @@ async def submit_solution(data: SubmitSolutionRequest):
         except Exception as ep:
             print(f"Profile auto-create skipped: {ep}")
 
-        # Auto-save to public_profiles so user appears on leaderboard
         try:
             ep = supabase.table("public_profiles").select("user_id").eq("user_id", data.user_id).execute()
             if not ep.data:
@@ -350,7 +337,6 @@ async def get_skill_scores(user_id: str):
                 "last_solved_at":  row.get("last_solved_at"),
             }
 
-        # Fill in zeros for languages not yet attempted
         for lang in ['python', 'javascript', 'java', 'c++', 'sql']:
             if lang not in scores:
                 scores[lang] = {
