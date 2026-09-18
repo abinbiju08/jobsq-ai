@@ -99,7 +99,7 @@ export default function SkillGapModal({ job, userSkills, onClose, onTrack }) {
   const pct = analysis?.match_percentage || 0
   const pctColor = pct >= 70 ? '#00e5a0' : pct >= 40 ? '#f5a623' : '#ff4d6d'
 
-  // Only 2 tabs: Overview and Skills match (which contains everything)
+  
   const TABS = [
     { id:'overview', icon:'ti-info-circle', label:'Overview' },
     { id:'skills',   icon:'ti-brain',       label:'Skills match' },
