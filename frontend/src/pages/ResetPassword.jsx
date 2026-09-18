@@ -14,15 +14,11 @@ export default function ResetPassword() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Handle the token from the email reset link
-    // Supabase puts the token in the URL hash or query params
     const handleSession = async () => {
       try {
-        // Get hash from URL — Supabase puts access_token here
         const hash = window.location.hash
         const query = new URLSearchParams(window.location.search)
 
-        // Try to get session from URL hash (older Supabase)
         if (hash && hash.includes('access_token')) {
           const params = new URLSearchParams(hash.substring(1))
           const accessToken = params.get('access_token')
@@ -36,14 +32,12 @@ export default function ResetPassword() {
           }
         }
 
-        // Try query params (newer Supabase PKCE flow)
         const code = query.get('code')
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code)
           if (!error) { setSessionReady(true); setCheckingSession(false); return }
         }
 
-        // Try existing session
         const { data: { session } } = await supabase.auth.getSession()
         if (session) {
           setSessionReady(true)
@@ -58,7 +52,6 @@ export default function ResetPassword() {
 
     handleSession()
 
-    // Listen for auth state change (Supabase fires PASSWORD_RECOVERY event)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
         if (session) { setSessionReady(true); setCheckingSession(false) }
