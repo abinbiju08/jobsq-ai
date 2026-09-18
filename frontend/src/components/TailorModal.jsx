@@ -28,7 +28,7 @@ export default function TailorModal({ job, user, onClose }) {
       let response
 
       if (uploadFile) {
-        // User picked a file — always use upload endpoint directly
+        
         const form = new FormData()
         form.append('resume_file', uploadFile)
         form.append('job_title', job.title)
@@ -37,7 +37,7 @@ export default function TailorModal({ job, user, onClose }) {
         form.append('user_id', user.id)
         response = await fetch(`${API}/builder/tailor`, { method: 'POST', body: form })
       } else if (resumeInfo) {
-        // No file picked — use the saved resume from storage
+        
         let resumeText = ''
         try {
           const rtRes = await fetch(`${API}/builder/resume-text/${user.id}`)
@@ -102,7 +102,7 @@ export default function TailorModal({ job, user, onClose }) {
   const downloadDOCX = async () => {
     try {
       setResult(r => ({ ...r, docxLoading: true }))
-      // Use tailor-saved with output_format=docx — same AI call, no re-upload needed
+      
       let resumeText = ''
       try {
         const rtRes = await fetch(`${API}/builder/resume-text/${user.id}`)
