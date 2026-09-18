@@ -54,25 +54,24 @@ def clean_text(text: str) -> str:
     if not text:
         return ""
     replacements = {
-        '\u2022': '-',  # bullet •
-        '\u2023': '-',  # triangular bullet
-        '\u25aa': '-',  # black small square
-        '\u25a0': '-',  # black square
-        '\u25cf': '-',  # black circle
-        '\u2013': '-',  # en dash
-        '\u2014': '-',  # em dash
-        '\u2018': "'",  # left single quote
-        '\u2019': "'",  # right single quote
-        '\u201c': '"',  # left double quote
-        '\u201d': '"',  # right double quote
-        '\u00a0': ' ',  # non-breaking space
-        '\u2026': '...',# ellipsis
-        '\ufffd': '',   # replacement character
-        '\u200b': '',   # zero-width space
+        '\u2022': '-',  
+        '\u2023': '-', 
+        '\u25aa': '-', 
+        '\u25a0': '-',  
+        '\u25cf': '-',  
+        '\u2013': '-', 
+        '\u2014': '-',  
+        '\u2018': "'",  
+        '\u2019': "'",  
+        '\u201c': '"',  
+        '\u201d': '"',  
+        '\u00a0': ' ',  
+        '\u2026': '...',
+        '\ufffd': '',   
+        '\u200b': '',   
     }
     for char, replacement in replacements.items():
         text = text.replace(char, replacement)
-    # Remove any remaining non-latin characters that can't render
     result = ''
     for ch in text:
         if ord(ch) < 128 or ord(ch) in range(160, 256):
@@ -111,22 +110,19 @@ def generate_pdf(resume: dict, template: str) -> bytes:
         topMargin=1.5*cm, bottomMargin=1.5*cm
     )
 
-    W = A4[0] - 3.6*cm  # usable width
+    W = A4[0] - 3.6*cm  
 
     story = []
 
-    # ── HEADER ──────────────────────────────────────────────────
-    # Name
     story.append(Paragraph(
         f'<font size="22" color="#{r:02X}{g:02X}{b:02X}"><b>{clean_text(resume.get("full_name",""))}</b></font>',
         ParagraphStyle('name', fontName='Helvetica-Bold', fontSize=22, leading=26, spaceAfter=2)
     ))
-    # Role
+    
     story.append(Paragraph(
         f'<font size="12" color="#505050">{resume.get("target_role","")}</font>',
         ParagraphStyle('role', fontName='Helvetica', fontSize=12, leading=15, spaceAfter=4)
     ))
-    # Contact line
     contact_parts = [resume.get("email",""), resume.get("phone",""), resume.get("location",""),
                      resume.get("linkedin",""), resume.get("github","")]
     contact_str = "  |  ".join([clean_text(c) for c in contact_parts if c])
@@ -150,19 +146,16 @@ def generate_pdf(resume: dict, template: str) -> bytes:
                                   textColor=colors.Color(0.23,0.23,0.23), leftIndent=12,
                                   firstLineIndent=0, spaceAfter=2, bulletIndent=2)
 
-    # ── SUMMARY ──────────────────────────────────────────────────
     summary = clean_text(resume.get("professional_summary", ""))
     if summary:
         section_header("Professional Summary")
         story.append(Paragraph(summary, ParagraphStyle('sum', fontName='Helvetica', fontSize=10,
                     leading=15, textColor=colors.Color(0.23,0.23,0.23), alignment=TA_JUSTIFY, spaceAfter=4)))
 
-    # ── EXPERIENCE ────────────────────────────────────────────────
     experiences = resume.get("experience", [])
     if experiences:
         section_header("Work Experience")
         for exp in experiences:
-            # Role + Date on same row using table
             role_para = Paragraph(f'<b>{clean_text(exp.get("role",""))}</b>',
                 ParagraphStyle('er', fontName='Helvetica-Bold', fontSize=11, leading=14, textColor=dark))
             date_str = f'{exp.get("start","")} – {exp.get("end","")}'
@@ -176,18 +169,15 @@ def generate_pdf(resume: dict, template: str) -> bytes:
                                    ('TOPPADDING',(0,0),(-1,-1),2),
                                    ('BOTTOMPADDING',(0,0),(-1,-1),2)]))
             story.append(t)
-            # Company in accent color
             story.append(Paragraph(
                 f'<font size="10" color="#{r:02X}{g:02X}{b:02X}"><i>{clean_text(exp.get("company",""))}</i></font>',
                 ParagraphStyle('ec', fontName='Helvetica-Oblique', fontSize=10, leading=13,
                                textColor=accent, spaceAfter=3)))
-            # Bullets
             for bl in exp.get("bullets", []):
                 if bl and bl.strip():
                     story.append(Paragraph(f'- {clean_text(bl)}', bullet_style))
             story.append(Spacer(1, 6))
 
-    # ── EDUCATION ─────────────────────────────────────────────────
     educations = resume.get("education", [])
     if educations:
         section_header("Education")
@@ -210,7 +200,6 @@ def generate_pdf(resume: dict, template: str) -> bytes:
                 ParagraphStyle('ei', fontName='Helvetica', fontSize=10, leading=13,
                                textColor=gray, spaceAfter=6)))
 
-    # ── SKILLS ────────────────────────────────────────────────────
     tech  = resume.get("technical_skills", [])
     soft  = resume.get("soft_skills", [])
     if tech or soft:
@@ -223,7 +212,6 @@ def generate_pdf(resume: dict, template: str) -> bytes:
                 ParagraphStyle('ss', fontName='Helvetica', fontSize=10, leading=14,
                                textColor=colors.Color(0.23,0.23,0.23), spaceAfter=4)))
 
-    # ── PROJECTS ──────────────────────────────────────────────────
     projects = [p for p in resume.get("projects", []) if p.get("name","").strip()]
     if projects:
         section_header("Projects")
@@ -237,7 +225,6 @@ def generate_pdf(resume: dict, template: str) -> bytes:
                 ParagraphStyle('pt', fontName='Helvetica', fontSize=9.5, leading=13,
                                textColor=gray, spaceAfter=6)))
 
-    # ── CERTIFICATIONS ────────────────────────────────────────────
     certs = resume.get("certifications", [])
     if certs:
         section_header("Certifications")
@@ -245,7 +232,6 @@ def generate_pdf(resume: dict, template: str) -> bytes:
             story.append(Paragraph(f'- {clean_text(c)}', bullet_style))
         story.append(Spacer(1, 4))
 
-    # ── LANGUAGES ─────────────────────────────────────────────────
     langs = resume.get("languages", [])
     if langs:
         section_header("Languages")
@@ -284,20 +270,18 @@ def generate_docx(resume: dict, template: str) -> bytes:
         section.top_margin = Cm(1.5); section.bottom_margin = Cm(1.5)
         section.left_margin = Cm(2.0); section.right_margin = Cm(2.0)
 
-    # Name
+    
     p = doc.add_paragraph()
     p.paragraph_format.space_after = Pt(2)
     run = p.add_run(clean_text(resume.get("full_name","")).upper())
     run.bold = True; run.font.size = Pt(22)
     run.font.color.rgb = RGBColor(r, g, b)
 
-    # Role
     p = doc.add_paragraph()
     p.paragraph_format.space_after = Pt(3)
     run = p.add_run(resume.get("target_role",""))
     run.font.size = Pt(12); run.font.color.rgb = RGBColor(80,80,80)
 
-    # Contact
     contact_parts = [resume.get("email",""), resume.get("phone",""), resume.get("location",""),
                      resume.get("linkedin",""), resume.get("github","")]
     contact_str = "  |  ".join([clean_text(c) for c in contact_parts if c])
@@ -316,7 +300,6 @@ def generate_docx(resume: dict, template: str) -> bytes:
         run.font.color.rgb = RGBColor(r, g, b)
         add_hr(doc)
 
-    # Summary
     if resume.get("professional_summary"):
         section_heading("Professional Summary")
         p = doc.add_paragraph()
@@ -324,7 +307,6 @@ def generate_docx(resume: dict, template: str) -> bytes:
         run = p.add_run(resume["professional_summary"])
         run.font.size = Pt(10); run.font.color.rgb = RGBColor(60,60,60)
 
-    # Experience
     if resume.get("experience"):
         section_heading("Work Experience")
         for exp in resume["experience"]:
@@ -350,7 +332,6 @@ def generate_docx(resume: dict, template: str) -> bytes:
                     run = p.add_run(clean_text(bl))
                     run.font.size = Pt(10); run.font.color.rgb = RGBColor(60,60,60)
 
-    # Education
     if resume.get("education"):
         section_heading("Education")
         for edu in resume["education"]:
@@ -367,7 +348,6 @@ def generate_docx(resume: dict, template: str) -> bytes:
             run = p.add_run(f"{edu.get('institution','')}{gpa}")
             run.font.size = Pt(10); run.font.color.rgb = RGBColor(100,100,100)
 
-    # Skills
     tech = resume.get("technical_skills", [])
     soft = resume.get("soft_skills", [])
     if tech or soft:
@@ -385,7 +365,6 @@ def generate_docx(resume: dict, template: str) -> bytes:
             r2 = p.add_run(", ".join([clean_text(s) for s in soft]))
             r2.font.size = Pt(10); r2.font.color.rgb = RGBColor(60,60,60)
 
-    # Projects
     projects = [p for p in resume.get("projects", []) if p.get("name","").strip()]
     if projects:
         section_heading("Projects")
@@ -407,7 +386,6 @@ def generate_docx(resume: dict, template: str) -> bytes:
             r2 = p.add_run(proj.get("tech",""))
             r2.font.size = Pt(9.5); r2.font.color.rgb = RGBColor(100,100,100)
 
-    # Certifications
     if resume.get("certifications"):
         section_heading("Certifications")
         for c in resume["certifications"]:
@@ -416,7 +394,6 @@ def generate_docx(resume: dict, template: str) -> bytes:
             run = p.add_run(clean_text(c))
             run.font.size = Pt(10); run.font.color.rgb = RGBColor(60,60,60)
 
-    # Languages
     if resume.get("languages"):
         section_heading("Languages")
         p = doc.add_paragraph()
@@ -515,7 +492,6 @@ async def download_docx(data: dict):
         import traceback; traceback.print_exc()
         return {"error": str(e)}
 
-# ── UPLOAD & CONVERT EXISTING RESUME ─────────────────────────────
 from fastapi import UploadFile, File
 import PyPDF2
 
@@ -524,7 +500,6 @@ async def extract_resume(file: UploadFile = File(...)):
     """Extract info from uploaded resume PDF and return structured data"""
     try:
         content = await file.read()
-        # Extract text from PDF
         text = ""
         try:
             reader = PyPDF2.PdfReader(io.BytesIO(content))
@@ -606,7 +581,6 @@ Resume text:
         return {"success": False, "error": str(e)}
 
 
-# ── COVER LETTER GENERATION ──────────────────────────────────────
 class CoverLetterRequest(BaseModel):
     resume: dict
     company: str
@@ -760,7 +734,6 @@ async def download_cover_letter_pdf(data: dict):
                                     leading=16, textColor=dark, alignment=TA_JUSTIFY,
                                     spaceAfter=10)
 
-        # Split paragraphs and render
         for para in clean_text(text).split('\n\n'):
             para = para.strip()
             if not para:
@@ -802,7 +775,6 @@ async def download_cover_letter_docx(data: dict):
             section.top_margin = Cm(2); section.bottom_margin = Cm(2)
             section.left_margin = Cm(2.5); section.right_margin = Cm(2.5)
 
-        # Name
         p = doc.add_paragraph()
         p.paragraph_format.space_after = Pt(2)
         run = p.add_run(name)
@@ -815,7 +787,6 @@ async def download_cover_letter_docx(data: dict):
             run = p.add_run(f"Application for {job_title} — {company}")
             run.font.size = Pt(11); run.font.color.rgb = RGBColor(100, 100, 100)
 
-        # HR line
         p = doc.add_paragraph()
         p.paragraph_format.space_after = Pt(12)
         pPr = p._p.get_or_add_pPr()
@@ -828,7 +799,6 @@ async def download_cover_letter_docx(data: dict):
         pBdr.append(bottom)
         pPr.append(pBdr)
 
-        # Body paragraphs
         for para in text.split('\n\n'):
             para = para.strip()
             if not para:
