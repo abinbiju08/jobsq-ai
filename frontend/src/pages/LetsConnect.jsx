@@ -69,7 +69,6 @@ function colorForUser(name) {
   return colors[Math.abs(h) % colors.length]
 }
 
-// ── LEADERBOARD PANEL ─────────────────────────────────────────────
 function LeaderboardPanel({ onClose }) {
   const [leaderboard, setLeaderboard] = useState([])
   const [loading, setLoading]         = useState(true)
@@ -190,7 +189,6 @@ function LeaderboardPanel({ onClose }) {
   )
 }
 
-// ── CHAT ROOM ─────────────────────────────────────────────────────
 function ChatRoom({ room, user, onBack }) {
   const [messages, setMessages]     = useState([])
   const [editingId, setEditingId]   = useState(null)
@@ -499,7 +497,6 @@ function ChatRoom({ room, user, onBack }) {
   )
 }
 
-// ── ROOM LIST ─────────────────────────────────────────────────────
 export default function LetsConnect() {
   const [user, setUser]             = useState(null)
   const [activeRoom, setActiveRoom] = useState(null)
