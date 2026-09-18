@@ -181,7 +181,6 @@ async def analyze_skill_gap(data: dict):
         if not user_skills:
             return {"success": False, "error": "No skills provided. Please upload your resume first."}
 
-        # Strip HTML from job description
         job_description_clean = strip_html(job_description)
 
         prompt = f"""Analyze the skill gap between this candidate and job. Return ONLY valid JSON with NO markdown, NO extra text:
