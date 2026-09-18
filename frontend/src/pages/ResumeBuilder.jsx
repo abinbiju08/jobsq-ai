@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-// ── FIELD COMPONENTS ─────────────────────────────────────────────
 const Field = ({ label, value, onChange, placeholder, type = 'text' }) => (
   <div style={{ marginBottom: '.75rem' }}>
     <label style={{ fontSize:'11px', fontWeight:700, color:'var(--text3,#4a5168)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:'.35rem', display:'block' }}>{label}</label>
@@ -41,7 +40,6 @@ const DateField = ({ label, value, onChange }) => {
   )
 }
 
-// ── TEMPLATE PREVIEWS ─────────────────────────────────────────────
 const ModernCleanPreview = () => (
   <div style={{fontFamily:'Arial,sans-serif',fontSize:'6px',lineHeight:1.4,color:'#1a1a1a',background:'#fff',height:'100%',overflow:'hidden'}}>
     <div style={{background:'#00c484',padding:'10px 12px',marginBottom:'6px'}}>
@@ -139,7 +137,6 @@ const S = {
   label:    { fontSize:'11px', fontWeight:700, color:'var(--text3,#4a5168)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:'.35rem', display:'block' },
 }
 
-// ── LOADING OVERLAY ───────────────────────────────────────────────
 function LoadingOverlay({text}) {
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(6,9,20,0.92)',zIndex:999,display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(8px)'}}>
@@ -158,7 +155,6 @@ function LoadingOverlay({text}) {
   )
 }
 
-// ── TONE PICKER ───────────────────────────────────────────────────
 function TonePicker({ tone, setTone }) {
   return (
     <div style={{marginBottom:'1rem'}}>
@@ -175,7 +171,6 @@ function TonePicker({ tone, setTone }) {
   )
 }
 
-// ── RESUME UPLOAD BOX ─────────────────────────────────────────────
 function ResumeUploadBox({ onExtracted, label = 'Upload your existing resume (optional)' }) {
   const [file, setFile] = useState(null)
   const [uploading, setUploading] = useState(false)
@@ -244,7 +239,6 @@ function ResumeUploadBox({ onExtracted, label = 'Upload your existing resume (op
   )
 }
 
-// ── COVER LETTER RESULT ───────────────────────────────────────────
 function CoverLetterResult({ coverLetter, name, company, jobTitle, onBack, onRegenerate }) {
   const download = async (endpoint, filename) => {
     try {
@@ -300,7 +294,6 @@ function CoverLetterResult({ coverLetter, name, company, jobTitle, onBack, onReg
   )
 }
 
-// ── COVER LETTER ONLY PAGE (upload resume only, no manual) ────────
 function CoverLetterOnlyPage() {
   const [extractedData, setExtractedData] = useState(null)
   const [company, setCompany]   = useState('')
@@ -407,7 +400,6 @@ function CoverLetterOnlyPage() {
   )
 }
 
-// ── MAIN RESUME BUILDER ───────────────────────────────────────────
 export default function ResumeBuilder() {
   const navigate = useNavigate()
   const [tab, setTab]           = useState('resume')
@@ -423,7 +415,6 @@ export default function ResumeBuilder() {
   const [clCompany, setClCompany] = useState('')
   const [clJobTitle, setClJobTitle] = useState('')
 
-  // Form state
   const [form, setForm] = useState({ full_name:'', email:'', phone:'', location:'', linkedin:'', github:'', portfolio:'', target_role:'', years_experience:'', summary:'' })
   const [experiences, setExperiences] = useState([empty_exp()])
   const [education, setEducation]     = useState([empty_edu()])
@@ -439,7 +430,6 @@ export default function ResumeBuilder() {
   const updEdu = (i,k,v) => setEducation(ed=>ed.map((e,idx)=>idx===i?{...e,[k]:v}:e))
   const updProj = (i,k,v) => setProjects(ps=>ps.map((p,idx)=>idx===i?{...p,[k]:v}:p))
 
-  // Pre-fill from uploaded resume
   const prefillFromResume = (data) => {
     if (!data) return
     setForm({
@@ -549,10 +539,8 @@ export default function ResumeBuilder() {
     </div>
   )
 
-  // Route: Cover letter only tab
   if (tab==='cl-only') return <div style={S.page}><div style={S.wrap}><TabBar/><CoverLetterOnlyPage/></div></div>
 
-  // Route: Cover letter after resume generation
   if (showCLForm && result && !showCLResult) {
     const generateCL = async (company, jobTitle, jobDesc, highlight, tone) => {
       try {
@@ -577,7 +565,6 @@ export default function ResumeBuilder() {
     </div></div>
   )
 
-  // Resume result page (step 7)
   if (step===7 && result) {
     const tColors={modern:[0,196,132],professional:[30,58,95],executive:[26,26,46],minimal:[45,55,72],creative:[124,58,237],healthcare:[8,145,178]}
     const [r,g,b]=tColors[template?.id]||[0,196,132]
