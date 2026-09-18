@@ -19,9 +19,6 @@ supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 
-# ─────────────────────────────────────────────
-# PDF TEXT + URL EXTRACTION
-# ─────────────────────────────────────────────
 
 def extract_pdf_text(file_bytes: bytes) -> str:
     text = ""
@@ -78,9 +75,6 @@ def extract_pdf_text(file_bytes: bytes) -> str:
     return text.strip()
 
 
-# ─────────────────────────────────────────────
-# HELPERS
-# ─────────────────────────────────────────────
 
 def clean(text) -> str:
     if not text:
@@ -169,7 +163,6 @@ def filter_skills(skills: list) -> list:
             continue
         if len(s) < 2 or len(s) > 40:
             continue
-        # Allow if has special chars (C++, Node.js, etc), all caps acronym, or >= 2 chars tech name
         has_special = any(c in s for c in ['.', '+', '#', '/', '-'])
         is_acronym = s.isupper() and 2 <= len(s) <= 6
         if has_special or is_acronym or (len(s) >= 2 and not any(w in s_lower for w in BAD_SKILL_WORDS)):
@@ -178,9 +171,6 @@ def filter_skills(skills: list) -> list:
     return filtered
 
 
-# ─────────────────────────────────────────────
-# AI PROMPT
-# ─────────────────────────────────────────────
 
 def build_tailor_prompt(resume_text: str, job_title: str, job_description: str) -> str:
     return f"""You are a professional resume writer and ATS expert. Tailor the resume for the job below.
@@ -255,9 +245,6 @@ JSON FORMAT:
 }}"""
 
 
-# ─────────────────────────────────────────────
-# PDF GENERATOR
-# ─────────────────────────────────────────────
 
 def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes:
     buffer = io.BytesIO()
@@ -276,7 +263,6 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
     GREY    = colors.HexColor('#444444')
     LGREY   = colors.HexColor('#666666')
 
-    # ── Styles ──────────────────────────────────────────────
     name_s = ParagraphStyle('name',
         fontSize=18, fontName='Helvetica-Bold',
         textColor=DARK, spaceAfter=5, alignment=TA_CENTER,
@@ -340,15 +326,12 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
         if t:
             story.append(Paragraph(f'• {t}', bullet_s))
 
-    # ── NAME ────────────────────────────────────────────────
     story.append(Paragraph(clean(tailored.get('name', '')), name_s))
 
-    # ── CONTACT ─────────────────────────────────────────────
     contact = clean_contact(clean(tailored.get('contact', '')))
     if contact:
         story.append(Paragraph(contact, contact_s))
 
-    # ── LINKEDIN | GITHUB ───────────────────────────────────
     linkedin = clean(tailored.get('linkedin', ''))
     github   = clean(tailored.get('github', ''))
     links_parts = []
@@ -362,18 +345,15 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
     story.append(Spacer(1, 4))
     hr(thick=1.5, before=0, after=8)
 
-    # ── SUMMARY ─────────────────────────────────────────────
     summary = clean(tailored.get('summary', ''))
     if summary:
         section('PROFESSIONAL SUMMARY')
         story.append(Paragraph(summary, body_s))
         story.append(Spacer(1, 2))
 
-    # ── SKILLS ──────────────────────────────────────────────
     skills = filter_skills(tailored.get('skills', []))
     if skills:
         section('TECHNICAL SKILLS')
-        # 3-column table, even columns, no borders
         cols = 3
         rows = [skills[i:i+cols] for i in range(0, len(skills), cols)]
         while len(rows[-1]) < cols:
@@ -395,7 +375,6 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
         story.append(t)
         story.append(Spacer(1, 6))
 
-    # ── EXPERIENCE ──────────────────────────────────────────
     experience = tailored.get('experience', [])
     if experience:
         section('WORK EXPERIENCE')
@@ -426,7 +405,6 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
                 story.append(KeepTogether(block))
                 story.append(Spacer(1, 4))
 
-    # ── PROJECTS ────────────────────────────────────────────
     projects = tailored.get('projects', [])
     if projects:
         section('PROJECTS')
@@ -443,23 +421,17 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
             if isinstance(pbulls, str):
                 pbulls = [pbulls]
 
-            # Guard: if name is too long (fallback merged name+tech), split it
             if len(name_p) > 60:
-                # Try to split on | or — or : to get a shorter name
                 for sep in ['|', '—', ':', ' - ']:
                     if sep in name_p:
                         parts = name_p.split(sep, 1)
                         name_p = parts[0].strip()
-                        # Rest becomes tech if tech is empty
                         if not tech:
                             tech = parts[1].strip()
                         break
-                # Still too long — truncate
                 if len(name_p) > 60:
                     name_p = name_p[:57] + '...'
 
-            # Guard: if desc is very long, only show first sentence as desc,
-            # rest goes as a bullet so it renders in normal weight
             if len(desc) > 180:
                 sentences = desc.split('. ')
                 desc = sentences[0].strip()
@@ -483,7 +455,6 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
                 story.append(KeepTogether(block))
                 story.append(Spacer(1, 4))
 
-    # ── EDUCATION ───────────────────────────────────────────
     education = tailored.get('education', [])
     if education:
         section('EDUCATION')
@@ -502,7 +473,6 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
                 story.append(Paragraph(sub, jobsub_s))
             story.append(Spacer(1, 2))
 
-    # ── CERTIFICATIONS ──────────────────────────────────────
     certs = tailored.get('certifications', tailored.get('certificates', []))
     if certs:
         section('CERTIFICATIONS')
@@ -510,7 +480,6 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
             t = cert if isinstance(cert, str) else cert.get('name', str(cert))
             bullet(t)
 
-    # ── LANGUAGES ───────────────────────────────────────────
     langs = tailored.get('languages', [])
     if langs:
         section('LANGUAGES')
@@ -524,9 +493,6 @@ def generate_tailored_pdf(tailored: dict, job_title: str, company: str) -> bytes
     return buffer.getvalue()
 
 
-# ─────────────────────────────────────────────
-# DOCX GENERATOR (mirrors PDF exactly)
-# ─────────────────────────────────────────────
 
 def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> bytes:
     from docx import Document
@@ -621,17 +587,14 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
             borders.append(b)
         tbl_pr.append(borders)
 
-    # ── NAME ─────────────────────────────────────────
     name_p = p(align=WD_ALIGN_PARAGRAPH.CENTER, sb=0, sa=4)
     r(name_p, tailored.get('name', ''), bold=True, size=18, color=DARK)
 
-    # ── CONTACT ──────────────────────────────────────
     contact = clean_contact(clean(tailored.get('contact', '')))
     if contact:
         cp = p(align=WD_ALIGN_PARAGRAPH.CENTER, sa=3)
         r(cp, contact, size=9, color=GREY)
 
-    # ── LINKEDIN | GITHUB ────────────────────────────
     linkedin = clean(tailored.get('linkedin', ''))
     github   = clean(tailored.get('github', ''))
     links    = ' | '.join(filter(None, [
@@ -642,7 +605,6 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
         lp = p(align=WD_ALIGN_PARAGRAPH.CENTER, sa=6)
         r(lp, links, size=9, color=PURPLE)
 
-    # Divider line (simulate PDF thick HR)
     hr_p = doc.add_paragraph()
     hr_p.paragraph_format.space_before = Pt(2)
     hr_p.paragraph_format.space_after  = Pt(6)
@@ -656,14 +618,12 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
     pBdr.append(bot)
     pPr.append(pBdr)
 
-    # ── SUMMARY ──────────────────────────────────────
     summary = clean(tailored.get('summary', ''))
     if summary:
         section_heading('PROFESSIONAL SUMMARY')
         sp = p(sa=4)
         r(sp, summary, size=9.5, color=GREY)
 
-    # ── SKILLS ───────────────────────────────────────
     skills = filter_skills(tailored.get('skills', []))
     if skills:
         section_heading('TECHNICAL SKILLS')
@@ -686,7 +646,6 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
                 rn.font.color.rgb = GREY
         remove_table_borders(tbl)
 
-    # ── EXPERIENCE ───────────────────────────────────
     experience = tailored.get('experience', [])
     if experience:
         section_heading('WORK EXPERIENCE')
@@ -711,7 +670,6 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
             for b in bullets:
                 bullet(b)
 
-    # ── PROJECTS ─────────────────────────────────────
     projects = tailored.get('projects', [])
     if projects:
         section_heading('PROJECTS')
@@ -727,7 +685,6 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
             if isinstance(pbulls, str):
                 pbulls = [pbulls]
 
-            # Same guards as PDF — split long names
             if len(name_proj) > 60:
                 for sep in ['|', '—', ':', ' - ']:
                     if sep in name_proj:
@@ -759,7 +716,6 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
                 lnkp = p(sa=2)
                 r(lnkp, f'Link: {link}', size=9, color=LGREY)
 
-    # ── EDUCATION ────────────────────────────────────
     education = tailored.get('education', [])
     if education:
         section_heading('EDUCATION')
@@ -779,7 +735,6 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
                 ep = p(sa=2)
                 r(ep, sub, size=9, color=LGREY)
 
-    # ── CERTIFICATIONS ───────────────────────────────
     certs = tailored.get('certifications', tailored.get('certificates', []))
     if certs:
         section_heading('CERTIFICATIONS')
@@ -787,7 +742,6 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
             t = cert if isinstance(cert, str) else cert.get('name', str(cert))
             bullet(t)
 
-    # ── LANGUAGES ────────────────────────────────────
     langs = tailored.get('languages', [])
     if langs:
         section_heading('LANGUAGES')
@@ -805,9 +759,6 @@ def generate_tailored_docx(tailored: dict, job_title: str, company: str) -> byte
 
 
 
-# ─────────────────────────────────────────────
-# PROJECTS FALLBACK EXTRACTOR
-# ─────────────────────────────────────────────
 
 def sanitize_projects(projects: list) -> list:
     """
@@ -833,19 +784,15 @@ def sanitize_projects(projects: list) -> list:
         sl = s.strip().lower()
         if sl in TECH_ONLY_WORDS:
             return False
-        # Sentences start with lowercase continuation words or end with punctuation
         bad_starts = re.compile(r'^(with |and |using |approximately |below |about |the |a |an |to |for |in |of |that |this |which |•|-|achieving|integrating|improving|reducing|automate|streamline)', re.IGNORECASE)
         if bad_starts.match(s.strip()):
             return False
-        # Very long = sentence, not title
         if len(s) > 70:
             return False
-        # Ends with period/comma = sentence fragment
         if s.rstrip().endswith(('.', ',', 'and')):
             return False
         return True
 
-    # Pass 1: merge entries where name is a sentence continuation
     merged = []
     for proj in projects:
         if not isinstance(proj, dict):
@@ -856,8 +803,6 @@ def sanitize_projects(projects: list) -> list:
         link = clean(proj.get('link', proj.get('url', '')))
         bullets = list(proj.get('bullets', []))
 
-        # FIRST: try to split name on separator BEFORE checking if it's a title
-        # This handles "App Name | React Django Python" pattern
         for sep in [' | ', ' — ', ' – ', ' - ']:
             if sep in name:
                 parts = name.split(sep, 1)
@@ -871,7 +816,6 @@ def sanitize_projects(projects: list) -> list:
         if looks_like_title(name):
             merged.append({'name': name, 'tech': tech, 'description': desc, 'link': link, 'bullets': bullets})
         else:
-            # Continuation — append content to previous project
             if merged:
                 prev = merged[-1]
                 combined = ' '.join(filter(None, [name, desc])).strip()
@@ -884,7 +828,6 @@ def sanitize_projects(projects: list) -> list:
                 if tech and not prev['tech']:
                     prev['tech'] = tech
 
-    # Pass 1b: absorb any tech-word-only names into previous project
     absorbed = []
     for proj in merged:
         if proj['name'].strip().lower() in TECH_ONLY_WORDS and absorbed:
@@ -900,7 +843,6 @@ def sanitize_projects(projects: list) -> list:
             absorbed.append(proj)
     merged = absorbed
 
-    # Pass 2: clean up each merged project
     result = []
     for proj in merged:
         name = proj['name'].strip()
@@ -909,40 +851,31 @@ def sanitize_projects(projects: list) -> list:
         link = proj['link'].strip()
         raw_bullets = [clean(str(b)).lstrip('-•* ').strip() for b in proj['bullets'] if b]
 
-        # Remove trailing punctuation from name
         name = name.rstrip('.,;:')
 
-        # Fix desc starting lowercase (AI truncation) — capitalise first letter
         if desc and desc[0].islower():
             desc = desc[0].upper() + desc[1:]
 
-        # Cap description at 160 chars cleanly
         if len(desc) > 160:
             desc = desc[:157].rsplit(' ', 1)[0] + '...'
 
-        # Clean bullets — filter out junk
         seen_b = set()
         clean_bullets = []
         for b in raw_bullets:
-            b = b.strip().rstrip('.,;')  # strip trailing punctuation
+            b = b.strip().rstrip('.,;')  
             bl = b.lower()
-            # Skip: too short, duplicate, same as desc, pure continuation fragments
+           
             if len(b) < 8:
                 continue
             if bl in seen_b:
                 continue
             if b.lower() == desc.lower():
                 continue
-            # Skip continuation fragments — starts mid-sentence (lowercase after period context)
-            # or starts with connector words
             if re.match(r'^(such as|as well|and |or |but |with |for |in |to |the |a |an |make |reduce |process|improve|streamline|automate)', b, re.IGNORECASE):
                 continue
-            # Skip if bullet is just a phrase ending with a noun/gerund but no real action
-            # (fragment like "driver fatigue." or "processes." or "canteen ordering workflow...")
             words = b.split()
             if len(words) <= 4 and b.endswith('.'):
                 continue
-            # Skip if first word is lowercase (mid-sentence continuation)
             if words and words[0][0].islower():
                 continue
             clean_bullets.append(b)
@@ -1005,8 +938,6 @@ def extract_projects_from_resume(resume_text: str) -> list:
         is_bullet = stripped.startswith(('-', '•', '*', '–'))
 
         if not is_bullet:
-            # Could be a project title or tech line
-            # Tech line: short, contains commas or known tech separators, no verb
             looks_like_tech = (
                 ',' in stripped or
                 re.match(r'^[A-Za-z0-9#+.\-\s]{3,60}$', stripped) and
@@ -1016,7 +947,6 @@ def extract_projects_from_resume(resume_text: str) -> list:
             if current and looks_like_tech and not current['tech']:
                 current['tech'] = stripped
             else:
-                # New project title
                 if current:
                     projects.append(current)
                 current = {'name': stripped, 'tech': '', 'description': '', 'link': '', 'bullets': []}
@@ -1039,9 +969,6 @@ def extract_projects_from_resume(resume_text: str) -> list:
     return projects
 
 
-# ─────────────────────────────────────────────
-# SHARED TAILOR LOGIC
-# ─────────────────────────────────────────────
 
 def run_tailor_ai(resume_text: str, job_title: str, job_description: str):
     """Run AI tailoring and return (tailored_dict, keywords_added, interview_kws, orig_score, tailored_score)"""
@@ -1072,7 +999,6 @@ def run_tailor_ai(resume_text: str, job_title: str, job_description: str):
     keywords_added       = filter_skills(tailored.get('keywords_added', []))
     interview_kws        = tailored.get('interview_keywords', list(missing)[:8])
 
-    # Projects fallback — if AI returned empty projects, extract server-side
     if not tailored.get('projects'):
         print("AI returned no projects — running server-side extraction fallback")
         raw = extract_projects_from_resume(resume_text)
@@ -1082,7 +1008,6 @@ def run_tailor_ai(resume_text: str, job_title: str, job_description: str):
         tailored['projects'] = sanitize_projects(tailored['projects'])
 
     print(f"Final projects ({len(tailored['projects'])}): {[p.get('name','?') for p in tailored['projects']]}")
-    # Filter interview_kws — remove generic words
     interview_kws        = [k for k in interview_kws if len(k) > 1 and k.lower() not in BAD_SKILL_WORDS][:8]
 
     tailored_kws    = extract_keywords(json.dumps(tailored))
@@ -1104,9 +1029,6 @@ def make_headers(filename, keywords_added, interview_kws, orig_score, tailored_s
     }
 
 
-# ─────────────────────────────────────────────
-# PYDANTIC MODELS
-# ─────────────────────────────────────────────
 
 class TailorSavedRequest(BaseModel):
     user_id: str
@@ -1117,9 +1039,6 @@ class TailorSavedRequest(BaseModel):
     output_format: str = "pdf"   # "pdf" or "docx"
 
 
-# ─────────────────────────────────────────────
-# ENDPOINTS
-# ─────────────────────────────────────────────
 
 @router.post("/tailor")
 async def tailor_resume(
