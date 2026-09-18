@@ -97,14 +97,14 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
   const currentDiff  = DIFFICULTIES.find(d => d.id === difficulty)
   const currentScore = scores[lang] || { xp: 0, problems_solved: 0 }
 
-  // Load scores on mount — always use supabase session directly
+  
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user: u } }) => {
       if (u?.id) fetchScores(u.id)
     })
-  }, [])  // only on mount
+  }, [])  
 
-  // Update displayXP whenever scores or lang changes
+  
   useEffect(() => {
     const xp = scores[lang]?.xp ?? 0
     console.log('displayXP update — lang:', lang, 'xp:', xp, 'scores:', scores)
@@ -212,7 +212,7 @@ export default function CodeTerminal({ user, role = 'Full Stack Developer' }) {
       if (data.success) {
         setSolved(true)
         setPrevXP(scores[lang]?.xp || 0)
-        // Directly set displayXP from API response — don't wait for fetchScores
+       
         setDisplayXP(data.total_xp || 0)
         await fetchScores()
         setXpPopup({ xp: data.xp_earned, badge: data.badge, message: data.message, total: data.total_xp })
