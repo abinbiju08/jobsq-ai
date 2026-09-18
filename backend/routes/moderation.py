@@ -10,7 +10,6 @@ router = APIRouter()
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_KEY"))
 
-# Basic bad word list as first fast filter
 BAD_WORDS = [
     "fuck","shit","bitch","asshole","bastard","damn","crap","dick","pussy",
     "nigger","nigga","faggot","slut","whore","cunt","idiot","stupid","retard",
@@ -69,7 +68,6 @@ Allow messages that are:
         raw = response.choices[0].message.content.strip()
         if '<think>' in raw:
             raw = raw.split('</think>')[-1].strip()
-        # Extract JSON
         import json
         start = raw.find('{')
         end = raw.rfind('}')
@@ -83,9 +81,7 @@ Allow messages that are:
 @router.post("/check")
 async def check_message(req: ModerateRequest):
     """Check if message is appropriate before saving"""
-    # Step 1: Quick bad word filter
     if quick_filter(req.message):
-        # Log blocked message
         try:
             supabase.table("blocked_messages").insert({
                 "user_id": req.user_id,
@@ -97,7 +93,6 @@ async def check_message(req: ModerateRequest):
         except: pass
         return {"allowed": False, "reason": "Please keep the conversation respectful and professional."}
 
-    # Step 2: AI moderation for edge cases
     result = await ai_moderate(req.message)
     if not result.get("allowed", True):
         try:
