@@ -7,8 +7,8 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [tab, setTab] = useState('email') // email | face
-  const [mode, setMode] = useState('login') // login | forgot | forgot_sent
+  const [tab, setTab] = useState('email')    
+  const [mode, setMode] = useState('login')   
   const canvasRef = useRef(null)
 
   useEffect(() => {
