@@ -48,7 +48,6 @@ const CITY_IMPORTANCE = {
   'Guwahati':20,'Dehradun':15,'default':10
 }
 
-// Keywords for experience level matching
 const EXP_KEYWORDS = {
   'Fresher':   ['fresher','freshers','fresh graduate','entry level','entry-level','0-1','0 to 1','no experience','trainee','intern','apprentice','graduate trainee','campus hire'],
   'Junior':    ['junior','jr.','jr ','1-3 years','1 to 3','associate','1+ year','2+ year','early career'],
@@ -334,7 +333,6 @@ export default function Jobs() {
     setNotifications(prev=>prev.map(n=>({...n,read:true}))); setUnreadCount(0)
   }
 
-  // Experience level icons and colors
   const expMeta = {
     'All':       { icon: 'ti-users',        color: '#8b93b0' },
     'Fresher':   { icon: 'ti-seedling',     color: '#00e5a0' },
