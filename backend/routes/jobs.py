@@ -44,17 +44,13 @@ async def get_map_counts(
     try:
         query = supabase.table("jobs").select("city, latitude, longitude, title")
 
-        # Filter by role — use full phrase for accurate map counts
         if role and role.strip() and role.lower() not in ["all", ""]:
             role_clean = role.strip()
-            # Try full phrase first, then fall back to most specific word
             key_words = [w for w in role_clean.split() if len(w) > 3 and w.lower() not in
                          {"developer","engineer","manager","analyst","senior","junior","lead","india"}]
             if key_words:
-                # Use the most specific keyword (e.g. "Python", "React", "Flutter")
                 query = query.ilike("title", f"%{key_words[0]}%")
             else:
-                # Fall back to full phrase
                 query = query.ilike("title", f"%{role_clean}%")
 
         if state and state.strip():
@@ -62,7 +58,6 @@ async def get_map_counts(
 
         result = query.execute()
 
-        # Build city counts AND include coordinates
         city_data = {}
         skip = {"none", "remote", "", "india", "worldwide", "global", "anywhere", "not specified"}
 
@@ -75,12 +70,10 @@ async def get_map_counts(
             if city not in city_data:
                 city_data[city] = {"count": 0, "lat": lat, "lng": lng}
             city_data[city]["count"] += 1
-            # Update coords if missing
             if not city_data[city]["lat"] and lat:
                 city_data[city]["lat"] = lat
                 city_data[city]["lng"] = lng
 
-        # Format response
         cities = [
             {
                 "city":  city,
@@ -91,13 +84,12 @@ async def get_map_counts(
             for city, data in city_data.items()
             if data["count"] > 0
         ]
-        # Sort by count descending
         cities.sort(key=lambda x: x["count"], reverse=True)
 
         return {
             "total":   len(result.data),
             "by_city": {c["city"]: c["count"] for c in cities},
-            "cities":  cities,   # includes lat/lng for map pins
+            "cities":  cities,   
             "role":    role or "all",
         }
     except Exception as e:
