@@ -29,7 +29,7 @@ export default function Home() {
     }
   }
 
-   // Soft tick sound — short sine burst, very quick decay
+   
   function playChime(cardColor) {
     try {
       if (!audioCtxRef.current) {
