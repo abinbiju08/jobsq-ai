@@ -82,7 +82,7 @@ export default function FaceLogin({ onBack }) {
           setStatus('matching'); setProgress(70)
           await matchAndLogin()
         }
-      } catch(e) {}
+      } catch(e) { console.error('liveness error:', e) }
 
       if (attempts > 100 && !passedRef.current) {
         clearInterval(detRef.current)
@@ -165,8 +165,9 @@ export default function FaceLogin({ onBack }) {
         setErrorMsg(`Face not recognised (score: ${bestDist.toFixed(2)}). Please try again or use email login.`)
       }
     } catch(e) {
-      setStatus('error'); setErrorMsg('Error: ' + e.message)
-    }
+  console.error('matchAndLogin error:', e)
+  setStatus('error'); setErrorMsg('Error: ' + (e?.message || String(e)))
+}
   }
 
   const statusColors = {
