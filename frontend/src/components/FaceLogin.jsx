@@ -93,7 +93,6 @@ export default function FaceLogin({ onBack }) {
 
   async function matchAndLogin() {
     try {
-      
       const det = await faceapi
         .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize:224, scoreThreshold:0.3 }))
         .withFaceLandmarks().withFaceDescriptor()
@@ -105,12 +104,11 @@ export default function FaceLogin({ onBack }) {
 
       setProgress(80)
 
-      e
-      const { data: profiles, error } = await supabase
+      const { data: profiles, error: profilesError } = await supabase
         .from('face_profiles')
         .select('descriptor, user_id, email')
 
-      if (error || !profiles?.length) {
+      if (profilesError || !profiles?.length) {
         setStatus('error')
         setErrorMsg('No registered faces found. Please register your face from Profile settings first.')
         return
@@ -118,7 +116,6 @@ export default function FaceLogin({ onBack }) {
 
       setProgress(88)
 
-     
       let bestMatch = null
       let bestDist = Infinity
 
@@ -131,7 +128,6 @@ export default function FaceLogin({ onBack }) {
       if (bestDist < 0.5 && bestMatch) {
         setProgress(95)
 
-       
         const res = await fetch(`${API}/auth/face-login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -146,7 +142,6 @@ export default function FaceLogin({ onBack }) {
           return
         }
 
-        
         const { error: sessionErr } = await supabase.auth.setSession({
           access_token: data.access_token,
           refresh_token: data.refresh_token
@@ -158,16 +153,14 @@ export default function FaceLogin({ onBack }) {
         }
 
         setProgress(100); setStatus('success'); stopCamera()
-       
-         setProgress(100); setStatus('success'); stopCamera()
       } else {
         setStatus('error')
         setErrorMsg(`Face not recognised (score: ${bestDist.toFixed(2)}). Please try again or use email login.`)
       }
     } catch(e) {
-  console.error('matchAndLogin error:', e)
-  setStatus('error'); setErrorMsg('Error: ' + (e?.message || String(e)))
-}
+      console.error('matchAndLogin error:', e)
+      setStatus('error'); setErrorMsg('Error: ' + (e?.message || String(e)))
+    }
   }
 
   const statusColors = {
